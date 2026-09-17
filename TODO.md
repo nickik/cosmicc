@@ -57,7 +57,7 @@ A milestone is complete only when its stated evidence is present.
 ### Still intentionally incomplete
 
 - [ ] SIA code has not executed in LightingSimulation.
-- [ ] The real board-composed Lighting CPU-execution path is an upstream prerequisite: Lighting M6.5 (`run a small SIA program through LightingBoardMachine`) is not complete. The `siaemu` reference interpreter is useful ISA evidence but must not satisfy this board-path acceptance item.
+- [ ] **M4 board-runner interface blocker:** LightingSimulation M6.5 is now merged at [`c51b7f178599c165b83412f683afa1a73df071a5`](https://github.com/nickik/LightingSimulation/tree/c51b7f178599c165b83412f683afa1a73df071a5) and proves `SoftwareCpuBoard → MainboardFPGA → backend` composition. Its public surface exposes low-level `LightingBoardMachine::load_word`, CPU construction, and snapshots, but no stable runner that accepts arbitrary native code bytes, an external register image, an expected return boundary, and bounded execution diagnostics. Cosmic C must not assemble a private test transport around those internals. Minimal required Lighting change: a public, dependency-neutral SIA32 board-call API that loads word-aligned native bytes at an explicit address; initializes PC plus `r1–r6` and `r14`; clocks the composed board to the return boundary/trap/cycle limit; returns `r1`; and reports code, PC, registers, cycles, board-memory transactions, trace, and fault/trap state. `siaemu` and host execution remain non-acceptance evidence.
 - [ ] **Blocked comparison/branch slice:** the pinned `nickik/crainlift` revision [`2ae7419c32bbf565c60e04c6730a39610cec4e8b`](https://github.com/nickik/crainlift/tree/2ae7419c32bbf565c60e04c6730a39610cec4e8b) lowers `jump`/`brif`, and SIA has `cmpeq`/`cmplt`/`cmpltu` encodings, but its SIA32 `lower.isle` has no `icmp` (or boolean materialization) rule. Cosmic C must not hand-encode or emulate comparisons. Minimal required upstream capability: I32 signed/unsigned CLIF comparison lowering (`eq`, `ne`, `<`, `<=`, `>`, `>=`) with an explicit canonical integer-boolean result usable by `brif` and C `int` returns. Do not modify that dependency from this repository; repin only after it is provided and proven upstream.
 - [ ] There is no relocatable Cosmic object, relocation model, linker, image/module integration, or multi-translation-unit support.
 - [ ] Integer control flow, memory, globals, calls, aggregate layout/ABI, and normal preprocessor/driver behavior remain incomplete.
@@ -145,7 +145,7 @@ A milestone is complete only when its stated evidence is present.
 
 - [x] Define and test strict `COSMIC-SIA` bundle decoding plus an external call plan: code bytes, 2-byte entry address, `r1–r6` arguments, `lr` return boundary, and bounded failure context.
 - [ ] Build a minimal bridge from `COSMIC-SIA` function bytes to the LightingSimulation SIA execution harness; do not substitute a host interpreter/JIT.
-- [ ] Consume the call plan from Lighting's board-composed CPU path after M6.5 is available; do not count `siaemu` reference-interpreter execution as this result.
+- [ ] Consume the call plan through Lighting M6.5's public board-call runner once it exists; M6.5 composition alone is insufficient because the merged `c51b7f1` API has no stable arbitrary-code/register/return-boundary invocation seam. Do not count `siaemu` reference-interpreter execution as this result.
 - [ ] Execute `int add(int,int)` and prove `add(2,3)=5`, `add(0,0)=0`, and wraparound `add(0xffffffff,1)=0`.
 - [ ] Execute representative scalar, branch/loop, stack-local, load/store, and direct-call programs on Lighting.
 - [ ] Record PC, registers, memory, trap/fault state, and code bytes on every failure so failures are triageable across Cosmic C, Cranelift, and Lighting.
@@ -231,4 +231,4 @@ Each item needs a separately approved ABI, object/runtime, compiler, and Lightin
 
 ## Recommended next major step
 
-**M4 prerequisite: complete Lighting M6.5's board-composed CPU execution seam, then consume the prepared `COSMIC-SIA` call plan there.** This enables the first genuine `add` execution proof without treating `siaemu` or a host fallback as acceptance. While that upstream seam is unavailable, keep Cosmic C changes limited to strict bundle/ABI boundary validation; do not claim M4 complete.
+**M4 prerequisite: consume the prepared `COSMIC-SIA` call plan through a public Lighting board-call runner.** M6.5 composition is complete at `c51b7f1`, but Cosmic C needs the explicit arbitrary-code/register/return-boundary invocation API documented above. Once Lighting publishes it, add the Cosmic C-side adapter and execute `add`; until then, do not invent transport, use `siaemu`, or claim M4 complete.
