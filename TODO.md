@@ -1,101 +1,227 @@
-# Cosmic C TODO
+# Cosmic C roadmap
 
-This roadmap makes Cosmic C the maintained C frontend for the Cosmic OS toolchain:
+Cosmic C is the maintained, Rust-written C compiler for Cosmic OS.  Its production route is:
 
 ```text
-C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA32 → COSMIC-SIA bundle → relocatable Cosmic object → Cosmic image → LightingSimulation
+C source → preprocessor → typed HIR → CLIF → Cranelift SIA32
+         → Cosmic relocatable object → Cosmic image/module → LightingSimulation
 ```
 
-## Non-negotiable contracts
+The first merged implementation proves the beginning of that route: it parses C and emits native SIA32 instruction bytes through the real Cranelift SIA backend.  It is not yet a generally usable C compiler or a loadable Cosmic object producer.
 
-- Reuse `nickik/crainlift`'s SIA32 `LowerBackend → ISLE → MachInst → VCode → regalloc2 → emitter` path. Do not introduce a second direct SIA code generator.
-- Current concrete triple is `sia32-unknown-none`; it uses the Cosmic SIA ABI: 32-bit little-endian pointers, `r0` hard-wired zero, `r1–r6` arguments, `r1` scalar return, 8-byte stack alignment, no red zone. The Cosmic object/image label follows its object-format definition.
-- Initial target is freestanding. No LLVM, hosted libc, host linker, TLS, unwinding, SIMD, floating point, I64/`long long`, or target varargs.
-- Unsupported source must fail with a precise diagnostic; it must never silently select a host ABI or host object format.
-- SIA acceptance is real emitted code and, where stated, execution in LightingSimulation—not host/JIT success.
+## Product definition
 
-## M0 — Establish the maintained baseline
+### First-class target
 
-- [ ] Replace remaining Saltwater/rcc naming, archived-project wording, obsolete badges, and host-install instructions.
-- [x] Update package and binary metadata for Cosmic C (`cosmicc`).
-- [ ] Make `cargo test --workspace` pass on the supported host Rust toolchain.
-- [ ] Record the upstream baseline SHA and preserve BSD-3-Clause attribution.
-- [x] Add CI for formatting, focused SIA target tests, and the `cosmicc` binary check.
-- [ ] Inventory every host-x86, system-`cc`, JIT, and old-Cranelift assumption.
+The first supported target is a **freestanding ILP32 Cosmic C profile**:
 
-**Exit:** a clean, documented Rust workspace with an explicit Cosmic C identity.
+- 8-bit bytes; little-endian 16- and 32-bit integers; 32-bit pointers and `long`.
+- SIA32 ABI: `r0` is zero; `r1–r6` carry scalar arguments; `r1` is the scalar result; 8-byte stack alignment; no red zone.
+- Target label is initially `sia32-unknown-none`, until the Cosmic object format is specified; then promote the public user-facing target to `sia32-unknown-cosmic`.
+- The compiler runs on a build host.  Generated code, objects, and images are always SIA32—never host executables, a JIT result, or host-linker output.
+- The supported language baseline is C11 core plus the C99/C17 features Cosmic needs.  “First class” means a documented profile with predictable diagnostics, not an unqualified claim of full hosted C conformance.
 
-## M1 — Modernize the Cranelift boundary
+### Explicit non-goals for the initial profile
 
-- [x] Pin the SIA lowering path to a compatible `nickik/crainlift` revision.
-- [x] Add a dedicated current-Cranelift C HIR→CLIF→SIA32 lowering crate without changing parser/HIR semantics.
-- [x] Separate SIA code emission from future Cosmic object/link handling with a temporary `COSMIC-SIA` code bundle.
-- [ ] Keep a host regression lane only for frontend/CLIF diagnostics; it is not SIA acceptance.
-- [ ] Add golden CLIF tests for integer constants, arithmetic, comparisons, branches, loads/stores, calls, and globals.
+- **No floating point**: `float`, `double`, FP literals, FP member types, and FP conversions fail before CLIF generation.  Do not silently lower or emulate them.
+- No 64-bit scalar ABI/`long long`, varargs, TLS, unwinding, dynamic linking, hosted libc, SIMD, or C23 work until the target contracts exist.
+- No alternate direct SIA encoder.  Use `nickik/crainlift`’s `LowerBackend → ISLE → MachInst → VCode → regalloc2 → emitter` pipeline.
 
-**Exit:** current Cosmic C emits valid CLIF and real SIA32 instruction bytes through the same dependency family as `crainlift`.
+### Evidence hierarchy
 
-## M2 — Define `sia32-unknown-cosmic`
+| Evidence | What it proves | What it does **not** prove |
+| --- | --- | --- |
+| Frontend/unit test | parsing, semantics, diagnostics, HIR/CLIF shape | SIA execution |
+| Backend byte/object test | SIA encoding, relocations, object structure | whole-program behavior |
+| Host differential test | defined-C integer behavior | Cosmic ABI or SIA hardware behavior |
+| LightingSimulation test | real SIA/board-path execution | language feature coverage by itself |
+| Cosmic boot/module test | usable OS integration | broad compiler conformance |
 
-- [x] Add `--target=sia32-unknown-none` and reject unsupported targets explicitly.
-- [x] Set the initial ILP32 scalar layout: 8/16/32-bit integers, 32-bit pointers, and 32-bit `long`.
-- [ ] Bind calls and returns to the authoritative SIA32 ABI already implemented by `Sia32MachineDeps`/`Sia32Callee`.
-- [ ] Define C startup/import conventions: freestanding entrypoint, explicit `__cosmic_*` imports, no implicit libc.
-- [x] Emit an early diagnostic for every float/double declaration, type, or literal.
-- [ ] Emit diagnostics for I64/`long long`, `va_list`, `...`, TLS, and unsupported attributes.
+A milestone is complete only when its stated evidence is present.
 
-**Exit:** target selection, data layout, and diagnostics are deterministic and test-covered.
+## Current state
 
-## M3 — Integer C99 → SIA32 code proof
+### Completed in PR #1
 
-- [x] Lower the initial `int`/`long` integer subset, initialized locals, assignment, arithmetic, bitwise operations, shifts, function parameters, and returns to CLIF I32 operations.
-- [ ] Lower `char`, `short`, unsigned casts/promotions, pointers, globals, address-of/dereference, array indexing, and scalar loads/stores.
-- [ ] Lower arithmetic, bitwise operations, shifts, comparisons, `if`, loops, `switch`, and function calls/returns.
-- [x] Compile an integer C function with a local variable to real SIA32 bytes and assert SIA instruction-word alignment and return encoding.
-- [ ] Execute the generated function in LightingSimulation and prove:
-  - [ ] `add(2, 3) == 5`
-  - [ ] `add(0, 0) == 0`
-  - [ ] `add(0xffffffff, 1) == 0`
+- [x] Rename the main package and compiler binary to `cosmicc`.
+- [x] Establish a dedicated `saltwater-sia` crate that lowers typed C HIR through the current `nickik/crainlift` SIA32 backend.
+- [x] Pin that lowering path to a known compatible Cranelift revision.
+- [x] Accept only `sia32-unknown-none` and use the initial ILP32 layout (32-bit pointer and `long`).
+- [x] Compile simple integer functions with scalar parameters, explicit return, initialized SSA locals, local assignment, unary negation/not, `+ - & | ^ << >>`.
+- [x] Emit word-aligned native SIA instruction bytes and package them in the temporary `COSMIC-SIA` code bundle.
+- [x] Reject float/double declarations, nested float-containing types, and float literals—including casts of float literals—before backend lowering.
+- [x] Add focused CI: formatting, SIA-path tests, and compiler command check.
+- [x] Merge the initial path into `master` as `5c2586c`.
 
-**Exit:** an ordinary C function executes correctly as real SIA32 code in LightingSimulation.
+### Still intentionally incomplete
 
-## M4 — Relocatable Cosmic objects and linking
+- [ ] SIA code has not executed in LightingSimulation.
+- [ ] There is no relocatable Cosmic object, relocation model, linker, image/module integration, or multi-translation-unit support.
+- [ ] Integer control flow, memory, globals, calls, aggregate layout/ABI, and normal preprocessor/driver behavior remain incomplete.
+- [ ] The inherited frontend and test baseline still need a full audit; green focused CI is not a full workspace/conformance gate.
 
-- [ ] Define the SIA32 relocatable-object format and relocation kinds with `crainlift` and Cosmic.
-- [ ] Emit sections, symbols, alignment, and relocations for functions, globals, string literals, and imports.
-- [ ] Replace host `cc`/system-linker invocation with the Cosmic object/image path.
-- [ ] Validate undefined symbols against an explicit `__cosmic_*` allowlist.
-- [ ] Link a tiny freestanding C module into a Cosmic image and execute its entrypoint in LightingSimulation.
+## Milestones
 
-**Exit:** Cosmic C produces loadable SIA32 objects without a hosted linker.
+## M0 — Maintained compiler baseline
 
-## M5 — Usable Cosmic C source model
+- [ ] Record the exact upstream Saltwater/Saltwater-derived baseline and retain all BSD-3-Clause attribution/notices.
+- [ ] Remove remaining stale `saltwater`/`swcc`/`rcc`, legacy, archived, and host-codegen wording from source, package metadata, documentation, examples, and diagnostics.
+- [ ] Audit every crate and feature for host-x86, JIT, system-`cc`, old Cranelift, and unsupported-toolchain assumptions.
+- [ ] Decide and document the supported Rust toolchain; make `cargo test --workspace` meaningful or explicitly split retired crates from the supported workspace.
+- [ ] Make lockfile dependency resolution reproducible against the pinned Cranelift revision.
+- [ ] Expand CI into quick formatter/check/test lanes plus a reproducible release-build lane.
+- [ ] Add versioning, changelog, issue/PR templates, and a contributor guide that states the SIA acceptance rules.
 
-- [ ] Implement multiple translation units, `-I` search order, `-D`, include guards, and deterministic preprocessing.
-- [ ] Provide a minimal Cosmic header set: `stddef.h`, `stdint.h`, `stdbool.h`, `limits.h`, `stdarg.h` declarations where target support permits.
-- [ ] Add compiler builtins for byte copy/set/compare and explicit freestanding runtime hooks.
-- [ ] Add structs, unions, bitfields, designated initializers, and aggregate ABI support in the SIA target.
-- [ ] Add selected C11 features needed by Cosmic: `_Static_assert`, `_Alignof`, `_Alignas`, and `_Generic`.
-- [ ] Add `_Atomic`/a constrained `stdatomic.h` only after corresponding SIA and Cosmic atomic semantics are specified and tested.
+**Exit:** a clean, reproducible, actively maintained Cosmic C workspace with no ambiguous legacy product identity.
 
-**Exit:** Cosmic services and drivers can be built from multi-file freestanding C99/C11-subset source.
+## M1 — Target, ABI, and platform contract
 
-## M6 — System integration and hardening
+- [x] Initial hard target selection: `sia32-unknown-none`.
+- [ ] Publish the canonical SIA32 C ABI jointly with `crainlift`, Cosmic, and LightingSimulation: register classes, argument assignment, return rules, caller/callee saves, stack frames, alignment, aggregate passing, and trap/unwind policy.
+- [ ] Specify the Cosmic C data model: signedness of `char`, widths/ranks, integer promotions, enum representation, pointer representation, `size_t`/ptrdiff types, maximum alignment, layout of arrays/structs/unions, bitfield rules, and endian assumptions.
+- [ ] Define the freestanding entry/import contract: entry symbols, `__cosmic_*` import namespace, capability handles, startup data, termination/panic behavior, and forbidden host symbols.
+- [ ] Define volatile/MMIO semantics and the minimum compiler barriers required by Cosmic drivers.
+- [ ] Publish target macros and headers: `__COSMIC__`, SIA architecture macros, widths, endian macros, and feature-test policy.
+- [ ] Change the public triple to `sia32-unknown-cosmic` only when its object/module ABI is implemented; keep a compatibility alias only with a clear deprecation period.
+- [ ] Add compile-time ABI probes and cross-repository layout assertions.
 
-- [ ] Build a real Cosmic user-space service or driver in C alongside the Forge-built kernel.
-- [ ] Exercise PLIO/MMIO through explicit volatile/capability-safe Cosmic interfaces.
-- [ ] Differential-test defined integer behavior against a host reference without treating host execution as SIA evidence.
-- [ ] Fuzz lexer, preprocessor, parser, and HIR→CLIF lowering; minimize every crash/regression.
-- [ ] Add negative tests for unsupported language/ABI features and malformed object inputs.
-- [ ] Document the stable Cosmic C ABI, supported language profile, headers, tool invocation, and compatibility guarantees.
+**Exit:** any Cosmic C translation unit has one authoritative, testable ABI and data-layout interpretation.
 
-**Exit:** Cosmic C is a maintained, tested systems compiler for freestanding Cosmic modules.
+## M2 — Frontend and preprocessing correctness
 
-## Deferred until the platform needs them
+- [ ] Inventory the inherited parser/preprocessor against the required C99/C11 profile; mark each item supported, intentionally rejected, or broken.
+- [ ] Complete deterministic preprocessing: `-I`/system include search order, `-D`/`-U`, command-line include files, include guards/`#pragma once`, `#if` integer expressions, token pasting/stringification, variadic macros, and diagnostics with include backtraces.
+- [ ] Implement driver-level multiple input files, `-E`, `-S`, `-c`, dependency emission, deterministic output naming, and response files where needed.
+- [ ] Support ordinary modern C declarations: typedefs, storage classes, qualifiers, attributes policy, forward declarations, tags, anonymous members only if intentionally adopted, and clear unsupported-attribute diagnostics.
+- [ ] Complete C11 static-layout features needed by systems code: `_Static_assert`, `_Alignof`, `_Alignas`, `offsetof`, and a limited `_Generic`.
+- [ ] Implement initializers faithfully: zero/default initialization, string/array/aggregate initialization, designators, compound literals, and static constant expressions.
+- [ ] Add tests from small, licensed C conformance fragments plus regression tests for every parser/preprocessor defect.
+- [ ] Keep unsupported language forms explicit: reject VLAs, varargs, atomics, thread-local storage, and FP constructs with precise source locations until their milestones.
 
-- Floating point/SIMD
-- I64 and C `long long`
-- target varargs and a full `stdarg.h`
-- VLAs
-- threads, TLS, unwinding, dynamic linking, and hosted libc
-- C17/C23 conformance beyond features intentionally adopted by Cosmic
+**Exit:** realistic multi-file freestanding C sources parse and diagnose deterministically.
+
+## M3 — Complete integer C lowering
+
+### M3.1 Scalar semantics
+
+- [x] Initial I32 expression lowering and local SSA variables.
+- [ ] Lower all required integer types: signed/unsigned `char`, `short`, `int`, `long`, `_Bool`, enums, and pointers.
+- [ ] Implement integer promotions, usual arithmetic conversions, signed/unsigned comparisons, truncation, sign/zero extension, and all required casts.
+- [ ] Add division/remainder, multiplication, logical operators, comparisons, conditional expressions, comma expressions, increment/decrement, compound assignment, and `sizeof`.
+- [ ] Define and test diagnostics or policy for undefined behavior that affects code generation (division by zero in constants, invalid shifts, overflow assumptions, null dereference in constant contexts).
+- [ ] Add CLIF golden tests and SIA byte-shape tests for every scalar operation.
+
+### M3.2 Control flow and lexical scope
+
+- [ ] Lower blocks, scopes, declaration lifetimes, and clean variable mapping.
+- [ ] Lower `if`/`else`, `while`, `do`, `for`, `break`, `continue`, `switch`, `case`, `default`, and `goto`.
+- [ ] Preserve C sequencing and short-circuit semantics for `&&`, `||`, `?:`, and comma expressions.
+- [ ] Handle multiple returns and unreachable code without creating invalid CLIF.
+- [ ] Add structured negative diagnostics for constructs not yet enabled.
+
+### M3.3 Memory, objects, and globals
+
+- [ ] Lower address-taken locals to stack slots with correct alignment and lifetime.
+- [ ] Lower lvalues, loads/stores, `&`, `*`, array subscripting, member access, and volatile accesses.
+- [ ] Implement static/global objects, tentative definitions, linkage, constant data, string literals, and zero-filled storage.
+- [ ] Implement struct/union layout, member access, bitfields, aggregate copy/assignment, and aggregate initialization.
+- [ ] Add bounds/alignment-aware internal assertions so malformed HIR cannot produce incorrect addressing.
+
+### M3.4 Functions
+
+- [ ] Lower direct functions with prototypes/no-prototype policy, forward declarations, recursion, direct calls, and ABI-accurate parameters/returns.
+- [ ] Implement function pointers only after relocations and indirect-call ABI are proven.
+- [ ] Implement small aggregate arguments/returns only after the ABI contract and Cranelift support are tested.
+- [ ] Reject varargs and incompatible function calls clearly until a target varargs ABI exists.
+
+**Exit:** a nontrivial integer-only C program with control flow, local memory, globals, and direct calls becomes valid SIA32 code.
+
+## M4 — Real SIA execution acceptance
+
+- [ ] Build a minimal bridge from `COSMIC-SIA` function bytes to the LightingSimulation SIA execution harness; do not substitute a host interpreter/JIT.
+- [ ] Execute `int add(int,int)` and prove `add(2,3)=5`, `add(0,0)=0`, and wraparound `add(0xffffffff,1)=0`.
+- [ ] Execute representative scalar, branch/loop, stack-local, load/store, and direct-call programs on Lighting.
+- [ ] Record PC, registers, memory, trap/fault state, and code bytes on every failure so failures are triageable across Cosmic C, Cranelift, and Lighting.
+- [ ] Differential-test defined integer cases against a host reference while treating Lighting results as the only SIA execution proof.
+- [ ] Add deterministic randomized and minimized regressions to the Lighting acceptance suite.
+- [ ] Make the exact execution suite a required CI/release gate once its simulator dependencies are available.
+
+**Exit:** native code produced by Cosmic C demonstrably executes correctly on the real SIA/Lighting path.
+
+## M5 — Cosmic objects, relocations, and linking
+
+- [ ] Jointly define the Cosmic SIA32 relocatable object format: file/header/version, sections, section flags, alignment, symbols, visibility, COMDAT/weak policy, debug-section policy, and deterministic serialization.
+- [ ] Define and implement every relocation needed for direct calls, address constants, globals, string literals, imports, and later function pointers; add positive and negative relocation tests.
+- [ ] Emit Cranelift code metadata, traps, stack maps/unwind placeholders, and source-symbol records where useful to Cosmic.
+- [ ] Replace `COSMIC-SIA` as the normal compiler output with a documented `.o` object; retain it only as a test artifact if useful.
+- [ ] Implement a host-side Cosmic linker/image builder that consumes only Cosmic objects and explicit imports—never the host linker.
+- [ ] Add archive/static-library support only after object linking is stable.
+- [ ] Verify duplicate/undefined/incompatible symbols, bad section alignment, relocation overflow, and malformed object input fail safely and clearly.
+- [ ] Link multiple C objects plus a minimal runtime into a Cosmic module/image; execute its entrypoint in Lighting.
+
+**Exit:** `cosmicc -c` produces loadable Cosmic SIA32 objects and the Cosmic toolchain links them deterministically.
+
+## M6 — Freestanding runtime and headers
+
+- [ ] Ship a versioned `cosmicc-sysroot` with `stdint.h`, `stddef.h`, `stdbool.h`, `limits.h`, `stdalign.h`, `stdnoreturn.h`, and only supported declarations from `string.h`/`stdlib.h`.
+- [ ] Define compiler builtins and runtime hooks for `memcpy`, `memmove`, `memset`, `memcmp`, division/modulo helpers if needed, stack probes, and traps; specify ownership and calling convention.
+- [ ] Make builtins robust for overlap, zero sizes, alignment, and volatile policy; test them both in isolation and from C.
+- [ ] Provide minimal startup/CRT objects that bind to the Cosmic module loader and `__cosmic_*` capabilities.
+- [ ] Add a source-level `cosmic.h` for imports, capabilities, error conventions, volatile MMIO helpers, and compiler barriers.
+- [ ] Define a stable policy for `assert`, diagnostics, allocation, errno-like state, and file/IO APIs; do not imply hosted POSIX support.
+- [ ] Gate `stdarg.h` and `stdatomic.h` on independently specified target varargs/atomic ABIs.
+
+**Exit:** a C component can build against a small, coherent Cosmic sysroot without hidden host dependencies.
+
+## M7 — Cosmic system integration
+
+- [ ] Compile a pure-C freestanding smoke module and load it through the real Cosmic module/image path.
+- [ ] Port one bounded user-space service or library that uses imports, heap/runtime hooks, errors, and multi-file linking.
+- [ ] Port one capability-safe PLIO/MMIO driver slice using volatile and explicit barriers; validate behavior through the real board path.
+- [ ] Exercise C↔Forge ABI calls only after a shared data-layout, symbol, calling convention, ownership, and error contract is documented.
+- [ ] Exercise C↔Rust FFI only after the corresponding SIA Rust ABI is independently green.
+- [ ] Validate loader rejection, import-capability denial, malformed module handling, and driver fault behavior.
+- [ ] Make at least one production Cosmic build consume the released compiler/sysroot rather than a test-only artifact.
+
+**Exit:** Cosmic C is a usable systems-language option for real Cosmic components.
+
+## M8 — Diagnostics, tooling, and quality
+
+- [ ] Preserve file/line/column/macro-expansion context from preprocessor through backend and linker diagnostics.
+- [ ] Categorize diagnostics as source, target-profile, ABI, backend, object, linker, or simulator failure; include actionable remediation.
+- [ ] Add `--emit=preprocessed,hir,clif,asm,object` debug outputs with stable/reviewable formats where possible.
+- [ ] Add source-map/debug-info plan and minimal symbolic backtraces before claiming debugger support.
+- [ ] Fuzz lexer, preprocessor, parser, semantic analysis, HIR lowering, object reader, and linker; minimize and retain every regression.
+- [ ] Add sanitizer/Miri/UB-oriented checks to the Rust implementation where compatible with the toolchain.
+- [ ] Add reproducible-build checks: same input/options/dependency versions yield byte-identical object/image output.
+- [ ] Track compilation time, object size, and generated-code size on a small benchmark suite without optimizing ahead of correctness.
+- [ ] Maintain a compatibility matrix: language feature × target support × diagnostics × execution evidence.
+
+**Exit:** failures are actionable, releases are reproducible, and regressions are difficult to reintroduce.
+
+## M9 — Release and maintenance
+
+- [ ] Define semantic versioning for compiler, object format, sysroot, and ABI separately where necessary.
+- [ ] Produce versioned compiler/sysroot releases and a pinned toolchain manifest for Cosmic builds.
+- [ ] Document installation, invocation, target profile, source compatibility, imports, ABI, object format, and troubleshooting.
+- [ ] Publish upgrade/migration guidance whenever the object format, target triple, or ABI changes.
+- [ ] Maintain a compatibility test corpus and periodically revalidate against current `crainlift`, Cosmic, and LightingSimulation revisions.
+- [ ] Establish a policy for accepted C extensions and a public “unsupported by design” list.
+
+**Exit:** Cosmic C can be depended on by other Cosmic repositories with explicit compatibility guarantees.
+
+## Deferred by design
+
+These do not block first-class **integer freestanding** C support:
+
+- Floating point, floating registers, soft-float, and SIMD.
+- `long long`/I64 ABI and 64-bit atomics.
+- Varargs/full `stdarg.h`.
+- C11 threads, atomics, TLS, unwinding, exceptions, stack unwinding metadata, dynamic linking, and a hosted libc.
+- VLAs, C23 features, broad GCC extensions, sanitizers for target binaries, optimizations beyond Cranelift defaults, and debug-information formats beyond the initial plan.
+
+Each item needs a separately approved ABI, object/runtime, compiler, and Lighting acceptance plan before it is enabled.
+
+## Recommended next major step
+
+**M3/M4: complete the integer control-flow and execution proof.**  Start with comparisons, branches, loops, and stack locals; then execute the resulting integer C functions in LightingSimulation.  This is the shortest path from “real emitted bytes” to “compiler-generated SIA code demonstrably works”, while avoiding premature object/linker or float work.
