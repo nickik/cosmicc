@@ -4,7 +4,7 @@
 //! host ISA, and it rejects floating-point C before creating Cranelift IR.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 use cranelift_codegen::control::ControlPlane;
@@ -25,6 +25,13 @@ use target_lexicon::Triple;
 
 /// The fixed target accepted by this compiler stage.
 pub const TARGET: &str = "sia32-unknown-none";
+
+const BUNDLE_MAGIC: &[u8] = b"COSMIC-SIA\0";
+const BUNDLE_VERSION: u16 = 1;
+const SIA_REGISTER_COUNT: usize = 16;
+const SIA_ARGUMENT_REGISTER: usize = 1;
+const SIA_LINK_REGISTER: usize = 14;
+const SIA_MAX_INTEGER_ARGUMENTS: usize = 6;
 
 /// Raw SIA32 code for one C function.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,11 +55,54 @@ pub struct Artifact {
     pub functions: Vec<FunctionArtifact>,
 }
 
+/// A concrete SIA32 call prepared for an external Lighting execution harness.
+///
+/// This crate deliberately prepares architectural state only. The bytes and
+/// registers must be consumed by Lighting's real execution path; this type
+/// must never grow a host-side SIA interpreter or JIT fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallPlan {
+    /// C linkage name of the function being called.
+    pub function: String,
+    /// Address at which `code` must be loaded.
+    pub entry_address: u32,
+    /// Address expected after the compiled function returns through `lr`.
+    pub return_address: u32,
+    /// Native SIA32 bytes to load at `entry_address`.
+    pub code: Vec<u8>,
+    /// Complete initial architectural integer register state.
+    pub registers: [u32; SIA_REGISTER_COUNT],
+}
+
+impl CallPlan {
+    /// Render the bounded state that an execution-harness failure must report.
+    pub fn diagnostic(&self) -> String {
+        let code = self
+            .code
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let registers = self
+            .registers
+            .iter()
+            .enumerate()
+            .map(|(index, value)| format!("r{index}=0x{value:08x}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!(
+            "function={} entry=0x{:08x} return=0x{:08x} code=[{}] registers=[{}]",
+            self.function, self.entry_address, self.return_address, code, registers
+        )
+    }
+}
+
 impl Artifact {
     /// Serialize this artifact to the stable, little-endian `COSMIC-SIA` bundle format.
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
-        let mut bytes = Vec::from(&b"COSMIC-SIA\0"[..]);
-        bytes.extend_from_slice(&1_u16.to_le_bytes());
+        self.validate()?;
+        let mut bytes = Vec::from(BUNDLE_MAGIC);
+        bytes.extend_from_slice(&BUNDLE_VERSION.to_le_bytes());
         let count = u16::try_from(self.functions.len())
             .map_err(|_| Error::Codegen("too many functions for a SIA bundle".into()))?;
         bytes.extend_from_slice(&count.to_le_bytes());
@@ -70,6 +120,165 @@ impl Artifact {
         }
         Ok(bytes)
     }
+
+    /// Decode a stable little-endian `COSMIC-SIA` bundle.
+    ///
+    /// The decoder accepts only the temporary unrelocated format emitted by
+    /// this crate. It is intentionally strict so a future Lighting bridge
+    /// cannot execute a truncated or ambiguously framed image.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let mut cursor = 0;
+        let magic = take(bytes, &mut cursor, BUNDLE_MAGIC.len(), "bundle magic")?;
+        if magic != BUNDLE_MAGIC {
+            return Err(Error::Codegen("invalid COSMIC-SIA bundle magic".into()));
+        }
+        let version = u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "version")?));
+        if version != BUNDLE_VERSION {
+            return Err(Error::Codegen(format!(
+                "unsupported COSMIC-SIA bundle version {version}"
+            )));
+        }
+        let function_count =
+            u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "function count")?));
+        let mut functions = Vec::with_capacity(usize::from(function_count));
+        for _ in 0..function_count {
+            let name_len = usize::from(u16::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                2,
+                "function name length",
+            )?)));
+            let name_bytes = take(bytes, &mut cursor, name_len, "function name")?;
+            let name = std::str::from_utf8(name_bytes)
+                .map_err(|_| Error::Codegen("COSMIC-SIA function name is not UTF-8".into()))?
+                .to_owned();
+            let code_len = usize::try_from(u32::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                4,
+                "function code length",
+            )?)))
+            .expect("a u32 always fits in usize on supported Cosmic C hosts");
+            let code = take(bytes, &mut cursor, code_len, "function code")?.to_vec();
+            functions.push(FunctionArtifact { name, code });
+        }
+        if cursor != bytes.len() {
+            return Err(Error::Codegen(
+                "COSMIC-SIA bundle has trailing bytes".into(),
+            ));
+        }
+        let artifact = Self {
+            target: TARGET,
+            functions,
+        };
+        artifact.validate()?;
+        Ok(artifact)
+    }
+
+    /// Return a function by its C linkage name.
+    pub fn function(&self, name: &str) -> Option<&FunctionArtifact> {
+        self.functions.iter().find(|function| function.name == name)
+    }
+
+    /// Prepare one scalar SystemV SIA32 call for an external Lighting harness.
+    ///
+    /// The initial compiler subset has no relocations, globals, calls, or
+    /// stack locals. Therefore a function can be loaded verbatim at an aligned
+    /// address. `lr` is set immediately past the code so a normal return gives
+    /// the harness one explicit return boundary.
+    pub fn prepare_integer_call(
+        &self,
+        name: &str,
+        entry_address: u32,
+        arguments: &[u32],
+    ) -> Result<CallPlan, Error> {
+        if entry_address & 1 != 0 {
+            return Err(Error::Codegen(format!(
+                "SIA call entry for {name} must be 2-byte aligned"
+            )));
+        }
+        if arguments.len() > SIA_MAX_INTEGER_ARGUMENTS {
+            return Err(Error::Codegen(format!(
+                "SIA32 supports at most {SIA_MAX_INTEGER_ARGUMENTS} scalar register arguments"
+            )));
+        }
+        let function = self
+            .function(name)
+            .ok_or_else(|| Error::Codegen(format!("COSMIC-SIA bundle has no function `{name}`")))?;
+        let code_len = u32::try_from(function.code.len())
+            .map_err(|_| Error::Codegen("SIA function body exceeds 32-bit address space".into()))?;
+        let return_address = entry_address
+            .checked_add(code_len)
+            .ok_or_else(|| Error::Codegen("SIA function address range overflows".into()))?;
+        let mut registers = [0; SIA_REGISTER_COUNT];
+        for (index, argument) in arguments.iter().copied().enumerate() {
+            registers[SIA_ARGUMENT_REGISTER + index] = argument;
+        }
+        registers[SIA_LINK_REGISTER] = return_address;
+        Ok(CallPlan {
+            function: function.name.clone(),
+            entry_address,
+            return_address,
+            code: function.code.clone(),
+            registers,
+        })
+    }
+
+    fn validate(&self) -> Result<(), Error> {
+        if self.target != TARGET {
+            return Err(Error::Codegen(format!(
+                "COSMIC-SIA bundle target must be `{TARGET}`"
+            )));
+        }
+        if self.functions.is_empty() {
+            return Err(Error::Codegen(
+                "COSMIC-SIA bundle contains no functions".into(),
+            ));
+        }
+        let mut names = HashSet::new();
+        for function in &self.functions {
+            if function.name.is_empty() {
+                return Err(Error::Codegen(
+                    "COSMIC-SIA function name must not be empty".into(),
+                ));
+            }
+            if !names.insert(&function.name) {
+                return Err(Error::Codegen(format!(
+                    "COSMIC-SIA bundle contains duplicate function `{}`",
+                    function.name
+                )));
+            }
+            if function.code.is_empty() || function.code.len() % 2 != 0 {
+                return Err(Error::Codegen(format!(
+                    "COSMIC-SIA function `{}` does not contain whole SIA instruction words",
+                    function.name
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn take<'a>(
+    bytes: &'a [u8],
+    cursor: &mut usize,
+    count: usize,
+    field: &str,
+) -> Result<&'a [u8], Error> {
+    let end = cursor
+        .checked_add(count)
+        .ok_or_else(|| Error::Codegen(format!("COSMIC-SIA {field} length overflows")))?;
+    let value = bytes
+        .get(*cursor..end)
+        .ok_or_else(|| Error::Codegen(format!("truncated COSMIC-SIA {field}")))?;
+    *cursor = end;
+    Ok(value)
+}
+
+fn read_array<const N: usize>(bytes: &[u8]) -> [u8; N] {
+    bytes
+        .try_into()
+        .expect("COSMIC-SIA field width was validated before conversion")
 }
 
 /// A failure reported by the C frontend or the SIA lowering stage.
@@ -629,6 +838,68 @@ mod tests {
             &artifact.functions[0].code[artifact.functions[0].code.len() - 2..],
             &[0xe0, 0xc0]
         );
+    }
+
+    #[test]
+    fn cosmic_sia_bundle_round_trips_before_lighting_load() {
+        let artifact =
+            compile_source("int add(int left, int right) { return left + right; }").unwrap();
+        let encoded = artifact.to_bytes().unwrap();
+        assert_eq!(Artifact::from_bytes(&encoded).unwrap(), artifact);
+    }
+
+    #[test]
+    fn bundle_decoder_rejects_truncated_or_ambiguous_code() {
+        let artifact =
+            compile_source("int add(int left, int right) { return left + right; }").unwrap();
+        let encoded = artifact.to_bytes().unwrap();
+        assert!(Artifact::from_bytes(&encoded[..encoded.len() - 1])
+            .unwrap_err()
+            .to_string()
+            .contains("truncated COSMIC-SIA"));
+
+        let mut trailing = encoded;
+        trailing.push(0);
+        assert!(Artifact::from_bytes(&trailing)
+            .unwrap_err()
+            .to_string()
+            .contains("trailing bytes"));
+    }
+
+    #[test]
+    fn prepares_systemv_register_state_for_external_lighting_execution() {
+        let artifact =
+            compile_source("int add(int left, int right) { return left + right; }").unwrap();
+        let plan = artifact
+            .prepare_integer_call("add", 0x0001_0000, &[0xffff_ffff, 1])
+            .unwrap();
+        assert_eq!(plan.entry_address, 0x0001_0000);
+        assert_eq!(
+            plan.return_address,
+            plan.entry_address + u32::try_from(plan.code.len()).unwrap()
+        );
+        assert_eq!(plan.registers[0], 0);
+        assert_eq!(plan.registers[1], 0xffff_ffff);
+        assert_eq!(plan.registers[2], 1);
+        assert_eq!(plan.registers[14], plan.return_address);
+        assert!(plan.diagnostic().contains("entry=0x00010000"));
+        assert!(plan.diagnostic().contains("r1=0xffffffff"));
+    }
+
+    #[test]
+    fn rejects_an_unaligned_or_unknown_lighting_entry_plan() {
+        let artifact =
+            compile_source("int add(int left, int right) { return left + right; }").unwrap();
+        assert!(artifact
+            .prepare_integer_call("add", 1, &[])
+            .unwrap_err()
+            .to_string()
+            .contains("2-byte aligned"));
+        assert!(artifact
+            .prepare_integer_call("missing", 0, &[])
+            .unwrap_err()
+            .to_string()
+            .contains("no function"));
     }
 
     #[test]

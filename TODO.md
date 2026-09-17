@@ -49,6 +49,7 @@ A milestone is complete only when its stated evidence is present.
 - [x] Accept only `sia32-unknown-none` and use the initial ILP32 layout (32-bit pointer and `long`).
 - [x] Compile simple integer functions with scalar parameters, explicit return, initialized SSA locals, local assignment, unary negation/not, `+ - & | ^ << >>`.
 - [x] Emit word-aligned native SIA instruction bytes and package them in the temporary `COSMIC-SIA` code bundle.
+- [x] Add a strict `COSMIC-SIA` decoder and an explicit SIA32 register/call plan for an external Lighting executor; this validates the loading boundary without executing code on the host.
 - [x] Reject float/double declarations, nested float-containing types, and float literals—including casts of float literals—before backend lowering.
 - [x] Add focused CI: formatting, SIA-path tests, and compiler command check.
 - [x] Merge the initial path into `master` as `5c2586c`.
@@ -56,6 +57,7 @@ A milestone is complete only when its stated evidence is present.
 ### Still intentionally incomplete
 
 - [ ] SIA code has not executed in LightingSimulation.
+- [ ] The real board-composed Lighting CPU-execution path is an upstream prerequisite: Lighting M6.5 (`run a small SIA program through LightingBoardMachine`) is not complete. The `siaemu` reference interpreter is useful ISA evidence but must not satisfy this board-path acceptance item.
 - [ ] There is no relocatable Cosmic object, relocation model, linker, image/module integration, or multi-translation-unit support.
 - [ ] Integer control flow, memory, globals, calls, aggregate layout/ABI, and normal preprocessor/driver behavior remain incomplete.
 - [ ] The inherited frontend and test baseline still need a full audit; green focused CI is not a full workspace/conformance gate.
@@ -138,7 +140,9 @@ A milestone is complete only when its stated evidence is present.
 
 ## M4 — Real SIA execution acceptance
 
+- [x] Define and test strict `COSMIC-SIA` bundle decoding plus an external call plan: code bytes, 2-byte entry address, `r1–r6` arguments, `lr` return boundary, and bounded failure context.
 - [ ] Build a minimal bridge from `COSMIC-SIA` function bytes to the LightingSimulation SIA execution harness; do not substitute a host interpreter/JIT.
+- [ ] Consume the call plan from Lighting's board-composed CPU path after M6.5 is available; do not count `siaemu` reference-interpreter execution as this result.
 - [ ] Execute `int add(int,int)` and prove `add(2,3)=5`, `add(0,0)=0`, and wraparound `add(0xffffffff,1)=0`.
 - [ ] Execute representative scalar, branch/loop, stack-local, load/store, and direct-call programs on Lighting.
 - [ ] Record PC, registers, memory, trap/fault state, and code bytes on every failure so failures are triageable across Cosmic C, Cranelift, and Lighting.
@@ -224,4 +228,4 @@ Each item needs a separately approved ABI, object/runtime, compiler, and Lightin
 
 ## Recommended next major step
 
-**M3/M4: complete the integer control-flow and execution proof.**  Start with comparisons, branches, loops, and stack locals; then execute the resulting integer C functions in LightingSimulation.  This is the shortest path from “real emitted bytes” to “compiler-generated SIA code demonstrably works”, while avoiding premature object/linker or float work.
+**M4 prerequisite: complete Lighting M6.5's board-composed CPU execution seam, then consume the prepared `COSMIC-SIA` call plan there.** This enables the first genuine `add` execution proof without treating `siaemu` or a host fallback as acceptance. While that upstream seam is unavailable, keep Cosmic C changes limited to strict bundle/ABI boundary validation; do not claim M4 complete.
