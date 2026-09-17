@@ -58,6 +58,7 @@ A milestone is complete only when its stated evidence is present.
 
 - [ ] SIA code has not executed in LightingSimulation.
 - [ ] The real board-composed Lighting CPU-execution path is an upstream prerequisite: Lighting M6.5 (`run a small SIA program through LightingBoardMachine`) is not complete. The `siaemu` reference interpreter is useful ISA evidence but must not satisfy this board-path acceptance item.
+- [ ] **Blocked comparison/branch slice:** the pinned `nickik/crainlift` revision [`2ae7419c32bbf565c60e04c6730a39610cec4e8b`](https://github.com/nickik/crainlift/tree/2ae7419c32bbf565c60e04c6730a39610cec4e8b) lowers `jump`/`brif`, and SIA has `cmpeq`/`cmplt`/`cmpltu` encodings, but its SIA32 `lower.isle` has no `icmp` (or boolean materialization) rule. Cosmic C must not hand-encode or emulate comparisons. Minimal required upstream capability: I32 signed/unsigned CLIF comparison lowering (`eq`, `ne`, `<`, `<=`, `>`, `>=`) with an explicit canonical integer-boolean result usable by `brif` and C `int` returns. Do not modify that dependency from this repository; repin only after it is provided and proven upstream.
 - [ ] There is no relocatable Cosmic object, relocation model, linker, image/module integration, or multi-translation-unit support.
 - [ ] Integer control flow, memory, globals, calls, aggregate layout/ABI, and normal preprocessor/driver behavior remain incomplete.
 - [ ] The inherited frontend and test baseline still need a full audit; green focused CI is not a full workspace/conformance gate.
@@ -107,6 +108,7 @@ A milestone is complete only when its stated evidence is present.
 ### M3.1 Scalar semantics
 
 - [x] Initial I32 expression lowering and local SSA variables.
+- [ ] **Blocked on Cranelift SIA32 `icmp` lowering at `2ae7419c32bbf565c60e04c6730a39610cec4e8b`:** do not implement C comparisons until the backend can produce a canonical integer boolean through its normal MachInst pipeline. The physical SIA compare encodings and `brif` support alone are insufficient because the pinned backend exposes neither comparison lowering nor boolean materialization.
 - [ ] Lower all required integer types: signed/unsigned `char`, `short`, `int`, `long`, `_Bool`, enums, and pointers.
 - [ ] Implement integer promotions, usual arithmetic conversions, signed/unsigned comparisons, truncation, sign/zero extension, and all required casts.
 - [ ] Add division/remainder, multiplication, logical operators, comparisons, conditional expressions, comma expressions, increment/decrement, compound assignment, and `sizeof`.
@@ -115,6 +117,7 @@ A milestone is complete only when its stated evidence is present.
 
 ### M3.2 Control flow and lexical scope
 
+- [ ] **Blocked by the same `icmp` capability:** a plain truthy `if` can use existing `brif`, but correct C relational conditions and canonical comparison values require the M3.1 backend prerequisite first. Do not add a comparison-specific fallback or direct SIA encoder in Cosmic C.
 - [ ] Lower blocks, scopes, declaration lifetimes, and clean variable mapping.
 - [ ] Lower `if`/`else`, `while`, `do`, `for`, `break`, `continue`, `switch`, `case`, `default`, and `goto`.
 - [ ] Preserve C sequencing and short-circuit semantics for `&&`, `||`, `?:`, and comma expressions.
