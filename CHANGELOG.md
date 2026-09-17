@@ -3,6 +3,20 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Declared the maintained Cosmic C SIA-only command and validation surface.
+- Retired inherited host/JIT Cargo targets from automatic discovery; the source
+  remains as documented historical reference, not product behavior.
+
+### Historical notice
+
+Entries below are retained Saltwater/RCC release history for provenance. They
+do not describe supported Cosmic C behavior, targets, toolchains, or release
+policy.
+
 ## [0.11.0] - 2020-07-24
 
 This release is the first time that `saltwater` can compile hello world without any workaround on a GNU libc platform!

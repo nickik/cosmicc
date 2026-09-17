@@ -68,12 +68,14 @@ A milestone is complete only when its stated evidence is present.
 ## M0 — Maintained compiler baseline
 
 - [ ] Record the exact upstream Saltwater/Saltwater-derived baseline and retain all BSD-3-Clause attribution/notices.
-- [ ] Remove remaining stale `saltwater`/`swcc`/`rcc`, legacy, archived, and host-codegen wording from source, package metadata, documentation, examples, and diagnostics.
-- [ ] Audit every crate and feature for host-x86, JIT, system-`cc`, old Cranelift, and unsupported-toolchain assumptions.
-- [ ] Decide and document the supported Rust toolchain; make `cargo test --workspace` meaningful or explicitly split retired crates from the supported workspace.
-- [ ] Make lockfile dependency resolution reproducible against the pinned Cranelift revision.
-- [ ] Expand CI into quick formatter/check/test lanes plus a reproducible release-build lane.
-- [ ] Add versioning, changelog, issue/PR templates, and a contributor guide that states the SIA acceptance rules.
+- [x] Classify the active SIA compiler, retained parser, test-only compatibility material, and retired host/JIT code in [`MAINTAINED_BASELINE.md`](MAINTAINED_BASELINE.md). The obsolete Travis and issue-report scripts are removed; retained historical references are explicitly non-product material.
+- [x] Audit every maintained crate/feature for host-x86, JIT, system-`cc`, old Cranelift, and unsupported-toolchain assumptions. `cosmicc`, `saltwater-sia`, and `saltwater-parser` are the maintained workspace; `src/main.rs`, `saltwater-codegen`, inherited runner tests, benchmarks, fuzzing, and minimizer are excluded from automatic Cargo discovery.
+- [x] Choose Rust `1.98.1` in `rust-toolchain.toml`; document the supported command matrix and explicitly exclude the retained host test corpus from `cargo test --workspace`.
+- [x] Enforce lockfile use for the supported commands; `Cargo.lock` pins the Cranelift SIA32 revision and CI uses `--locked`.
+- [x] Expand CI with the scripted focused formatter/test/check gate and a locked release compiler build.
+- [x] Add the SIA acceptance rules to README and contributor guidance; retain the historical changelog under an explicit notice.
+- [ ] Finish provenance work: identify the exact imported Saltwater upstream commit and review/relocate every remaining historical source/document reference before a broader C profile is enabled.
+- [ ] Add current Cosmic C versioning/release policy and issue/PR templates once the supported output ABI is stable.
 
 **Exit:** a clean, reproducible, actively maintained Cosmic C workspace with no ambiguous legacy product identity.
 

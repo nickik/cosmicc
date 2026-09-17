@@ -1,3 +1,9 @@
+//! Retired Saltwater host compiler retained only as source provenance.
+//!
+//! This file is deliberately not a Cargo target in Cosmic C.  Its host object,
+//! linker, and JIT behavior is unsupported and must not be used as Cosmic C
+//! acceptance evidence.  The supported compiler is `src/cosmicc.rs`.
+
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{self, Read};

@@ -31,14 +31,43 @@ The authoritative roadmap is [TODO.md](TODO.md).
 
 Every SIA-facing change requires focused frontend tests and SIA backend tests. A milestone is complete only when it produces real SIA32 code through `nickik/crainlift`; execution claims additionally require the corresponding proof in LightingSimulation.
 
+`COSMIC-SIA` byte tests and `CallPlan` decoding prove compilation and encoding,
+not execution. Cosmic C must not use a host executable, JIT, direct SIA
+encoder, or reference interpreter as a substitute for real board evidence.
+
 ## Development
 
+Cosmic C is currently maintained with Rust **1.98.1**, selected automatically
+by [`rust-toolchain.toml`](rust-toolchain.toml). The supported command matrix
+is:
+
 ```sh
-cargo test -p saltwater-sia
-printf 'int main(void) { int x = 4; return (x << 2) + 3; }\n' | cargo run -- -o demo.sia -
+cargo fmt --all -- --check
+cargo test -p saltwater-sia --locked
+cargo check --bin cosmicc --locked
+cargo check --workspace --locked
+sh scripts/check-supported.sh
+cargo build --release --bin cosmicc --locked
+```
+
+The full supported gate is `sh scripts/check-supported.sh`; CI runs it and also
+checks the release compiler build. `cargo test --workspace` is intentionally
+not a gate while inherited host-runner/JIT compatibility sources are retained
+outside the supported Cargo target set. See
+[`MAINTAINED_BASELINE.md`](MAINTAINED_BASELINE.md) for the exact inventory.
+
+To compile a supported integer-only C function:
+
+```sh
+printf 'int main(void) { int x = 4; return (x << 2) + 3; }\n' \
+  | cargo run --locked -- -o demo.sia -
 ```
 
 `cosmicc` accepts `--target sia32-unknown-none`; this is the concrete target triple currently understood by the Cranelift SIA backend. The Cosmic-specific object/image target will follow once its object format is defined.
+
+The supported profile remains freestanding and SIA-only: float is rejected
+before CLIF lowering, and no LLVM, host execution, JIT acceptance, or direct
+SIA encoding is part of the product path.
 
 ## License
 

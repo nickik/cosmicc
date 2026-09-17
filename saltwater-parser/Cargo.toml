@@ -27,4 +27,6 @@ proptest-derive = "0.1"
 
 [features]
 codegen = ["cranelift-codegen", "cranelift-object"]
+# Historical compatibility switch for the retired host driver.  Cosmic C does
+# not enable or support it; the parser itself remains active infrastructure.
 jit = []
