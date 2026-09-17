@@ -1,4 +1,6 @@
 [package]
+# Retired host/object/JIT code retained for upstream provenance only.  This
+# crate is not a Cosmic C workspace member or dependency.
 name = "saltwater-codegen"
 version = "0.11.0"
 edition = "2018"

@@ -13,12 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@1.98.1
         with:
           components: rustfmt
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      - name: Test the C to SIA32 path
-        run: cargo test -p saltwater-sia
-      - name: Check the compiler command
-        run: cargo check --bin cosmicc
+      - name: Validate the supported Cosmic C path
+        run: sh scripts/check-supported.sh
+
+  release-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.1
+      - name: Build the supported compiler release artifact
+        run: cargo build --release --bin cosmicc --locked

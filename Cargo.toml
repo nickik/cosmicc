@@ -3,6 +3,7 @@ name = "cosmicc"
 version = "0.12.0"
 authors = ["Nick K <nickik@users.noreply.github.com>"]
 edition = "2018"
+rust-version = "1.98.1"
 description = "A C compiler for Cosmic OS that emits SIA32 machine code."
 repository = "https://github.com/nickik/cosmicc"
 readme = "README.md"
@@ -10,6 +11,12 @@ categories = ["development-tools", "parser-implementations"]
 license = "BSD-3-Clause"
 keywords = ["C", "compiler", "recursive-descent", "cranelift"]
 default-run = "cosmicc"
+# The only build target in the maintained product is declared below.  The
+# inherited host compiler remains in `src/main.rs` as historical reference,
+# not as a Cargo target.
+autobins = false
+autotests = false
+autobenches = false
 
 [dependencies]
 ansi_term = "0.12"
@@ -18,20 +25,10 @@ pico-args = { version = "0.3.4", features = ["short-space-opt"] }
 color-backtrace = { version = "0.4", default-features = false, optional = true }
 atty = { version = "0.2", default-features = false }
 git-testament = { version = "0.1", optional = true }
-rand = { version = "0.7", optional = true }
-rodio = { version = "0.11.0", optional = true }
 saltwater-sia = { path = "saltwater-sia" }
-
-[dev-dependencies]
-env_logger = { version = "0.7", default-features = false }
-log = "0.4"
-criterion = "0.3"
-walkdir = "2"
 
 [features]
 default = ["color-backtrace"]
-salty = ["rand", "rodio"]
-jit = []
 # for internal use
 _test_headers = []
 
@@ -40,30 +37,6 @@ _test_headers = []
 [[bin]]
 name = "cosmicc"
 path = "src/cosmicc.rs"
-
-[[bench]]
-name = "examples"
-harness = false
-required-features = ["jit"]
-
-[[bench]]
-name = "parens"
-harness = false
-
-[[test]]
-name = "jit"
-required-features = ["jit"]
-
-[[test]]
-name = "runner"
-
-[[test]]
-name = "varargs"
-
-[[test]]
-name = "headers"
-# MacOS breaks if you pass -undef to the system preprocessor
-required-features = ["_test_header"]
 
 [profile.release]
 lto = true
