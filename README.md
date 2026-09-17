@@ -1,207 +1,45 @@
-# Saltwater
+# Cosmic C
 
-[![Build Status](https://travis-ci.org/jyn514/rcc.svg?branch=master)](https://travis-ci.org/jyn514/rcc)
-[Join us on Discord](https://discord.gg/BPER7PF)
+Cosmic C is the maintained Rust C compiler for the Cosmic operating system.
 
-saltwater: the part of the sea causing lots of rust
+Its production path is deliberately direct:
 
-A C compiler written in Rust, with a focus on good error messages.
-
----
-
-_**This project is no longer maintained.**_
-
----
-
-## Running
-
-`swcc` reads from standard in by default, so you can type in code directly.
-It's not interactive though, you have to hit Ctrl+D to indicate end of file (Ctrl+Z on Windows).
-
-Use `swcc --help` for all options (or see [below](#all-options)).
-
-### Running on Windows
-
-You need to have `cc` on your PATH. You can either install mingw + gcc or MSVC.
-Other than that, it should work exactly the same as on Linux.
-
-### Homebrew
-
-```
-brew install saltwater
+```text
+C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA32 → Cosmic object/image
 ```
 
-## Unimplemented features
+Cosmic C reuses the SIA32 backend in [nickik/crainlift](https://github.com/nickik/crainlift). It does not use LLVM. The compiler runs on the build host initially and produces freestanding `sia32-unknown-cosmic` objects for Cosmic.
 
-- Defining functions taking variadic arguments. Note that calling variadic functions (like `printf`) is already supported.
-- Variable-length arrays (`int a[n]`)
-- Multiple translation units (files)
-- Bitfields
-- Compiling on non-x86 platforms
-- Cross-compilation
+## Initial target
 
-## Examples
+The first supported target is a freestanding C99 integer/pointer profile:
 
-```c
-$ cat tests/runner-tests/readme.c
-// output: j is 6
-int printf(const char *, ...);
+- 32-bit little-endian pointers and data model
+- ordinary functions, globals, control flow, scalar loads/stores, and integer arithmetic
+- fixed SIA ABI: `r1–r6` argument registers, `r1` result, 8-byte stack alignment
+- explicit Cosmic platform imports only; no hosted libc or host linker
 
-typedef struct s *sp;
+The initial SIA32 backend deliberately rejects floating point, I64/`long long`, target varargs, TLS, unwinding, SIMD, and tail calls. Cosmic C must diagnose every unsupported construct clearly rather than emit incorrect code.
 
-int i = 1;
-int a[3] = {1, 2, 3};
-float f = 2.5;
+## Status
 
-struct s {
-  int outer;
-} my_struct;
+The C frontend, preprocessor, typed HIR, and Cranelift-oriented code-generation structure are present. Current work modernizes the Cranelift integration and replaces host-x86-specific linking/output with the Cosmic SIA32 target.
 
-int g(int);
+The authoritative roadmap is [TODO.md](TODO.md).
 
-int main(void) {
-  sp my_struct_pointer = &my_struct;
-  const int c = my_struct_pointer->outer = 4;
-  // should return 6
-  int j = i + f*a[2] - c/g(1);
-  printf("j is %d\n", j);
-  return j;
-}
+## Validation
 
-int g(int i) {
-  if (i < 0 || i >= 3) {
-    return 0;
-  }
-  return a[i];
-}
-$ swcc tests/runner-tests/readme.c
-$️ ./a.out
-j is 6
-```
+Every SIA-facing change requires focused frontend tests and SIA backend tests. A milestone is complete only when it produces real SIA32 code through `nickik/crainlift`; execution claims additionally require the corresponding proof in LightingSimulation.
 
-### Debug output
-
-```c
-$ cat tests/runner-tests/cpp/if/defined.c
-// code: 2
-
-#define a
-#define b
-
-#if defined(a)
-int i = 2;
-#endif
-
-#ifndef b
-syntax error
-#endif
-
-# if defined b && defined(a)
-    int main() { return i; }
-#endif
-$ swcc -E tests/runner-tests/cpp/if/defined.c
-int i = 2 ; int main ( ) { return i ; }
-```
-
-```c
-$ echo 'int i = 1 + 2 ^ 3 % 5 / 2 & 1; int main(){}' | swcc --debug-ast
-ast: int i = ((1) + (2)) ^ ((((3) % (5)) / (2)) & (1));
-ast: int main(){
-}
-```
-
-```c
-$ cat tests/runner-tests/hello_world.c
-#include<stdio.h>
-int main() {
-    puts("Hello, world!");
-}
-$ swcc --debug-ir tests/runner-tests/hello_world.c
-function u0:0() -> i32 system_v {
-    gv0 = symbol colocated u1:3
-    sig0 = (i64) -> i32 system_v
-    fn0 = u0:26 sig0
-
-block0:
-    v0 = global_value.i64 gv0
-    v1 = call fn0(v0)
-    v2 = iconst.i32 0
-    return v2
-}
-$ ./a.out
-Hello, world!
-```
-
-### All options
-
-```txt
-$ swcc --help
-swcc 0.9.0
-Jynn Nelson <github@jyn.dev>
-A C compiler written in Rust, with a focus on good error messages.
-Homepage: https://github.com/jyn514/rcc/
-
-usage: swcc [FLAGS] [OPTIONS] [<file>]
-
-FLAGS:
-        --debug-ast        If set, print the parsed abstract syntax tree (AST) in addition to compiling.
-                            The AST does no type checking or validation, it only parses.
-        --debug-hir        If set, print the high intermediate representation (HIR) in addition to compiling.
-                            This does type checking and validation and also desugars various expressions.
-        --debug-ir         If set, print the intermediate representation (IR) of the program in addition to compiling.
-        --debug-lex        If set, print all tokens found by the lexer in addition to compiling.
-        --jit              If set, will use JIT compilation for C code and instantly run compiled code (No files produced).
-                            NOTE: this option only works if swcc was compiled with the `jit` feature.
-    -h, --help             Prints help information
-    -c, --no-link          If set, compile and assemble but do not link. Object file is machine-dependent.
-    -E, --preprocess-only  If set, preprocess only, but do not do anything else.
-                            Note that preprocessing discards whitespace and comments.
-                            There is not currently a way to disable this behavior.
-    -V, --version          Prints version information
-
-OPTIONS:
-        --color <when>       When to use color. May be "never", "auto", or "always". [default: auto]
-    -o, --output <output>    The output file to use. [default: a.out]
-        --max-errors <max>   The maximum number of errors to allow before giving up.
-                             Use 0 to allow unlimited errors. [default: 10]
-    -I, --include <dir>      Add a directory to the local include path (`#include "file.h"`).
-                              Can be specified multiple times to add multiple directories.
-    -D, --define <id[=val]>  Define an object-like macro.
-                              Can be specified multiple times to add multiple macros.
-                              `val` defaults to `1`.
-
-ARGS:
-    <file>    The file to read C source from. "-" means stdin (use ./- to read a file called '-').
-              Only one file at a time is currently accepted. [default: -]
-```
-
-## Testing
+## Development
 
 ```sh
-cargo test
-# optionally, you can fuzz the compiler
-# it may be more helpful to just `grep -R unimplemented src`, though
-
-# libFuzzer/AFL
-tests/fuzz.sh
-
-# Honggfuzz:
-# Running Honggfuzz locally requires some parameters to use it at its full potential,
-# so it is probably a good idea to have a look here: https://github.com/rust-fuzz/honggfuzz-rs/blob/master/README.md
-# and here: https://github.com/google/honggfuzz/blob/master/docs/USAGE.md
-# we suggest the following:
-HFUZZ_RUN_ARGS="--tmout_sigvtalrm --exit_upon_crash" tests/hfuzz.sh
+cargo test --workspace
+cargo run -- --help
 ```
 
-## FAQ
+The command-line interface and package layout may change while the compiler is retargeted.
 
-See [FAQ.md](FAQ.md)
+## License
 
-## Implementation Defined Behavior
-
-See [IMPLEMENTATION\_DEFINED.md](IMPLEMENTATION_DEFINED.md)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-This also includes reporting bugs.
+Cosmic C is distributed under the BSD 3-Clause License. See [LICENSE.txt](LICENSE.txt).
