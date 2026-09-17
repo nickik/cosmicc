@@ -42,6 +42,11 @@ verified upstream Saltwater commit for its full imported baseline.  BSD-3-Clause
 attribution is retained in [`LICENSE.txt`](LICENSE.txt); identifying that exact
 upstream baseline remains an M0 task.
 
+The frontend audit is recorded in
+[`FRONTEND_CAPABILITY_MATRIX.md`](FRONTEND_CAPABILITY_MATRIX.md). Its tests
+prove preprocessing behavior and diagnostics only; they do not promote parser
+features into the supported SIA lowering profile.
+
 ## Acceptance boundary
 
 Cosmic C does not use LLVM, a direct SIA encoder, a host executable, a host

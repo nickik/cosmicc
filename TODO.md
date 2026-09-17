@@ -94,12 +94,13 @@ A milestone is complete only when its stated evidence is present.
 
 ## M2 — Frontend and preprocessing correctness
 
-- [ ] Inventory the inherited parser/preprocessor against the required C99/C11 profile; mark each item supported, intentionally rejected, or broken.
+- [x] Record the first parser/preprocessor capability audit in [`FRONTEND_CAPABILITY_MATRIX.md`](FRONTEND_CAPABILITY_MATRIX.md), explicitly separating parser evidence from SIA lowering evidence.
 - [ ] Complete deterministic preprocessing: `-I`/system include search order, `-D`/`-U`, command-line include files, include guards/`#pragma once`, `#if` integer expressions, token pasting/stringification, variadic macros, and diagnostics with include backtraces.
 - [ ] Implement driver-level multiple input files, `-E`, `-S`, `-c`, dependency emission, deterministic output naming, and response files where needed.
 - [ ] Support ordinary modern C declarations: typedefs, storage classes, qualifiers, attributes policy, forward declarations, tags, anonymous members only if intentionally adopted, and clear unsupported-attribute diagnostics.
 - [ ] Complete C11 static-layout features needed by systems code: `_Static_assert`, `_Alignof`, `_Alignas`, `offsetof`, and a limited `_Generic`.
 - [ ] Implement initializers faithfully: zero/default initialization, string/array/aggregate initialization, designators, compound literals, and static constant expressions.
+- [x] Add deterministic maintained-workspace fixtures for object/function macros, integer `#if`, API-level `-D`/`-U` behavior, quoted local includes, and stable source locations. These are frontend-only tests.
 - [ ] Add tests from small, licensed C conformance fragments plus regression tests for every parser/preprocessor defect.
 - [ ] Keep unsupported language forms explicit: reject VLAs, varargs, atomics, thread-local storage, and FP constructs with precise source locations until their milestones.
 
