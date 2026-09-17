@@ -5,25 +5,25 @@ Cosmic C is the maintained Rust C compiler for the Cosmic operating system.
 Its production path is deliberately direct:
 
 ```text
-C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA32 → Cosmic object/image
+C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA32 → COSMIC-SIA bundle
 ```
 
-Cosmic C reuses the SIA32 backend in [nickik/crainlift](https://github.com/nickik/crainlift). It does not use LLVM. The compiler runs on the build host initially and produces freestanding `sia32-unknown-cosmic` objects for Cosmic.
+Cosmic C reuses the SIA32 backend in [nickik/crainlift](https://github.com/nickik/crainlift). It does not use LLVM. The compiler runs on the build host and targets the freestanding SIA32 Cosmic ABI. Its initial on-disk output is a small `COSMIC-SIA` code bundle; relocatable Cosmic objects and images are the next output milestone.
 
 ## Initial target
 
-The first supported target is a freestanding C99 integer/pointer profile:
+The first implemented profile is intentionally small and freestanding:
 
 - 32-bit little-endian pointers and data model
-- ordinary functions, globals, control flow, scalar loads/stores, and integer arithmetic
+- functions with parameters, explicit returns, initialized SSA locals, and integer arithmetic/bitwise shifts
 - fixed SIA ABI: `r1–r6` argument registers, `r1` result, 8-byte stack alignment
-- explicit Cosmic platform imports only; no hosted libc or host linker
+- no host linker and no hidden fallback to a host ISA
 
-The initial SIA32 backend deliberately rejects floating point, I64/`long long`, target varargs, TLS, unwinding, SIMD, and tail calls. Cosmic C must diagnose every unsupported construct clearly rather than emit incorrect code.
+The initial SIA32 backend deliberately rejects floating point, target varargs, globals, calls, pointer dereferences, control flow, TLS, unwinding, SIMD, and tail calls. Cosmic C must diagnose every unsupported construct clearly rather than emit incorrect code.
 
 ## Status
 
-The C frontend, preprocessor, typed HIR, and Cranelift-oriented code-generation structure are present. Current work modernizes the Cranelift integration and replaces host-x86-specific linking/output with the Cosmic SIA32 target.
+The `cosmicc` command now parses C with the existing frontend and compiles the supported integer subset through Cranelift's production SIA32 path. It writes a `COSMIC-SIA` bundle containing word-aligned native SIA instructions. Floating-point declarations and literals fail before CLIF generation.
 
 The authoritative roadmap is [TODO.md](TODO.md).
 
@@ -34,11 +34,11 @@ Every SIA-facing change requires focused frontend tests and SIA backend tests. A
 ## Development
 
 ```sh
-cargo test --workspace
-cargo run -- --help
+cargo test -p saltwater-sia
+printf 'int main(void) { int x = 4; return (x << 2) + 3; }\n' | cargo run -- -o demo.sia -
 ```
 
-The command-line interface and package layout may change while the compiler is retargeted.
+`cosmicc` accepts `--target sia32-unknown-none`; this is the concrete target triple currently understood by the Cranelift SIA backend. The Cosmic-specific object/image target will follow once its object format is defined.
 
 ## License
 
