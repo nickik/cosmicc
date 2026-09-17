@@ -16,17 +16,20 @@ use Type::*;
 /// http://port70.net/~nsz/c/c11/n1570.html#6.5.3.5
 const CHAR_SIZE: u16 = 1;
 
-// TODO: allow this to be configured at runtime
-/// The target triple for the host.
+/// The target triple emitted by Cosmic C.
 ///
 /// A "target triple" is used to represent information about a compiler target.
 /// Traditionaly, the target triple uses this format: `<architecture>-<vendor>-<operating system>`
 /// The target triple is represented as a struct and contains additional
 /// information like ABI and endianness.
-pub const TARGET: Triple = Triple::host();
+lazy_static::lazy_static! {
+    pub static ref TARGET: Triple = "sia32-unknown-none"
+        .parse()
+        .expect("the built-in SIA32 target triple must parse");
+}
 
-mod x64;
-pub use x64::*;
+mod sia32;
+pub use sia32::*;
 
 impl StructType {
     /// Get the offset of the given struct member.

@@ -1,37 +1,26 @@
 [package]
-name = "saltwater"
-version = "0.11.0"
-authors = [
-  "Jynn Nelson <github@jyn.dev>",
-  "Graham Scheaffer <me@gisch.dev>",
-  "Wesley Norris <repnop@outlook.com>",
-  "playX",
-  "Kevin Becker <k.becker@byter.dev>",
-  "Hunter Damron <hdamron@email.sc.edu>",
-  "Justus K <justus.k@protonmail.com>",
-]
+name = "cosmicc"
+version = "0.12.0"
+authors = ["Nick K <nickik@users.noreply.github.com>"]
 edition = "2018"
-description = "A C compiler written in Rust, with a focus on good error messages."
-repository = "https://github.com/jyn514/saltwater/"
+description = "A C compiler for Cosmic OS that emits SIA32 machine code."
+repository = "https://github.com/nickik/cosmicc"
 readme = "README.md"
 categories = ["development-tools", "parser-implementations"]
 license = "BSD-3-Clause"
 keywords = ["C", "compiler", "recursive-descent", "cranelift"]
-default-run = "swcc"
-documentation = "https://docs.rs/saltwater"
+default-run = "cosmicc"
 
 [dependencies]
 ansi_term = "0.12"
 arcstr = "0.2"
-tempfile = "3"
 pico-args = { version = "0.3.4", features = ["short-space-opt"] }
 color-backtrace = { version = "0.4", default-features = false, optional = true }
 atty = { version = "0.2", default-features = false }
 git-testament = { version = "0.1", optional = true }
 rand = { version = "0.7", optional = true }
 rodio = { version = "0.11.0", optional = true }
-saltwater-parser = { path = "saltwater-parser", version = "0.11.0" }
-saltwater-codegen = { path = "saltwater-codegen", version = "0.11.0" }
+saltwater-sia = { path = "saltwater-sia" }
 
 [dev-dependencies]
 env_logger = { version = "0.7", default-features = false }
@@ -42,15 +31,15 @@ walkdir = "2"
 [features]
 default = ["color-backtrace"]
 salty = ["rand", "rodio"]
-jit = ["saltwater-codegen/jit"]
+jit = []
 # for internal use
 _test_headers = []
 
 [workspace]
 
 [[bin]]
-name = "swcc"
-path = "src/main.rs"
+name = "cosmicc"
+path = "src/cosmicc.rs"
 
 [[bench]]
 name = "examples"

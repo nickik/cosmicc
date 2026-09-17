@@ -3,13 +3,13 @@
 This roadmap makes Cosmic C the maintained C frontend for the Cosmic OS toolchain:
 
 ```text
-C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA32 → relocatable Cosmic object → Cosmic image → LightingSimulation
+C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA32 → COSMIC-SIA bundle → relocatable Cosmic object → Cosmic image → LightingSimulation
 ```
 
 ## Non-negotiable contracts
 
 - Reuse `nickik/crainlift`'s SIA32 `LowerBackend → ISLE → MachInst → VCode → regalloc2 → emitter` path. Do not introduce a second direct SIA code generator.
-- Target `sia32-unknown-cosmic`: 32-bit little-endian pointers, `r0` hard-wired zero, `r1–r6` arguments, `r1` scalar return, 8-byte stack alignment, no red zone.
+- Current concrete triple is `sia32-unknown-none`; it uses the Cosmic SIA ABI: 32-bit little-endian pointers, `r0` hard-wired zero, `r1–r6` arguments, `r1` scalar return, 8-byte stack alignment, no red zone. The Cosmic object/image label follows its object-format definition.
 - Initial target is freestanding. No LLVM, hosted libc, host linker, TLS, unwinding, SIMD, floating point, I64/`long long`, or target varargs.
 - Unsupported source must fail with a precise diagnostic; it must never silently select a host ABI or host object format.
 - SIA acceptance is real emitted code and, where stated, execution in LightingSimulation—not host/JIT success.
@@ -17,40 +17,41 @@ C99 source → preprocessor → parser → typed HIR → CLIF → Cranelift SIA3
 ## M0 — Establish the maintained baseline
 
 - [ ] Replace remaining Saltwater/rcc naming, archived-project wording, obsolete badges, and host-install instructions.
-- [ ] Update package/crate/binary metadata consistently for Cosmic C.
+- [x] Update package and binary metadata for Cosmic C (`cosmicc`).
 - [ ] Make `cargo test --workspace` pass on the supported host Rust toolchain.
 - [ ] Record the upstream baseline SHA and preserve BSD-3-Clause attribution.
-- [ ] Add CI for formatting, workspace tests, and focused SIA target tests.
+- [x] Add CI for formatting, focused SIA target tests, and the `cosmicc` binary check.
 - [ ] Inventory every host-x86, system-`cc`, JIT, and old-Cranelift assumption.
 
 **Exit:** a clean, documented Rust workspace with an explicit Cosmic C identity.
 
 ## M1 — Modernize the Cranelift boundary
 
-- [ ] Pin code generation to the compatible `nickik/crainlift` revision/branch.
-- [ ] Update the old Cranelift APIs without changing parser/HIR semantics.
-- [ ] Separate target-independent C HIR→CLIF lowering from target object/link handling.
+- [x] Pin the SIA lowering path to a compatible `nickik/crainlift` revision.
+- [x] Add a dedicated current-Cranelift C HIR→CLIF→SIA32 lowering crate without changing parser/HIR semantics.
+- [x] Separate SIA code emission from future Cosmic object/link handling with a temporary `COSMIC-SIA` code bundle.
 - [ ] Keep a host regression lane only for frontend/CLIF diagnostics; it is not SIA acceptance.
 - [ ] Add golden CLIF tests for integer constants, arithmetic, comparisons, branches, loads/stores, calls, and globals.
 
-**Exit:** current Cosmic C emits valid CLIF through the same dependency family as `crainlift`.
+**Exit:** current Cosmic C emits valid CLIF and real SIA32 instruction bytes through the same dependency family as `crainlift`.
 
 ## M2 — Define `sia32-unknown-cosmic`
 
-- [ ] Add `--target=sia32-unknown-cosmic` and reject unsupported targets explicitly.
-- [ ] Define C type/layout rules: 8/16/32-bit integers, 32-bit pointers, alignment, signedness, enums, structs, arrays, and flexible arrays.
+- [x] Add `--target=sia32-unknown-none` and reject unsupported targets explicitly.
+- [x] Set the initial ILP32 scalar layout: 8/16/32-bit integers, 32-bit pointers, and 32-bit `long`.
 - [ ] Bind calls and returns to the authoritative SIA32 ABI already implemented by `Sia32MachineDeps`/`Sia32Callee`.
 - [ ] Define C startup/import conventions: freestanding entrypoint, explicit `__cosmic_*` imports, no implicit libc.
-- [ ] Emit diagnostics for float/double, I64/`long long`, `va_list`, `...`, TLS, and unsupported attributes.
+- [x] Emit an early diagnostic for every float/double declaration, type, or literal.
+- [ ] Emit diagnostics for I64/`long long`, `va_list`, `...`, TLS, and unsupported attributes.
 
 **Exit:** target selection, data layout, and diagnostics are deterministic and test-covered.
 
 ## M3 — Integer C99 → SIA32 code proof
 
-- [ ] Lower `char`, `short`, `int`, `unsigned`, pointers, casts, and integer promotions to CLIF I8/I16/I32 operations.
-- [ ] Lower locals, globals, address-of/dereference, array indexing, and scalar loads/stores.
+- [x] Lower the initial `int`/`long` integer subset, initialized locals, assignment, arithmetic, bitwise operations, shifts, function parameters, and returns to CLIF I32 operations.
+- [ ] Lower `char`, `short`, unsigned casts/promotions, pointers, globals, address-of/dereference, array indexing, and scalar loads/stores.
 - [ ] Lower arithmetic, bitwise operations, shifts, comparisons, `if`, loops, `switch`, and function calls/returns.
-- [ ] Compile `u32 add(u32, u32)` to SIA32 and inspect the generated bytes/relocations.
+- [x] Compile an integer C function with a local variable to real SIA32 bytes and assert SIA instruction-word alignment and return encoding.
 - [ ] Execute the generated function in LightingSimulation and prove:
   - [ ] `add(2, 3) == 5`
   - [ ] `add(0, 0) == 0`

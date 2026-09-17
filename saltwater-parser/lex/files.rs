@@ -55,12 +55,15 @@ impl FileProcessor {
     ) -> Self {
         let mut files = Files::new();
         let chars = chars.into();
-        let filename = filename.into();
+        // `codespan` is built without its std feature, where file names are
+        // UTF-8 strings rather than `OsString`s. Preserve the path separately
+        // and use its display form for source diagnostics.
+        let filename = std::path::PathBuf::from(filename.into());
         let source = crate::Source {
             code: ArcStr::clone(&chars),
-            path: filename.clone().into(),
+            path: filename.clone(),
         };
-        let file = files.add(filename, source);
+        let file = files.add(filename.to_string_lossy().into_owned(), source);
         Self {
             error_handler: ErrorHandler::default(),
             first_lexer: Lexer::new(file, chars, debug),
@@ -88,7 +91,9 @@ impl FileProcessor {
     }
     pub(super) fn add_file(&mut self, filename: PathBuf, source: Source) {
         let code = ArcStr::clone(&source.code);
-        let id = self.files.add(filename, source);
+        let id = self
+            .files
+            .add(filename.to_string_lossy().into_owned(), source);
         self.includes
             .push(Lexer::new(id, code, self.first_lexer.debug));
     }

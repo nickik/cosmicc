@@ -1,0 +1,24 @@
+name: Cosmic C
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Test the C to SIA32 path
+        run: cargo test -p saltwater-sia
+      - name: Check the compiler command
+        run: cargo check --bin cosmicc
