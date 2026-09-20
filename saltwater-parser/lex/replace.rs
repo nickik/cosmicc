@@ -559,8 +559,15 @@ fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
     let pasted = format!("{}{}", spelling(left)?, spelling(right)?);
 
     // The result of ## is a preprocessing token, not necessarily an identifier.
-    // Re-lex it so numeric pastes such as 1 ## 1 become the integer token 11
-    // instead of an identifier whose spelling happens to be "11".
+    // Avoid feeding decimal text through the lexer here: a leading zero would
+    // deliberately select C octal syntax, while a pasted decimal digit sequence
+    // such as 1 ## 1 must simply become the decimal token 11.
+    if pasted.chars().all(|ch| ch.is_ascii_digit()) {
+        return Some(Token::Literal(crate::data::lex::LiteralToken::Int(
+            pasted.into(),
+        )));
+    }
+
     let mut files = crate::Files::new();
     let file = files.add("<token-paste>", crate::Source {
         code: arcstr::ArcStr::from(pasted.as_str()),
