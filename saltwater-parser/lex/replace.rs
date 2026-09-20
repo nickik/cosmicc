@@ -181,7 +181,8 @@ fn replace_boxed<'a>(
     disabled: &[InternedStr],
 ) -> Vec<CompileResult<Locatable<Token>>> {
     let mut replacements = Vec::new();
-    let mut pending: VecDeque<(CompileResult<Locatable<Token>>, Vec<InternedStr>)> = VecDeque::new();
+    let mut pending: VecDeque<(CompileResult<Locatable<Token>>, Vec<InternedStr>)> =
+        VecDeque::new();
     pending.push_back((Ok(location.with(token)), disabled.to_vec()));
 
     while let Some((token, disabled_here)) = pending.pop_front() {
