@@ -1083,14 +1083,14 @@ impl<'a> PreProcessor<'a> {
                 (path, src)
             }
             Err(not_found) => {
-                let filename = match filename.file_name().and_then(|f| f.to_str()) {
+                let header_name = match filename.to_str() {
                     None => return Err(not_found),
-                    Some(f) => f,
+                    Some(name) => name,
                 };
-                match get_builtin_header(filename) {
+                match get_builtin_header(header_name) {
                     Some(file) => {
                         let mut path = PathBuf::from("<builtin>");
-                        path.push(filename);
+                        path.push(&filename);
                         (path, ArcStr::from(file))
                     }
                     None => return Err(not_found),
