@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(non_local_definitions))]
+
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 
