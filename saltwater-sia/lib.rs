@@ -9,7 +9,7 @@ use std::fmt;
 
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::{
-    types, AbiParam, Function, InstBuilder, Signature, UserFuncName, Value,
+    types, AbiParam, Function, InstBuilder, MemFlags, Signature, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -608,10 +608,10 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     })?;
                     Ok(self.builder.use_var(variable))
                 }
-                _ => Err(unsupported(
-                    expression.location,
-                    "pointer dereferences are not supported for SIA32 yet",
-                )),
+                _ => {
+                    let address = self.compile_expr(pointer)?;
+                    Ok(self.builder.ins().load(ty, MemFlags::new(), address, 0))
+                },
             },
             ExprType::Negate(value) => {
                 let value = self.compile_expr(value)?;
@@ -631,20 +631,15 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                             "only plain local-variable assignment is supported for SIA32",
                         ));
                     };
-                    let ExprType::Id(symbol) = &pointer.expr else {
-                        return Err(unsupported(
-                            left.location,
-                            "only plain local-variable assignment is supported for SIA32",
-                        ));
-                    };
-                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            left.location,
-                            "assignment to globals is not supported for SIA32 yet",
-                        )
-                    })?;
                     let value = self.compile_expr(right)?;
-                    self.builder.def_var(variable, value);
+                    if let ExprType::Id(symbol) = &pointer.expr {
+                        if let Some(variable) = self.variables.get(symbol).copied() {
+                            self.builder.def_var(variable, value);
+                            return Ok(value);
+                        }
+                    }
+                    let address = self.compile_expr(pointer)?;
+                    self.builder.ins().store(MemFlags::new(), value, address, 0);
                     return Ok(value);
                 }
                 let left = self.compile_expr(left)?;
