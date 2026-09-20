@@ -185,3 +185,14 @@ fn ext4_style_chained_token_pasting_expands_all_identifiers() {
     assert!(rendered.contains("EXT4_FEATURE_COMPAT_METADATA_CSUM"));
     assert!(!rendered.contains("#"));
 }
+
+
+#[test]
+fn token_pasting_relexes_numeric_result() {
+    let rendered = tokens(
+        "#define CAT(a, b) a##b\nint answer = CAT(1, 1);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("11"));
+}
