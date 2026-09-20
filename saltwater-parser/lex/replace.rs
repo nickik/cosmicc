@@ -361,6 +361,17 @@ fn replace_function(
         _ => unreachable!("checked above"),
     };
 
+    let macro_name = id.resolve_and_clone();
+    let macro_body = body
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let hash_error = || CppError::HashMissingParameterContext {
+        macro_name: macro_name.clone(),
+        body: macro_body.clone(),
+    };
+
     let mut replacements = Vec::new();
     if args.len() != params.len() {
         // There is no way to distinguish between a macro-function taking one empty argument
@@ -388,7 +399,7 @@ fn replace_function(
                                     Some(pasted) => replacements.push(pasted),
                                     None => {
                                         return vec![Err(location.with(
-                                            CppError::HashMissingParameter.into(),
+                                            hash_error().into(),
                                         ))]
                                     }
                                 }
@@ -407,13 +418,13 @@ fn replace_function(
                             Some(pasted) => replacements.push(pasted),
                             None => {
                                 return vec![Err(location.with(
-                                    CppError::HashMissingParameter.into(),
+                                    hash_error().into(),
                                 ))]
                             }
                         }
                     }
                 } else if pending_hash {
-                    return vec![Err(location.with(CppError::HashMissingParameter.into()))];
+                    return vec![Err(location.with(hash_error().into()))];
                 } else {
                     replacements.push(Token::Id(id));
                 }
@@ -442,7 +453,7 @@ fn replace_function(
             }
             _ => {
                 if pending_hash {
-                    return vec![Err(location.with(CppError::HashMissingParameter.into()))];
+                    return vec![Err(location.with(hash_error().into()))];
                 } else {
                     replacements.push(token.clone());
                 }
