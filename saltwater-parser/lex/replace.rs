@@ -154,10 +154,22 @@ impl<I: Iterator<Item = CompileResult<Locatable<Token>>>> Iterator for Replace<'
 ///
 /// `location` is used only for errors; in all other cases it is ignored.
 #[must_use = "does not change internal state"]
-pub fn replace(
+pub fn replace<I>(
     definitions: &Definitions,
     token: Token,
-    mut inner: impl Iterator<Item = CppResult<Token>> + Peekable,
+    inner: I,
+    location: Location,
+) -> Vec<CompileResult<Locatable<Token>>>
+where
+    I: Iterator<Item = CppResult<Token>> + Peekable,
+{
+    replace_boxed(definitions, token, Box::new(inner), location)
+}
+
+fn replace_boxed<'a>(
+    definitions: &Definitions,
+    token: Token,
+    mut inner: Box<dyn Iterator<Item = CppResult<Token>> + 'a>,
     location: Location,
 ) -> Vec<CompileResult<Locatable<Token>>> {
     // The ids seen while replacing the current token.
