@@ -4,7 +4,8 @@ use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
 
-use saltwater_sia::{compile_default, TARGET};
+use saltwater_parser::Opt;
+use saltwater_sia::{compile, TARGET};
 
 const HELP: &str = "\
 cosmicc - C to SIA32 compiler for Cosmic OS
@@ -16,7 +17,7 @@ backend. The output is a COSMIC-SIA code bundle, not a host executable.
 
 Options:
   -c, --no-link        Accepted for C compiler compatibility; linking is not run.
-  -o, --output PATH    Write the SIA bundle to PATH (default: a.sia).
+  -o, --output PATH    Write the SIA bundle to PATH (default: a.sia).\n  -I, --include DIR    Add DIR to the header search path; may be repeated.
       --target TARGET  Require `sia32-unknown-none` (the only supported target).
   -h, --help           Show this help.
   -V, --version        Show the compiler version.
@@ -29,6 +30,7 @@ floating-point C is rejected deliberately before backend lowering.";
 fn main() {
     let mut input = None;
     let mut output = PathBuf::from("a.sia");
+    let mut include_paths = Vec::new();
     let mut args = env::args().skip(1);
     while let Some(argument) = args.next() {
         match argument.as_str() {
@@ -45,6 +47,10 @@ fn main() {
                 Some(path) => output = path.into(),
                 None => usage_error("missing path after --output"),
             },
+            "-I" | "--include" => match args.next() {
+                Some(path) => include_paths.push(PathBuf::from(path)),
+                None => usage_error("missing path after -I/--include"),
+            },
             "--target" => match args.next() {
                 Some(target) if target == TARGET => {}
                 Some(target) => usage_error(&format!(
@@ -52,6 +58,9 @@ fn main() {
                 )),
                 None => usage_error("missing target after --target"),
             },
+            _ if argument.starts_with("-I") && argument.len() > 2 => {
+                include_paths.push(PathBuf::from(&argument[2..]));
+            }
             _ if argument.starts_with('-') && argument != "-" => {
                 usage_error(&format!("unknown option `{argument}`"));
             }
@@ -79,7 +88,10 @@ fn main() {
         })
     };
 
-    let artifact = compile_default(&source).unwrap_or_else(|error| fatal(&error.to_string()));
+    let mut opt = Opt::default();
+    opt.filename = source_path;
+    opt.search_path = include_paths;
+    let artifact = compile(&source, opt).unwrap_or_else(|error| fatal(&error.to_string()));
     let bytes = artifact
         .to_bytes()
         .unwrap_or_else(|error| fatal(&error.to_string()));
