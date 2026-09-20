@@ -181,7 +181,8 @@ impl PureAnalyzer {
     fn parse_declaration(
         &mut self,
         declaration: ast::Declaration,
-        location: Location,
+        #[allow(dead_code)]
+    location: Location,
     ) -> Vec<Locatable<Declaration>> {
         let original = self.parse_specifiers(declaration.specifiers, location);
 
