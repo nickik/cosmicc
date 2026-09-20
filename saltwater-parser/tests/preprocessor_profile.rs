@@ -231,3 +231,16 @@ fn object_macro_inside_function_macro_output_is_rescanned() {
     assert!(rendered.contains("32"));
     assert!(!rendered.contains("FLAG"));
 }
+
+
+#[test]
+fn same_macro_expands_at_each_independent_occurrence() {
+    let rendered = tokens(
+        "#define FLAG 32\n#define ID(x) (x)\nint a = FLAG; int b = FLAG; int c = ID(1); int d = ID(2);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert_eq!(rendered.matches("32").count(), 2);
+    assert!(!rendered.contains("FLAG"));
+    assert!(!rendered.contains("ID"));
+}
