@@ -22,6 +22,7 @@ use saltwater_parser::data::{
     CompileError, Location, StorageClass, Type,
 };
 pub use saltwater_parser::data::error::LexError;
+pub use saltwater_parser::data::error::LexError;
 pub use saltwater_parser::Opt;
 use target_lexicon::Triple;
 
