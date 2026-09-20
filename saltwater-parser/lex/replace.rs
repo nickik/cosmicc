@@ -207,8 +207,23 @@ fn replace_boxed<'a>(
                         continue;
                     }
                     Some(Definition::Function { .. }) => {
-                        let func_replacements =
-                            replace_function(definitions, id, location, &mut pending, &mut inner);
+                        // replace_function predates scoped hide sets and consumes a
+                        // plain token queue. Temporarily project the pending queue,
+                        // then restore the per-token hide sets for anything it leaves.
+                        let mut plain_pending: VecDeque<_> =
+                            pending.drain(..).map(|(token, _)| token).collect();
+                        let func_replacements = replace_function(
+                            definitions,
+                            id,
+                            location,
+                            &mut plain_pending,
+                            &mut inner,
+                        );
+                        pending.extend(
+                            plain_pending
+                                .into_iter()
+                                .map(|token| (token, disabled_here.clone())),
+                        );
                         let mut func_replacements: VecDeque<_> =
                             func_replacements.into_iter().collect();
 
