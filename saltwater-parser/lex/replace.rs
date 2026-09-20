@@ -505,17 +505,22 @@ fn replace_function(
     // The replacement list produced by ## must be rescanned for macro names.
     // Feed the generated preprocessing tokens through the normal replacer once
     // more, while preserving the existing cycle protection at the outer level.
-    let rescanned = replacements
+    let mut rescan_input = replacements
         .into_iter()
-        .flat_map(|token| {
-            replace(
+        .map(|token| Ok(location.with(token)))
+        .peekable();
+    let mut rescanned = Vec::new();
+    while let Some(item) = rescan_input.next() {
+        match item {
+            Ok(token) => rescanned.extend(replace(
                 definitions,
-                token,
-                std::iter::empty::<CppResult<Token>>(),
-                location,
-            )
-        })
-        .collect::<Vec<_>>();
+                token.data,
+                &mut rescan_input,
+                token.location,
+            )),
+            Err(error) => rescanned.push(Err(error)),
+        }
+    }
 
     errors.into_iter().chain(rescanned).collect()
 }
