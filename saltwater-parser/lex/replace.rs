@@ -573,10 +573,13 @@ fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
     }
 
     let mut files = crate::Files::new();
-    let file = files.add("<token-paste>", crate::Source {
-        code: arcstr::ArcStr::from(pasted.as_str()),
-        path: std::path::PathBuf::from("<token-paste>"),
-    });
+    let file = files.add(
+        "<token-paste>",
+        crate::Source {
+            code: arcstr::ArcStr::from(pasted.as_str()),
+            path: std::path::PathBuf::from("<token-paste>"),
+        },
+    );
     let mut lexer = crate::lex::Lexer::new(file, pasted.as_str(), false);
     let first = lexer.next()?.ok()?.data;
     if lexer.next().is_some() {

@@ -192,7 +192,6 @@ fn token_pasting_relexes_numeric_result() {
     assert!(rendered.contains("11"));
 }
 
-
 #[test]
 fn pasted_output_rescans_function_like_macro_with_arguments() {
     let rendered = tokens(
