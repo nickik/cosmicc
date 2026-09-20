@@ -183,7 +183,6 @@ fn replace_boxed<'a>(
     // This allows cycle detection. It should be reset after every replacement list
     // - _not_ after every token, since otherwise that won't catch some mutual recursion
     // See https://github.com/jyn514/rcc/issues/427 for examples.
-    let mut ids_seen = HashSet::new();
     let mut replacements = Vec::new();
     let mut pending = VecDeque::new();
     pending.push_back(Ok(location.with(token)));
@@ -196,8 +195,7 @@ fn replace_boxed<'a>(
             ..
         }) = token
         {
-            if !ids_seen.contains(&id) {
-                match definitions.get(&id) {
+            match definitions.get(&id) {
                     Some(Definition::Object(replacement_list)) => {
                         // prepend the new tokens to the pending tokens
                         // They need to go before, not after. For instance:
@@ -248,7 +246,6 @@ fn replace_boxed<'a>(
                     }
                     None => {}
                 }
-            }
         }
         replacements.push(token);
     }
