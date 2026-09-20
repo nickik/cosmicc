@@ -19,6 +19,7 @@ Options:
   -c, --no-link        Accepted for C compiler compatibility; linking is not run.
   -o, --output PATH    Write the SIA bundle to PATH (default: a.sia).\n  -I, --include DIR    Add DIR to the header search path; may be repeated.
   -D, --define DEF     Define object macro NAME or NAME=VALUE; may be repeated.
+  -E, --preprocess     Preprocess only and write tokens to stdout.
       --target TARGET  Require `sia32-unknown-none` (the only supported target).
   -h, --help           Show this help.
   -V, --version        Show the compiler version.
@@ -33,6 +34,7 @@ fn main() {
     let mut output = PathBuf::from("a.sia");
     let mut include_paths = Vec::new();
     let mut definitions = Vec::new();
+    let mut preprocess_only = false;
     let mut args = env::args().skip(1);
     while let Some(argument) = args.next() {
         match argument.as_str() {
@@ -45,6 +47,7 @@ fn main() {
                 return;
             }
             "-c" | "--no-link" => {}
+            "-E" | "--preprocess" | "--preprocess-only" => preprocess_only = true,
             "-o" | "--output" => match args.next() {
                 Some(path) => output = path.into(),
                 None => usage_error("missing path after --output"),
@@ -109,6 +112,26 @@ fn main() {
             .unwrap_or_else(|error: saltwater_sia::LexError| fatal(&error.to_string()));
         opt.definitions.insert(name.into(), value);
     }
+    if preprocess_only {
+        let program = saltwater_sia::preprocess(&source, opt);
+        match program.result {
+            Ok(tokens) => {
+                for token in tokens {
+                    print!("{}", token.data);
+                }
+                return;
+            }
+            Err(errors) => {
+                let message = errors
+                    .into_iter()
+                    .map(|error| error.data.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                fatal(&message);
+            }
+        }
+    }
+
     let artifact = compile(&source, opt).unwrap_or_else(|error| fatal(&error.to_string()));
     let bytes = artifact
         .to_bytes()
