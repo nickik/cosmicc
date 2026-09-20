@@ -462,11 +462,12 @@ fn compile_function(
         builder.finalize(isa.frontend_config());
     }
 
+    let clif = context.func.to_string();
     let mut control_plane = ControlPlane::default();
     let compiled = context.compile(isa, &mut control_plane).map_err(|error| {
         Error::Codegen(format!(
-            "SIA32 lowering failed for {name}: {}\nCLIF:\n{}",
-            error.inner, context.func
+            "SIA32 lowering failed for {name}: {}\nCLIF:\n{clif}",
+            error.inner
         ))
     })?;
     let code = compiled.code_buffer().to_vec();
