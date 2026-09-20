@@ -7,7 +7,7 @@ use crate::{
     error::CppError, CompileError, CompileResult, InternedStr, LiteralToken, Locatable, Location,
     Token,
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use arcstr::Substr;
 
@@ -169,7 +169,8 @@ pub fn replace<I>(
 where
     I: Iterator<Item = CppResult<Token>> + Peekable,
 {
-    replace_boxed(definitions, token, Box::new(inner), location)
+    let disabled = Vec::new();
+    replace_boxed(definitions, token, Box::new(inner), location, &disabled)
 }
 
 fn replace_boxed<'a>(
@@ -177,57 +178,40 @@ fn replace_boxed<'a>(
     token: Token,
     mut inner: Box<dyn Peekable<Item = CppResult<Token>> + 'a>,
     location: Location,
+    disabled: &[InternedStr],
 ) -> Vec<CompileResult<Locatable<Token>>> {
-    // The ids seen while replacing the current token.
-    //
-    // This allows cycle detection. It should be reset after every replacement list
-    // - _not_ after every token, since otherwise that won't catch some mutual recursion
-    // See https://github.com/jyn514/rcc/issues/427 for examples.
     let mut replacements = Vec::new();
-    let mut pending = VecDeque::new();
-    pending.push_back(Ok(location.with(token)));
+    let mut pending: VecDeque<(CompileResult<Locatable<Token>>, Vec<InternedStr>)> = VecDeque::new();
+    pending.push_back((Ok(location.with(token)), disabled.to_vec()));
 
-    // outer loop: replace all tokens in the replacement list
-    while let Some(token) = pending.pop_front() {
-        // first step: perform (recursive) substitution on the ID
+    while let Some((token, disabled_here)) = pending.pop_front() {
         if let Ok(Locatable {
             data: Token::Id(id),
             ..
         }) = token
         {
-            match definitions.get(&id) {
+            if !disabled_here.contains(&id) {
+                match definitions.get(&id) {
                     Some(Definition::Object(replacement_list)) => {
-                        // prepend the new tokens to the pending tokens
-                        // They need to go before, not after. For instance:
-                        // ```c
-                        // #define a b c d
-                        // #define b 1 + 2
-                        // a
-                        // ```
-                        // should replace to `1 + 2 c d`, not `c d 1 + 2`
+                        let mut nested_disabled = disabled_here.clone();
+                        nested_disabled.push(id);
                         let mut new_pending = VecDeque::new();
-                        // we need a `clone()` because `self.definitions` needs to keep its copy of the definition
                         new_pending.extend(
                             replacement_list
                                 .iter()
                                 .cloned()
-                                .map(|t| Ok(location.with(t))),
+                                .map(|t| (Ok(location.with(t)), nested_disabled.clone())),
                         );
                         new_pending.append(&mut pending);
                         pending = new_pending;
                         continue;
                     }
-                    // TODO: so many allocations :(
                     Some(Definition::Function { .. }) => {
                         let func_replacements =
                             replace_function(definitions, id, location, &mut pending, &mut inner);
                         let mut func_replacements: VecDeque<_> =
                             func_replacements.into_iter().collect();
 
-                        // replace_function may return the original identifier when it
-                        // discovers this was not actually a call. In that case it also
-                        // returns the lookahead token. Do not feed the identifier back
-                        // into this same expansion pass or it will be considered again.
                         if matches!(
                             func_replacements.front(),
                             Some(Ok(Locatable {
@@ -240,12 +224,19 @@ fn replace_boxed<'a>(
                             continue;
                         }
 
-                        func_replacements.append(&mut pending);
-                        pending = func_replacements;
+                        let mut nested_disabled = disabled_here.clone();
+                        nested_disabled.push(id);
+                        let mut queued: VecDeque<_> = func_replacements
+                            .into_iter()
+                            .map(|t| (t, nested_disabled.clone()))
+                            .collect();
+                        queued.append(&mut pending);
+                        pending = queued;
                         continue;
                     }
                     None => {}
                 }
+            }
         }
         replacements.push(token);
     }
