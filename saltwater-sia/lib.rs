@@ -21,7 +21,8 @@ use saltwater_parser::data::{
     hir::{Declaration, Expr, ExprType, Initializer, LiteralValue, Stmt, StmtType, Symbol},
     CompileError, Location, StorageClass, Type,
 };
-pub use saltwater_parser::{LexError, Opt};
+pub use saltwater_parser::data::error::LexError;
+pub use saltwater_parser::Opt;
 use target_lexicon::Triple;
 
 /// The fixed target accepted by this compiler stage.
