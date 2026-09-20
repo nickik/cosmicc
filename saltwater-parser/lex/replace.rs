@@ -474,6 +474,9 @@ fn replace_function(
                     && matches!(body[second_hash], Token::Hash)
                 {
                     replacements.extend(left_tokens);
+                    while matches!(replacements.last(), Some(Token::Whitespace(_))) {
+                        replacements.pop();
+                    }
                     i = hash;
                     continue;
                 }
