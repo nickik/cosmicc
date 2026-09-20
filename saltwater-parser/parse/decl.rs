@@ -631,24 +631,31 @@ impl<I: Lexer> Parser<I> {
                     left_paren.merge(right_paren),
                 ));
             }
-            // A parameter declaration may contain an identifier. Parse it like a
-            // type name but permit a concrete declarator, e.g. `dev_t device`
-            // or `io_stats *stats`.
-            let (specifiers, specifier_locations) = self.specifiers()?;
-            let maybe_declarator = self.declarator(true)?;
-            let declarator = maybe_declarator
-                .map(|decl| decl.data.parse_declarator())
-                .unwrap_or(Declarator {
-                    decl: ast::DeclaratorType::End,
-                    id: None,
-                });
-            if specifier_locations.is_none() {
-                return Err(self.next_location().with(SyntaxError::ExpectedType));
+            // Preserve the historical abstract-declarator extension used by
+            // tests such as f(()), while accepting ordinary named parameter
+            // declarations such as dev_t device and io_stats *stats.
+            let checkpoint = self.clone();
+            match self.type_name() {
+                Ok(param) => params.push(param.data),
+                Err(type_error) => {
+                    *self = checkpoint;
+                    let (specifiers, specifier_locations) = self.specifiers()?;
+                    if specifier_locations.is_none() {
+                        return Err(type_error);
+                    }
+                    let declarator = self
+                        .declarator(false)?
+                        .map(|decl| decl.data.parse_declarator())
+                        .unwrap_or(Declarator {
+                            decl: ast::DeclaratorType::End,
+                            id: None,
+                        });
+                    params.push(TypeName {
+                        specifiers,
+                        declarator,
+                    });
+                }
             }
-            params.push(TypeName {
-                specifiers,
-                declarator,
-            });
             if self.match_next(&Token::Comma).is_none() {
                 let right_paren = self.expect(Token::RightParen)?.location;
                 let location = left_paren.merge(right_paren);
