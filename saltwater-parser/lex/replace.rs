@@ -519,28 +519,14 @@ fn replace_function(
         }
         i += 1;
     }
-    // TODO: this collect is useless
-    // The replacement list produced by ## must be rescanned for macro names.
-    // Feed the generated preprocessing tokens through the normal replacer once
-    // more, while preserving the existing cycle protection at the outer level.
-    let mut rescan_input = replacements
+    // Return the substituted replacement list to the outer replacement engine.
+    // It already performs rescanning with a single ids_seen set, which is required
+    // for correct self- and mutually-recursive macro suppression. Recursing through
+    // replace() here resets that set and causes cycles such as A -> B -> A to overflow.
+    errors
         .into_iter()
-        .map(|token| Ok(location.with(token)))
-        .peekable();
-    let mut rescanned = Vec::new();
-    while let Some(item) = rescan_input.next() {
-        match item {
-            Ok(token) => rescanned.extend(replace(
-                definitions,
-                token.data,
-                &mut rescan_input,
-                token.location,
-            )),
-            Err(error) => rescanned.push(Err(error)),
-        }
-    }
-
-    errors.into_iter().chain(rescanned).collect()
+        .chain(replacements.into_iter().map(|token| Ok(location.with(token))))
+        .collect()
 }
 
 fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
