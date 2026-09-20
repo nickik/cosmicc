@@ -225,7 +225,6 @@ fn object_macro_inside_function_macro_output_is_rescanned() {
     assert!(!rendered.contains("FLAG"));
 }
 
-
 #[test]
 fn same_macro_expands_at_each_independent_occurrence() {
     let rendered = tokens(
