@@ -448,22 +448,25 @@ fn replace_function(
                     }
                     token => vec![token],
                 };
-                let first = match right_tokens.first() {
-                    Some(token) => token.clone(),
-                    None => {
-                        i = right + 1;
-                        continue;
-                    }
-                };
-                let previous = match replacements.pop() {
+                if right_tokens.is_empty() {
+                    i = right + 1;
+                    continue;
+                }
+                let mut pasted = match replacements.pop() {
                     Some(token) => token,
                     None => return vec![Err(location.with(hash_error().into()))],
                 };
-                match paste_identifier_tokens(previous, first) {
-                    Some(pasted) => replacements.push(pasted),
-                    None => return vec![Err(location.with(hash_error().into()))],
+                // Macro arguments are preprocessing-token sequences. In particular,
+                // e2fsprogs passes 64BIT as a ## operand, which this lexer represents
+                // as more than one C token. All tokens in that operand participate in
+                // the paste before the result is rescanned.
+                for token in right_tokens {
+                    pasted = match paste_identifier_tokens(pasted, token) {
+                        Some(token) => token,
+                        None => return vec![Err(location.with(hash_error().into()))],
+                    };
                 }
-                replacements.extend(right_tokens.into_iter().skip(1));
+                replacements.push(pasted);
 
                 // A paste result can itself be the left operand of another ##,
                 // as in EXT##ver##_FEATURE_COMPAT_##flagname. Leave the cursor
