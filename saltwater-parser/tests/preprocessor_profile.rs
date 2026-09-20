@@ -137,7 +137,6 @@ fn nested_builtin_header_keeps_its_full_path() {
     assert!(rendered.contains("answer"));
 }
 
-
 #[test]
 fn identifier_token_pasting_supports_feature_macros() {
     let rendered = tokens(
@@ -148,7 +147,6 @@ fn identifier_token_pasting_supports_feature_macros() {
     assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
     assert!(!rendered.contains("#"));
 }
-
 
 #[test]
 fn identifier_token_pasting_allows_whitespace_around_hashes() {
@@ -161,7 +159,6 @@ fn identifier_token_pasting_allows_whitespace_around_hashes() {
     assert!(!rendered.contains("#"));
 }
 
-
 #[test]
 fn identifier_token_pasting_allows_whitespace_between_hashes() {
     let rendered = tokens(
@@ -172,7 +169,6 @@ fn identifier_token_pasting_allows_whitespace_between_hashes() {
     assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
     assert!(!rendered.contains("#"));
 }
-
 
 #[test]
 fn ext4_style_chained_token_pasting_expands_all_identifiers() {

@@ -505,10 +505,7 @@ pub enum CppError {
 
     /// Same error with enough context to diagnose real-world macro expansion.
     #[error("'#' in macro '{macro_name}' is not followed by a macro parameter; replacement tokens: {body}")]
-    HashMissingParameterContext {
-        macro_name: String,
-        body: String,
-    },
+    HashMissingParameterContext { macro_name: String, body: String },
 }
 
 /// Lex errors are non-exhaustive and may have new variants added at any time
