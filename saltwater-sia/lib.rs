@@ -9,7 +9,7 @@ use std::fmt;
 
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::{
-    types, AbiParam, Function, InstBuilder, MemFlags, Signature, UserFuncName, Value,
+    types, AbiParam, Function, InstBuilder, MemFlagsData, Signature, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -610,7 +610,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 }
                 _ => {
                     let address = self.compile_expr(pointer)?;
-                    Ok(self.builder.ins().load(ty, MemFlags::from_bits(0), address, 0))
+                    Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                 },
             },
             ExprType::Negate(value) => {
@@ -639,7 +639,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                         }
                     }
                     let address = self.compile_expr(pointer)?;
-                    self.builder.ins().store(MemFlags::from_bits(0), value, address, 0);
+                    self.builder.ins().store(MemFlagsData::new(), value, address, 0);
                     return Ok(value);
                 }
                 let left = self.compile_expr(left)?;
