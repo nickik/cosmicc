@@ -635,7 +635,7 @@ impl<I: Lexer> Parser<I> {
             // also accepts an abstract function declarator such as f(()), so
             // retain that special case without requiring parser backtracking.
             if self.peek_token() == Some(&Token::LeftParen)
-                && self.peek_next_token() == Some(&Token::LeftParen)
+                && self.peek_next_token() == Some(&Token::RightParen)
             {
                 params.push(self.type_name()?.data);
             } else {
