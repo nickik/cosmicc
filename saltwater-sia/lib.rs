@@ -8,8 +8,9 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 use cranelift_codegen::control::ControlPlane;
+use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Function, InstBuilder, IntCC, MemFlagsData, Signature, UserFuncName, Value,
+    types, AbiParam, Function, InstBuilder, MemFlagsData, Signature, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
