@@ -203,7 +203,6 @@ fn pasted_output_rescans_function_like_macro_with_arguments() {
     assert!(!rendered.contains("WRAP"));
 }
 
-
 #[test]
 fn ordinary_function_macro_output_is_rescanned_in_outer_engine() {
     let rendered = tokens(
