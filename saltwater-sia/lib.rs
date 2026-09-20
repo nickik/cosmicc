@@ -664,12 +664,18 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     }
                 }
                 let pointer = member_base_pointer(base).ok_or_else(|| {
-                    unsupported(expression.location, "SIA32 member access requires an addressable aggregate")
+                    unsupported(
+                        expression.location,
+                        "SIA32 member access requires an addressable aggregate",
+                    )
                 })?;
                 let address = match &pointer.expr {
                     ExprType::Id(symbol) => {
                         let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                            unsupported(expression.location, "global aggregate addresses are not supported for SIA32 yet")
+                            unsupported(
+                                expression.location,
+                                "global aggregate addresses are not supported for SIA32 yet",
+                            )
                         })?;
                         self.builder.use_var(variable)
                     }
