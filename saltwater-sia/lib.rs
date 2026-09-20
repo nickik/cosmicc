@@ -730,7 +730,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     _ => {
                         return Err(unsupported(
                             expression.location,
-                            "this C operator is not implemented in the initial SIA32 compiler path",
+                            format!("SIA32 operator lowering is not implemented for {operator:?}"),
                         ));
                     }
                 };
