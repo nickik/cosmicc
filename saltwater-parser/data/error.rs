@@ -503,9 +503,16 @@ pub enum CppError {
     #[error("redefinition of '{0}' does not match original definition")]
     IncompatibleRedefinition(InternedStr),
 
-    /// '#' in a function macro not followed by function parameter
+    /// '#' in a function macro not followed by function parameter.
     #[error("'#' is not followed by a macro parameter")]
     HashMissingParameter,
+
+    /// Same error with enough context to diagnose real-world macro expansion.
+    #[error("'#' in macro '{macro_name}' is not followed by a macro parameter; replacement tokens: {body}")]
+    HashMissingParameterContext {
+        macro_name: String,
+        body: String,
+    },
 }
 
 /// Lex errors are non-exhaustive and may have new variants added at any time
