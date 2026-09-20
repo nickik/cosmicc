@@ -124,3 +124,15 @@ fn explicit_include_paths_preserve_precedence() {
     assert!(!rendered.contains("22"));
     let _ = std::fs::remove_dir_all(root);
 }
+
+
+#[test]
+fn nested_builtin_header_keeps_its_full_path() {
+    let rendered = tokens(
+        "#include <sys/types.h>\nssize_t answer = 0;\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("answer"));
+    assert!(!rendered.contains("ssize_t"));
+}
