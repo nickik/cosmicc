@@ -358,6 +358,21 @@ impl<'a> PreProcessor<'a> {
         definitions.entry("__restrict".into()).or_insert_with(|| {
             Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Restrict)])
         });
+        definitions.entry("__signed__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Signed)])
+        });
+        definitions.entry("__signed".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Signed)])
+        });
+        definitions.entry("__const__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Const)])
+        });
+        definitions.entry("__const".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Const)])
+        });
+        definitions.entry("__volatile__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Volatile)])
+        });
         // Cosmic C targets the freestanding sia32-unknown-none environment.
         // Never fall through to host libc headers: their ABI and GNU extensions
         // do not describe the target. Explicit -I paths are searched first and
