@@ -340,14 +340,24 @@ impl<'a> PreProcessor<'a> {
         definitions.extend(user_definitions);
         // Common GNU compatibility annotations used by portable system headers.
         // They carry no semantic effect in the initial SIA32 ABI model.
-        definitions.entry("__attribute__".into()).or_insert_with(|| Definition::Function {
-            params: vec!["__cosmic_attribute".into()],
-            body: Vec::new(),
+        definitions
+            .entry("__attribute__".into())
+            .or_insert_with(|| Definition::Function {
+                params: vec!["__cosmic_attribute".into()],
+                body: Vec::new(),
+            });
+        definitions
+            .entry("__extension__".into())
+            .or_insert_with(|| Definition::Object(Vec::new()));
+        definitions.entry("__inline__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Inline)])
         });
-        definitions.entry("__extension__".into()).or_insert_with(|| Definition::Object(Vec::new()));
-        definitions.entry("__inline__".into()).or_insert_with(|| Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Inline)]));
-        definitions.entry("__inline".into()).or_insert_with(|| Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Inline)]));
-        definitions.entry("__restrict".into()).or_insert_with(|| Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Restrict)]));
+        definitions.entry("__inline".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Inline)])
+        });
+        definitions.entry("__restrict".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Restrict)])
+        });
         // Cosmic C targets the freestanding sia32-unknown-none environment.
         // Never fall through to host libc headers: their ABI and GNU extensions
         // do not describe the target. Explicit -I paths are searched first and
