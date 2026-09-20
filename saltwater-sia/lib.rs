@@ -496,7 +496,12 @@ struct FunctionLowerer<'a, 'b> {
 
 impl<'a, 'b> FunctionLowerer<'a, 'b> {
     fn new(builder: &'a mut FunctionBuilder<'b>) -> Self {
-        let return_type = builder.func.signature.returns.first().map(|ret| ret.value_type);
+        let return_type = builder
+            .func
+            .signature
+            .returns
+            .first()
+            .map(|ret| ret.value_type);
         Self {
             builder,
             variables: HashMap::new(),
