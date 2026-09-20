@@ -455,7 +455,7 @@ fn replace_function(
 fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
     match (left, right) {
         (Token::Id(left), Token::Id(right)) => {
-            let pasted = format!("{}{}", left.resolve(), right.resolve());
+            let pasted = format!("{}{}", left.resolve_and_clone(), right.resolve_and_clone());
             Some(Token::Id(pasted.into()))
         }
         _ => None,
