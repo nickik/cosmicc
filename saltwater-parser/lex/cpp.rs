@@ -1187,9 +1187,18 @@ macro_rules! built_in_headers {
 // [(filename, contents)]
 // TODO: this could probably use a perfect-hashmap,
 // but it's so small that it's not worth it
-const PRECOMPILED_HEADERS: [(&str, &str); 2] = built_in_headers! {
+const PRECOMPILED_HEADERS: [(&str, &str); 11] = built_in_headers! {
+    "errno.h",
+    "inttypes.h",
     "stdarg.h",
     "stddef.h",
+    "stdint.h",
+    "stdio.h",
+    "stdlib.h",
+    "string.h",
+    "sys/types.h",
+    "time.h",
+    "unistd.h",
 };
 
 fn get_builtin_header(expected: impl AsRef<str>) -> Option<&'static str> {
