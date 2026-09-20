@@ -199,7 +199,6 @@ fn replace_boxed<'a>(
             if !ids_seen.contains(&id) {
                 match definitions.get(&id) {
                     Some(Definition::Object(replacement_list)) => {
-                        ids_seen.insert(id);
                         // prepend the new tokens to the pending tokens
                         // They need to go before, not after. For instance:
                         // ```c
@@ -222,7 +221,6 @@ fn replace_boxed<'a>(
                     }
                     // TODO: so many allocations :(
                     Some(Definition::Function { .. }) => {
-                        ids_seen.insert(id);
                         let func_replacements =
                             replace_function(definitions, id, location, &mut pending, &mut inner);
                         let mut func_replacements: VecDeque<_> =
