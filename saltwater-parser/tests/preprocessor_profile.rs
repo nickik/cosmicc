@@ -208,3 +208,26 @@ fn pasted_output_rescans_function_like_macro_with_arguments() {
     assert!(rendered.contains("(7)"));
     assert!(!rendered.contains("WRAP"));
 }
+
+
+#[test]
+fn ordinary_function_macro_output_is_rescanned_in_outer_engine() {
+    let rendered = tokens(
+        "#define INNER(x) (x)\n#define OUTER(x) INNER(x)\nint answer = OUTER(9);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("(9)"));
+    assert!(!rendered.contains("INNER"));
+}
+
+#[test]
+fn object_macro_inside_function_macro_output_is_rescanned() {
+    let rendered = tokens(
+        "#define FLAG 32\n#define FEATURE(x) (x & FLAG)\nint answer = FEATURE(7);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("32"));
+    assert!(!rendered.contains("FLAG"));
+}
