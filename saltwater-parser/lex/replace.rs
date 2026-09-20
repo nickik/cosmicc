@@ -503,7 +503,8 @@ fn replace_function(
 
         match body[i].clone() {
             Token::Id(id) => {
-                let left_tokens = if let Some(index) = params.iter().position(|&param| param == id) {
+                let left_tokens = if let Some(index) = params.iter().position(|&param| param == id)
+                {
                     args[index].clone()
                 } else {
                     vec![Token::Id(id)]
@@ -514,8 +515,7 @@ fn replace_function(
                     hash += 1;
                 }
                 let mut second_hash = hash + 1;
-                while second_hash < body.len()
-                    && matches!(body[second_hash], Token::Whitespace(_))
+                while second_hash < body.len() && matches!(body[second_hash], Token::Whitespace(_))
                 {
                     second_hash += 1;
                 }
