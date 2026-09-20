@@ -738,8 +738,10 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                             ComparisonToken::LessEqual => IntCC::SignedLessThanOrEqual,
                             ComparisonToken::GreaterEqual => IntCC::SignedGreaterThanOrEqual,
                         };
-                        let compared = self.builder.ins().icmp(condition, left, right);
-                        self.builder.ins().uextend(ty, compared)
+                        // Cranelift comparisons produce an I8 boolean. Keep that
+                        // canonical result here; consumers can extend it when a
+                        // wider C integer representation is required.
+                        self.builder.ins().icmp(condition, left, right)
                     }
                     _ => {
                         return Err(unsupported(
