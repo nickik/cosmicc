@@ -594,6 +594,16 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 "string literals require SIA32 global-data support",
             )),
             ExprType::Cast(value) | ExprType::Noop(value) => self.compile_expr(value),
+            ExprType::Sizeof(sized) => {
+                let bytes = sized.sizeof().map_err(|_| {
+                    unsupported(expression.location, "sizeof requires a complete SIA32 type")
+                })?;
+                Ok(self.builder.ins().iconst(ty, bytes as i64))
+            }
+            ExprType::Comma(left, right) => {
+                let _ = self.compile_expr(left)?;
+                self.compile_expr(right)
+            }
             // The established HIR represents an ordinary C local read as
             // `Deref(Id(symbol))`: `Id` creates the lvalue address and Deref
             // loads it. This backend keeps non-address-taken locals in SSA,
