@@ -1215,7 +1215,7 @@ macro_rules! built_in_headers {
 // [(filename, contents)]
 // TODO: this could probably use a perfect-hashmap,
 // but it's so small that it's not worth it
-const PRECOMPILED_HEADERS: [(&str, &str); 11] = built_in_headers! {
+const PRECOMPILED_HEADERS: [(&str, &str); 12] = built_in_headers! {
     "errno.h",
     "inttypes.h",
     "stdarg.h",
@@ -1224,6 +1224,7 @@ const PRECOMPILED_HEADERS: [(&str, &str); 11] = built_in_headers! {
     "stdio.h",
     "stdlib.h",
     "string.h",
+    "sys/stat.h",
     "sys/types.h",
     "time.h",
     "unistd.h",
