@@ -321,11 +321,6 @@ impl<'a> PreProcessor<'a> {
         user_search_path: I,
         user_definitions: HashMap<InternedStr, Definition>,
     ) -> Self {
-        let system_path = format!(
-            "{}-{}-{}",
-            TARGET.architecture, TARGET.operating_system, TARGET.environment
-        );
-
         let now = time::OffsetDateTime::now_utc();
 
         #[allow(clippy::inconsistent_digit_grouping)]
@@ -343,13 +338,11 @@ impl<'a> PreProcessor<'a> {
             "__TIME__".into() => str_def(&now.format("%H:%M:%S")),
         };
         definitions.extend(user_definitions);
-        let mut search_path: Vec<Cow<'a, Path>> = user_search_path.into_iter().collect();
-        search_path.extend([
-            PathBuf::from(format!("/usr/local/include/{}", system_path)).into(),
-            Path::new("/usr/local/include").into(),
-            PathBuf::from(format!("/usr/include/{}", system_path)).into(),
-            Path::new("/usr/include").into(),
-        ]);
+        // Cosmic C targets the freestanding sia32-unknown-none environment.
+        // Never fall through to host libc headers: their ABI and GNU extensions
+        // do not describe the target. Explicit -I paths are searched first and
+        // target-owned built-in headers are used as the standard-library fallback.
+        let search_path: Vec<Cow<'a, Path>> = user_search_path.into_iter().collect();
 
         let file_processor = FileProcessor::new(chars, filename, debug);
 
