@@ -740,7 +740,7 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         _ => {
             return Err(unsupported(
                 location,
-                "this C type is not implemented for SIA32 yet",
+                format!("SIA32 type lowering is not implemented for {ctype:?}"),
             ))
         }
     };
