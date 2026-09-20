@@ -16,12 +16,12 @@ use cranelift_codegen::settings::{self, Configurable, Flags};
 use cranelift_codegen::Context;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use saltwater_parser::check_semantics;
+pub use saltwater_parser::data::error::LexError;
 use saltwater_parser::data::types::{FunctionType, StructType};
 use saltwater_parser::data::{
     hir::{Declaration, Expr, ExprType, Initializer, LiteralValue, Stmt, StmtType, Symbol},
     CompileError, Location, StorageClass, Type,
 };
-pub use saltwater_parser::data::error::LexError;
 pub use saltwater_parser::{preprocess, Opt};
 use target_lexicon::Triple;
 
