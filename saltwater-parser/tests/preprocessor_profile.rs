@@ -125,7 +125,6 @@ fn explicit_include_paths_preserve_precedence() {
     let _ = std::fs::remove_dir_all(root);
 }
 
-
 #[test]
 fn nested_builtin_header_keeps_its_full_path() {
     let rendered = tokens(
@@ -133,6 +132,7 @@ fn nested_builtin_header_keeps_its_full_path() {
         Opt::default(),
     )
     .join("");
+    assert!(rendered.contains("typedef"));
+    assert!(rendered.contains("ssize_t"));
     assert!(rendered.contains("answer"));
-    assert!(!rendered.contains("ssize_t"));
 }
