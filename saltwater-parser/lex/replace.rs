@@ -519,7 +519,16 @@ fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
     }
 
     let pasted = format!("{}{}", spelling(left)?, spelling(right)?);
-    Some(Token::Id(pasted.into()))
+
+    // The result of ## is a preprocessing token, not necessarily an identifier.
+    // Re-lex it so numeric pastes such as 1 ## 1 become the integer token 11
+    // instead of an identifier whose spelling happens to be "11".
+    let mut lexer = crate::lex::Lexer::new(&pasted);
+    let first = lexer.next()?.ok()?.data;
+    if lexer.next().is_some() {
+        return None;
+    }
+    Some(first)
 }
 
 fn stringify(args: Vec<Token>) -> Token {
