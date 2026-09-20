@@ -428,7 +428,20 @@ fn replace_function(
                     None => return vec![Err(location.with(hash_error().into()))],
                 }
                 replacements.extend(right_tokens.into_iter().skip(1));
-                i = right + 1;
+
+                // A paste result can itself be the left operand of another ##,
+                // as in EXT##ver##_FEATURE_COMPAT_##flagname. Leave the cursor
+                // on the just-consumed right operand so the following iteration
+                // can detect and continue that chain.
+                let mut next_hash = right + 1;
+                while next_hash < body.len() && matches!(body[next_hash], Token::Whitespace(_)) {
+                    next_hash += 1;
+                }
+                if next_hash < body.len() && matches!(body[next_hash], Token::Hash) {
+                    i = next_hash;
+                } else {
+                    i = right + 1;
+                }
                 continue;
             }
 
