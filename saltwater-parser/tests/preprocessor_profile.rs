@@ -97,3 +97,33 @@ fn preprocessing_errors_keep_a_stable_source_location() {
     );
     assert_eq!(first.location.span.start, 3);
 }
+
+
+#[test]
+fn explicit_include_paths_preserve_precedence() {
+    let root = std::env::temp_dir().join(format!(
+        "cosmicc-include-precedence-{}",
+        std::process::id()
+    ));
+    let first = root.join("first");
+    let second = root.join("second");
+    std::fs::create_dir_all(&first).expect("create first include directory");
+    std::fs::create_dir_all(&second).expect("create second include directory");
+    std::fs::write(first.join("precedence.h"), "#define INCLUDE_VALUE 11\n")
+        .expect("write first header");
+    std::fs::write(second.join("precedence.h"), "#define INCLUDE_VALUE 22\n")
+        .expect("write second header");
+
+    let mut opt = Opt::default();
+    opt.search_path.push(first);
+    opt.search_path.push(second);
+    let rendered = tokens(
+        "#include <precedence.h>\nint answer = INCLUDE_VALUE;\n",
+        opt,
+    )
+    .join("");
+
+    assert!(rendered.contains("11"));
+    assert!(!rendered.contains("22"));
+    let _ = std::fs::remove_dir_all(root);
+}
