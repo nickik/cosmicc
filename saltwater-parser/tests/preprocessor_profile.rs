@@ -172,3 +172,16 @@ fn identifier_token_pasting_allows_whitespace_between_hashes() {
     assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
     assert!(!rendered.contains("#"));
 }
+
+
+#[test]
+fn ext4_style_chained_token_pasting_expands_all_identifiers() {
+    let rendered = tokens(
+        "#define FEATURE(ver, name, flagname) ext2fs_has_feature_##name EXT##ver##_FEATURE_COMPAT_##flagname\nFEATURE(4, metadata_csum, METADATA_CSUM)\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
+    assert!(rendered.contains("EXT4_FEATURE_COMPAT_METADATA_CSUM"));
+    assert!(!rendered.contains("#"));
+}
