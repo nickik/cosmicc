@@ -196,3 +196,15 @@ fn token_pasting_relexes_numeric_result() {
     .join("");
     assert!(rendered.contains("11"));
 }
+
+
+#[test]
+fn pasted_output_rescans_function_like_macro_with_arguments() {
+    let rendered = tokens(
+        "#define WRAP(x) (x)\n#define MAKE(name) WR##AP(name)\nint answer = MAKE(7);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("(7)"));
+    assert!(!rendered.contains("WRAP"));
+}
