@@ -15,13 +15,13 @@ use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
 use cranelift_codegen::Context;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
+use saltwater_parser::check_semantics;
 use saltwater_parser::data::types::{FunctionType, StructType};
 use saltwater_parser::data::{
     hir::{Declaration, Expr, ExprType, Initializer, LiteralValue, Stmt, StmtType, Symbol},
     CompileError, Location, StorageClass, Type,
 };
 pub use saltwater_parser::Opt;
-use saltwater_parser::check_semantics;
 use target_lexicon::Triple;
 
 /// The fixed target accepted by this compiler stage.
