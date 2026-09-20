@@ -681,10 +681,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     let delta = self.builder.ins().iconst(types::I32, offset as i64);
                     self.builder.ins().iadd(address, delta)
                 };
-                Ok(self
-                    .builder
-                    .ins()
-                    .load(ty, MemFlagsData::new(), address, 0))
+                Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
             }
             // The established HIR represents an ordinary C local read as
             // `Deref(Id(symbol))`: `Id` creates the lvalue address and Deref
