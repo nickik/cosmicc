@@ -50,6 +50,7 @@ pub struct Lexer {
     error_handler: ErrorHandler<LexError>,
     /// Whether or not to display each token as it is processed
     debug: bool,
+    #[allow(dead_code)]
     given_newline_error: bool,
 }
 
@@ -587,6 +588,7 @@ pub(crate) trait LiteralParser {
     fn err(&mut self, err: Locatable<LexError>);
     fn warn(&mut self, err: Locatable<Warning>);
 
+    #[allow(dead_code)]
     fn err_loc<E: Into<LexError>>(&mut self, err: E, location: Location) {
         self.err(location.with(err.into()));
     }
