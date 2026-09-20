@@ -464,7 +464,10 @@ fn compile_function(
 
     let mut control_plane = ControlPlane::default();
     let compiled = context.compile(isa, &mut control_plane).map_err(|error| {
-        Error::Codegen(format!("SIA32 lowering failed for {name}: {}", error.inner))
+        Error::Codegen(format!(
+            "SIA32 lowering failed for {name}: {}\nCLIF:\n{}",
+            error.inner, context.func
+        ))
     })?;
     let code = compiled.code_buffer().to_vec();
     if code.is_empty() || code.len() % 2 != 0 {
