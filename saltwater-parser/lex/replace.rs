@@ -509,13 +509,17 @@ fn replace_function(
 }
 
 fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
-    match (left, right) {
-        (Token::Id(left), Token::Id(right)) => {
-            let pasted = format!("{}{}", left.resolve_and_clone(), right.resolve_and_clone());
-            Some(Token::Id(pasted.into()))
+    fn spelling(token: Token) -> Option<String> {
+        match token {
+            Token::Id(id) => Some(id.resolve_and_clone()),
+            Token::Keyword(keyword) => Some(keyword.to_string()),
+            Token::Literal(literal) => Some(literal.to_string()),
+            _ => None,
         }
-        _ => None,
     }
+
+    let pasted = format!("{}{}", spelling(left)?, spelling(right)?);
+    Some(Token::Id(pasted.into()))
 }
 
 fn stringify(args: Vec<Token>) -> Token {
