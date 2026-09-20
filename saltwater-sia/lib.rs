@@ -20,7 +20,8 @@ use saltwater_parser::data::{
     hir::{Declaration, Expr, ExprType, Initializer, LiteralValue, Stmt, StmtType, Symbol},
     CompileError, Location, StorageClass, Type,
 };
-use saltwater_parser::{check_semantics, Opt};
+pub use saltwater_parser::Opt;
+use saltwater_parser::check_semantics;
 use target_lexicon::Triple;
 
 /// The fixed target accepted by this compiler stage.
