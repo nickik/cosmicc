@@ -490,14 +490,17 @@ fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
 struct FunctionLowerer<'a, 'b> {
     builder: &'a mut FunctionBuilder<'b>,
     variables: HashMap<Symbol, Variable>,
+    return_type: Option<cranelift_codegen::ir::Type>,
     terminated: bool,
 }
 
 impl<'a, 'b> FunctionLowerer<'a, 'b> {
     fn new(builder: &'a mut FunctionBuilder<'b>) -> Self {
+        let return_type = builder.func.signature.returns.first().map(|ret| ret.value_type);
         Self {
             builder,
             variables: HashMap::new(),
+            return_type,
             terminated: false,
         }
     }
@@ -525,7 +528,13 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
             }
             StmtType::Return(value) => {
                 if let Some(value) = value {
-                    let value = self.compile_expr(value)?;
+                    let mut value = self.compile_expr(value)?;
+                    if let Some(return_type) = self.return_type {
+                        let value_type = self.builder.func.dfg.value_type(value);
+                        if value_type != return_type {
+                            value = self.builder.ins().uextend(return_type, value);
+                        }
+                    }
                     self.builder.ins().return_(&[value]);
                 } else {
                     self.builder.ins().return_(&[]);
