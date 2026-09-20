@@ -524,7 +524,7 @@ fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
     // Re-lex it so numeric pastes such as 1 ## 1 become the integer token 11
     // instead of an identifier whose spelling happens to be "11".
     let mut files = crate::Files::new();
-    let file = files.add("<token-paste>".into(), crate::Source {
+    let file = files.add("<token-paste>", crate::Source {
         code: arcstr::ArcStr::from(pasted.as_str()),
         path: std::path::PathBuf::from("<token-paste>"),
     });
