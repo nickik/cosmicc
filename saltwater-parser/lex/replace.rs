@@ -451,11 +451,34 @@ fn replace_function(
 
         match body[i].clone() {
             Token::Id(id) => {
-                if let Some(index) = params.iter().position(|&param| param == id) {
-                    replacements.extend(args[index].clone());
+                let left_tokens = if let Some(index) = params.iter().position(|&param| param == id) {
+                    args[index].clone()
                 } else {
-                    replacements.push(Token::Id(id));
+                    vec![Token::Id(id)]
+                };
+
+                let mut hash = i + 1;
+                while hash < body.len() && matches!(body[hash], Token::Whitespace(_)) {
+                    hash += 1;
                 }
+                let mut second_hash = hash + 1;
+                while second_hash < body.len()
+                    && matches!(body[second_hash], Token::Whitespace(_))
+                {
+                    second_hash += 1;
+                }
+
+                if hash < body.len()
+                    && matches!(body[hash], Token::Hash)
+                    && second_hash < body.len()
+                    && matches!(body[second_hash], Token::Hash)
+                {
+                    replacements.extend(left_tokens);
+                    i = hash;
+                    continue;
+                }
+
+                replacements.extend(left_tokens);
             }
             Token::Whitespace(_) => replacements.push(Token::Whitespace(String::from(" "))),
             token => replacements.push(token),
