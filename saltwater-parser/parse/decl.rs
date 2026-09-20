@@ -470,13 +470,18 @@ impl<I: Lexer> Parser<I> {
         // if None, we didn't find an ID
         // should only happen if allow_abstract is true
         let decl: Option<Locatable<InternalDeclarator>> = match self.peek_token() {
-            Some(Token::Id(_)) => Some(self.next_token().unwrap().map(|data| match data {
-                Token::Id(id) => InternalDeclarator {
-                    current: InternalDeclaratorType::Id(id),
-                    next: None,
-                },
-                _ => panic!("peek() should always return the same thing as next()"),
-            })),
+            Some(Token::Id(_)) | Some(Token::Keyword(Keyword::UserTypedef(_))) => {
+                Some(self.next_token().unwrap().map(|data| {
+                    let id = match data {
+                        Token::Id(id) | Token::Keyword(Keyword::UserTypedef(id)) => id,
+                        _ => panic!("peek() should always return the same thing as next()"),
+                    };
+                    InternalDeclarator {
+                        current: InternalDeclaratorType::Id(id),
+                        next: None,
+                    }
+                }))
+            }
             // handled by postfix_type
             Some(Token::LeftBracket) if allow_abstract => None,
             Some(Token::LeftParen) => {
