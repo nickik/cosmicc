@@ -432,7 +432,7 @@ fn replace_function(
                 }
             }
             Token::Whitespace(_) => {
-                if !pending_hash {
+                if !pending_hash && !pending_paste {
                     replacements.push(Token::Whitespace(String::from(" ")));
                 }
             }
