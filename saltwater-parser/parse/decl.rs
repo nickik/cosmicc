@@ -634,8 +634,8 @@ impl<I: Lexer> Parser<I> {
             // Parameter declarations may have names. The historical parser
             // also accepts an abstract function declarator such as f(()), so
             // retain that special case without requiring parser backtracking.
-            if self.peek_token() == Some(&Token::LParen)
-                && self.peek_next() == Some(&Token::LParen)
+            if self.peek_token() == Some(&Token::LeftParen)
+                && self.peek_next_token() == Some(&Token::LeftParen)
             {
                 params.push(self.type_name()?.data);
             } else {
