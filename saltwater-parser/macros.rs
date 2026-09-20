@@ -2,7 +2,8 @@
 ///
 /// Example:
 ///
-/// ```
+/// ```ignore
+/// // Internal helper macro; shown here for syntax only.
 /// let letters = map!{"a" => "b", "c" => "d"};
 /// ```
 ///
