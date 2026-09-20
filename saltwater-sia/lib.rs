@@ -22,7 +22,7 @@ use saltwater_parser::data::{
     CompileError, Location, StorageClass, Type,
 };
 pub use saltwater_parser::data::error::LexError;
-pub use saltwater_parser::Opt;
+pub use saltwater_parser::{preprocess, Opt};
 use target_lexicon::Triple;
 
 /// The fixed target accepted by this compiler stage.
