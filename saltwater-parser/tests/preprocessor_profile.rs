@@ -101,10 +101,8 @@ fn preprocessing_errors_keep_a_stable_source_location() {
 
 #[test]
 fn explicit_include_paths_preserve_precedence() {
-    let root = std::env::temp_dir().join(format!(
-        "cosmicc-include-precedence-{}",
-        std::process::id()
-    ));
+    let root =
+        std::env::temp_dir().join(format!("cosmicc-include-precedence-{}", std::process::id()));
     let first = root.join("first");
     let second = root.join("second");
     std::fs::create_dir_all(&first).expect("create first include directory");
