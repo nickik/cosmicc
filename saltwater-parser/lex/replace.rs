@@ -373,18 +373,44 @@ fn replace_function(
         }
     }
 
-    let mut pending_hash = false; // Seen a hash?
+    let mut pending_hash = false; // Seen a stringification hash?
+    let mut pending_paste = false; // Seen a token-pasting ##?
     for token in body {
         match *token {
             Token::Id(id) => {
                 // #define f(a) { a + 1 } \n f(b) => b + 1
                 if let Some(index) = params.iter().position(|&param| param == id) {
                     let replacement = args[index].clone();
-                    if !pending_hash {
+                    if pending_paste {
+                        if let Some(first) = replacement.first() {
+                            if let Some(previous) = replacements.pop() {
+                                match paste_identifier_tokens(previous, first.clone()) {
+                                    Some(pasted) => replacements.push(pasted),
+                                    None => {
+                                        return vec![Err(location.with(
+                                            CppError::HashMissingParameter.into(),
+                                        ))]
+                                    }
+                                }
+                                replacements.extend(replacement.into_iter().skip(1));
+                            }
+                        }
+                    } else if !pending_hash {
                         replacements.extend(replacement);
                     } else {
                         // #define str(a) #a
                         replacements.push(stringify(replacement));
+                    }
+                } else if pending_paste {
+                    if let Some(previous) = replacements.pop() {
+                        match paste_identifier_tokens(previous, Token::Id(id)) {
+                            Some(pasted) => replacements.push(pasted),
+                            None => {
+                                return vec![Err(location.with(
+                                    CppError::HashMissingParameter.into(),
+                                ))]
+                            }
+                        }
                     }
                 } else if pending_hash {
                     return vec![Err(location.with(CppError::HashMissingParameter.into()))];
@@ -392,15 +418,15 @@ fn replace_function(
                     replacements.push(Token::Id(id));
                 }
                 pending_hash = false;
+                pending_paste = false;
             }
             Token::Hash => {
                 if pending_hash {
-                    // Token pasting (##) is not yet modeled as a distinct token.
-                    // Preserve the pair for a later compatibility pass instead
-                    // of misdiagnosing the second '#' as stringification.
-                    replacements.push(Token::Hash);
-                    replacements.push(Token::Hash);
                     pending_hash = false;
+                    pending_paste = true;
+                    while matches!(replacements.last(), Some(Token::Whitespace(_))) {
+                        replacements.pop();
+                    }
                 } else {
                     pending_hash = true;
                 }
@@ -424,6 +450,16 @@ fn replace_function(
         .into_iter()
         .chain(replacements.into_iter().map(|t| Ok(location.with(t))))
         .collect()
+}
+
+fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
+    match (left, right) {
+        (Token::Id(left), Token::Id(right)) => {
+            let pasted = format!("{}{}", left.resolve(), right.resolve());
+            Some(Token::Id(pasted.into()))
+        }
+        _ => None,
+    }
 }
 
 fn stringify(args: Vec<Token>) -> Token {
