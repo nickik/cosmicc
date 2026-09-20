@@ -182,7 +182,6 @@ mod tests {
             BOOL_SIZE => Type::Bool,
             SHORT_SIZE => Type::Short(true),
             INT_SIZE => Type::Int(true),
-            LONG_SIZE => Type::Long(true),
             _ => struct_for_types(vec![Type::Char(true); size as usize]),
         }
     }
