@@ -343,13 +343,13 @@ impl<'a> PreProcessor<'a> {
             "__TIME__".into() => str_def(&now.format("%H:%M:%S")),
         };
         definitions.extend(user_definitions);
-        let mut search_path = vec![
+        let mut search_path: Vec<Cow<'a, Path>> = user_search_path.into_iter().collect();
+        search_path.extend([
             PathBuf::from(format!("/usr/local/include/{}", system_path)).into(),
             Path::new("/usr/local/include").into(),
             PathBuf::from(format!("/usr/include/{}", system_path)).into(),
             Path::new("/usr/include").into(),
-        ];
-        search_path.extend(user_search_path.into_iter());
+        ]);
 
         let file_processor = FileProcessor::new(chars, filename, debug);
 
