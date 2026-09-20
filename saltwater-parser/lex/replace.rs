@@ -394,7 +394,16 @@ fn replace_function(
                 pending_hash = false;
             }
             Token::Hash => {
-                pending_hash = true;
+                if pending_hash {
+                    // Token pasting (##) is not yet modeled as a distinct token.
+                    // Preserve the pair for a later compatibility pass instead
+                    // of misdiagnosing the second '#' as stringification.
+                    replacements.push(Token::Hash);
+                    replacements.push(Token::Hash);
+                    pending_hash = false;
+                } else {
+                    pending_hash = true;
+                }
             }
             Token::Whitespace(_) => {
                 if !pending_hash {
