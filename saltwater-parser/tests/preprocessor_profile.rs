@@ -182,7 +182,6 @@ fn ext4_style_chained_token_pasting_expands_all_identifiers() {
     assert!(!rendered.contains("#"));
 }
 
-
 #[test]
 fn token_pasting_relexes_numeric_result() {
     let rendered = tokens(
