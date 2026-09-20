@@ -227,6 +227,23 @@ fn replace_boxed<'a>(
                             replace_function(definitions, id, location, &mut pending, &mut inner);
                         let mut func_replacements: VecDeque<_> =
                             func_replacements.into_iter().collect();
+
+                        // replace_function may return the original identifier when it
+                        // discovers this was not actually a call. In that case it also
+                        // returns the lookahead token. Do not feed the identifier back
+                        // into this same expansion pass or it will be considered again.
+                        if matches!(
+                            func_replacements.front(),
+                            Some(Ok(Locatable {
+                                data: Token::Id(returned),
+                                ..
+                            })) if *returned == id
+                        ) {
+                            replacements.push(func_replacements.pop_front().unwrap());
+                            replacements.extend(func_replacements);
+                            continue;
+                        }
+
                         func_replacements.append(&mut pending);
                         pending = func_replacements;
                         continue;
