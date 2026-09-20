@@ -98,7 +98,6 @@ fn preprocessing_errors_keep_a_stable_source_location() {
     assert_eq!(first.location.span.start, 3);
 }
 
-
 #[test]
 fn explicit_include_paths_preserve_precedence() {
     let root =
