@@ -382,7 +382,7 @@ pub(crate) mod test {
     pub(crate) fn parse_all(input: &str) -> Vec<ParseType> {
         parser(input).collect()
     }
-    pub(crate) fn parser(input: &str) -> Parser<PreProcessor> {
+    pub(crate) fn parser(input: &str) -> Parser<PreProcessor<'_>> {
         Parser::new(cpp(input), false)
     }
 
