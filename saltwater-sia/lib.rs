@@ -637,7 +637,25 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                         return Err(unsupported(expression.location, "unknown struct member"));
                     }
                 }
-                let address = self.compile_expr(base)?;
+                fn member_base_pointer<'a>(expr: &'a Expr) -> Option<&'a Expr> {
+                    match &expr.expr {
+                        ExprType::Noop(inner) | ExprType::Cast(inner) => member_base_pointer(inner),
+                        ExprType::Deref(pointer) => Some(pointer),
+                        _ => None,
+                    }
+                }
+                let pointer = member_base_pointer(base).ok_or_else(|| {
+                    unsupported(expression.location, "SIA32 member access requires an addressable aggregate")
+                })?;
+                let address = match &pointer.expr {
+                    ExprType::Id(symbol) => {
+                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                            unsupported(expression.location, "global aggregate addresses are not supported for SIA32 yet")
+                        })?;
+                        self.builder.use_var(variable)
+                    }
+                    _ => self.compile_expr(pointer)?,
+                };
                 let address = if offset == 0 {
                     address
                 } else {
