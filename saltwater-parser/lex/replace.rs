@@ -523,7 +523,12 @@ fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
     // The result of ## is a preprocessing token, not necessarily an identifier.
     // Re-lex it so numeric pastes such as 1 ## 1 become the integer token 11
     // instead of an identifier whose spelling happens to be "11".
-    let mut lexer = crate::lex::Lexer::new(&pasted);
+    let mut files = crate::Files::new();
+    let file = files.add("<token-paste>".into(), crate::Source {
+        code: arcstr::ArcStr::from(pasted.as_str()),
+        path: std::path::PathBuf::from("<token-paste>"),
+    });
+    let mut lexer = crate::lex::Lexer::new(file, pasted.as_str(), false);
     let first = lexer.next()?.ok()?.data;
     if lexer.next().is_some() {
         return None;
