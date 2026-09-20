@@ -136,3 +136,15 @@ fn nested_builtin_header_keeps_its_full_path() {
     assert!(rendered.contains("ssize_t"));
     assert!(rendered.contains("answer"));
 }
+
+
+#[test]
+fn identifier_token_pasting_supports_feature_macros() {
+    let rendered = tokens(
+        "#define HAS_FEATURE(name) ext2fs_has_feature_##name\nint (*probe)(void) = HAS_FEATURE(metadata_csum);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
+    assert!(!rendered.contains("#"));
+}
