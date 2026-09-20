@@ -50,6 +50,12 @@ impl<I: Peekable + ?Sized> Peekable for &mut I {
     }
 }
 
+impl<I: Peekable + ?Sized> Peekable for Box<I> {
+    fn peek(&mut self) -> Option<&Self::Item> {
+        (**self).peek()
+    }
+}
+
 /// A macro definition.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Definition {
@@ -169,7 +175,7 @@ where
 fn replace_boxed<'a>(
     definitions: &Definitions,
     token: Token,
-    mut inner: Box<dyn Iterator<Item = CppResult<Token>> + 'a>,
+    mut inner: Box<dyn Peekable<Item = CppResult<Token>> + 'a>,
     location: Location,
 ) -> Vec<CompileResult<Locatable<Token>>> {
     // The ids seen while replacing the current token.
