@@ -631,8 +631,24 @@ impl<I: Lexer> Parser<I> {
                     left_paren.merge(right_paren),
                 ));
             }
-            let param = self.type_name()?;
-            params.push(param.data);
+            // A parameter declaration may contain an identifier. Parse it like a
+            // type name but permit a concrete declarator, e.g. `dev_t device`
+            // or `io_stats *stats`.
+            let (specifiers, specifier_locations) = self.specifiers()?;
+            let maybe_declarator = self.declarator(true)?;
+            let declarator = maybe_declarator
+                .map(|decl| decl.data.parse_declarator())
+                .unwrap_or(Declarator {
+                    decl: ast::DeclaratorType::End,
+                    id: None,
+                });
+            if specifier_locations.is_none() {
+                return Err(self.next_location().with(SyntaxError::ExpectedType));
+            }
+            params.push(TypeName {
+                specifiers,
+                declarator,
+            });
             if self.match_next(&Token::Comma).is_none() {
                 let right_paren = self.expect(Token::RightParen)?.location;
                 let location = left_paren.merge(right_paren);
