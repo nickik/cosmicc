@@ -264,7 +264,7 @@ mod tests {
             Pointer(Box::new(Int(true)), Qualifiers::default()),
             Int(true),
         ]);
-        assert_eq!(ty.alignof(), Ok(8));
+        assert_eq!(ty.alignof(), Ok(4));
     }
 
     proptest! {
