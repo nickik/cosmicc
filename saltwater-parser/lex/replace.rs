@@ -546,7 +546,11 @@ fn replace_function(
     // replace() here resets that set and causes cycles such as A -> B -> A to overflow.
     errors
         .into_iter()
-        .chain(replacements.into_iter().map(|token| Ok(location.with(token))))
+        .chain(
+            replacements
+                .into_iter()
+                .map(|token| Ok(location.with(token))),
+        )
         .collect()
 }
 
