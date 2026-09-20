@@ -384,81 +384,83 @@ fn replace_function(
         }
     }
 
-    let mut pending_hash = false; // Seen a stringification hash?
-    let mut pending_paste = false; // Seen a token-pasting ##?
-    for token in body {
-        match *token {
-            Token::Id(id) => {
-                // #define f(a) { a + 1 } \n f(b) => b + 1
-                if let Some(index) = params.iter().position(|&param| param == id) {
-                    let replacement = args[index].clone();
-                    if pending_paste {
-                        if let Some(first) = replacement.first() {
-                            if let Some(previous) = replacements.pop() {
-                                match paste_identifier_tokens(previous, first.clone()) {
-                                    Some(pasted) => replacements.push(pasted),
-                                    None => {
-                                        return vec![Err(location.with(
-                                            hash_error().into(),
-                                        ))]
-                                    }
-                                }
-                                replacements.extend(replacement.into_iter().skip(1));
-                            }
-                        }
-                    } else if !pending_hash {
-                        replacements.extend(replacement);
-                    } else {
-                        // #define str(a) #a
-                        replacements.push(stringify(replacement));
-                    }
-                } else if pending_paste {
-                    if let Some(previous) = replacements.pop() {
-                        match paste_identifier_tokens(previous, Token::Id(id)) {
-                            Some(pasted) => replacements.push(pasted),
-                            None => {
-                                return vec![Err(location.with(
-                                    hash_error().into(),
-                                ))]
-                            }
-                        }
-                    }
-                } else if pending_hash {
+    let mut i = 0;
+    while i < body.len() {
+        if matches!(body[i], Token::Hash) {
+            let mut second = i + 1;
+            while second < body.len() && matches!(body[second], Token::Whitespace(_)) {
+                second += 1;
+            }
+            if second < body.len() && matches!(body[second], Token::Hash) {
+                while matches!(replacements.last(), Some(Token::Whitespace(_))) {
+                    replacements.pop();
+                }
+                let mut right = second + 1;
+                while right < body.len() && matches!(body[right], Token::Whitespace(_)) {
+                    right += 1;
+                }
+                if right >= body.len() {
                     return vec![Err(location.with(hash_error().into()))];
+                }
+                let right_tokens = match body[right].clone() {
+                    Token::Id(id) => {
+                        if let Some(index) = params.iter().position(|&param| param == id) {
+                            args[index].clone()
+                        } else {
+                            vec![Token::Id(id)]
+                        }
+                    }
+                    token => vec![token],
+                };
+                let first = match right_tokens.first() {
+                    Some(token) => token.clone(),
+                    None => {
+                        i = right + 1;
+                        continue;
+                    }
+                };
+                let previous = match replacements.pop() {
+                    Some(token) => token,
+                    None => return vec![Err(location.with(hash_error().into()))],
+                };
+                match paste_identifier_tokens(previous, first) {
+                    Some(pasted) => replacements.push(pasted),
+                    None => return vec![Err(location.with(hash_error().into()))],
+                }
+                replacements.extend(right_tokens.into_iter().skip(1));
+                i = right + 1;
+                continue;
+            }
+
+            let mut parameter = i + 1;
+            while parameter < body.len() && matches!(body[parameter], Token::Whitespace(_)) {
+                parameter += 1;
+            }
+            match body.get(parameter) {
+                Some(Token::Id(id)) => {
+                    if let Some(index) = params.iter().position(|&param| param == *id) {
+                        replacements.push(stringify(args[index].clone()));
+                        i = parameter + 1;
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+            return vec![Err(location.with(hash_error().into()))];
+        }
+
+        match body[i].clone() {
+            Token::Id(id) => {
+                if let Some(index) = params.iter().position(|&param| param == id) {
+                    replacements.extend(args[index].clone());
                 } else {
                     replacements.push(Token::Id(id));
                 }
-                pending_hash = false;
-                pending_paste = false;
             }
-            Token::Hash => {
-                if pending_hash {
-                    pending_hash = false;
-                    pending_paste = true;
-                    while matches!(replacements.last(), Some(Token::Whitespace(_))) {
-                        replacements.pop();
-                    }
-                } else {
-                    pending_hash = true;
-                }
-            }
-            Token::Whitespace(_) => {
-                if pending_hash {
-                    // Whitespace between the two hashes of ## is insignificant.
-                    continue;
-                }
-                if !pending_paste {
-                    replacements.push(Token::Whitespace(String::from(" ")));
-                }
-            }
-            _ => {
-                if pending_hash {
-                    return vec![Err(location.with(hash_error().into()))];
-                } else {
-                    replacements.push(token.clone());
-                }
-            }
+            Token::Whitespace(_) => replacements.push(Token::Whitespace(String::from(" "))),
+            token => replacements.push(token),
         }
+        i += 1;
     }
     // TODO: this collect is useless
     errors
