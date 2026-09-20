@@ -604,6 +604,51 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 let _ = self.compile_expr(left)?;
                 self.compile_expr(right)
             }
+            ExprType::Member(base, member) => {
+                let struct_type = match &base.ctype {
+                    Type::Struct(struct_type) | Type::Union(struct_type) => struct_type,
+                    _ => {
+                        return Err(unsupported(
+                            expression.location,
+                            "member access requires a struct or union base",
+                        ));
+                    }
+                };
+                let mut offset = 0u64;
+                if matches!(&base.ctype, Type::Struct(_)) {
+                    let mut found = false;
+                    for field in struct_type.members().iter() {
+                        let align = field.ctype.alignof().map_err(|_| {
+                            unsupported(expression.location, "member has unsupported alignment")
+                        })?;
+                        let rem = offset % align;
+                        if rem != 0 {
+                            offset += align - rem;
+                        }
+                        if field.id == *member {
+                            found = true;
+                            break;
+                        }
+                        offset += field.ctype.sizeof().map_err(|_| {
+                            unsupported(expression.location, "member has incomplete type")
+                        })?;
+                    }
+                    if !found {
+                        return Err(unsupported(expression.location, "unknown struct member"));
+                    }
+                }
+                let address = self.compile_expr(base)?;
+                let address = if offset == 0 {
+                    address
+                } else {
+                    let delta = self.builder.ins().iconst(types::I32, offset as i64);
+                    self.builder.ins().iadd(address, delta)
+                };
+                Ok(self
+                    .builder
+                    .ins()
+                    .load(ty, MemFlagsData::new(), address, 0))
+            }
             // The established HIR represents an ordinary C local read as
             // `Deref(Id(symbol))`: `Id` creates the lvalue address and Deref
             // loads it. This backend keeps non-address-taken locals in SSA,
