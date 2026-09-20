@@ -611,7 +611,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 _ => {
                     let address = self.compile_expr(pointer)?;
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
-                },
+                }
             },
             ExprType::Negate(value) => {
                 let value = self.compile_expr(value)?;
@@ -639,7 +639,9 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                         }
                     }
                     let address = self.compile_expr(pointer)?;
-                    self.builder.ins().store(MemFlagsData::new(), value, address, 0);
+                    self.builder
+                        .ins()
+                        .store(MemFlagsData::new(), value, address, 0);
                     return Ok(value);
                 }
                 let left = self.compile_expr(left)?;
