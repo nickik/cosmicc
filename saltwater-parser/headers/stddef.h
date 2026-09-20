@@ -9,5 +9,5 @@ typedef long max_align_t;
 typedef int wchar_t;
 
 #define NULL 0
-#define offsetof(type, member) (offsetof not_currently_supported)
+#define offsetof(type, member) ((size_t)&(((type *)0)->member))
 #endif
