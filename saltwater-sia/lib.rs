@@ -9,7 +9,7 @@ use std::fmt;
 
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::{
-    types, AbiParam, Function, InstBuilder, MemFlagsData, Signature, UserFuncName, Value,
+    types, AbiParam, Function, InstBuilder, IntCC, MemFlagsData, Signature, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -727,6 +727,19 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     BinaryOp::Xor => self.builder.ins().bxor(left, right),
                     BinaryOp::Shl => self.builder.ins().ishl(left, right),
                     BinaryOp::Shr => self.builder.ins().sshr(left, right),
+                    BinaryOp::Compare(compare) => {
+                        use saltwater_parser::data::lex::ComparisonToken;
+                        let condition = match compare {
+                            ComparisonToken::Less => IntCC::SignedLessThan,
+                            ComparisonToken::Greater => IntCC::SignedGreaterThan,
+                            ComparisonToken::EqualEqual => IntCC::Equal,
+                            ComparisonToken::NotEqual => IntCC::NotEqual,
+                            ComparisonToken::LessEqual => IntCC::SignedLessThanOrEqual,
+                            ComparisonToken::GreaterEqual => IntCC::SignedGreaterThanOrEqual,
+                        };
+                        let compared = self.builder.ins().icmp(condition, left, right);
+                        self.builder.ins().uextend(ty, compared)
+                    }
                     _ => {
                         return Err(unsupported(
                             expression.location,
