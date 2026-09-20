@@ -4,8 +4,7 @@ use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process;
 
-use saltwater_parser::Opt;
-use saltwater_sia::{compile, TARGET};
+use saltwater_sia::{compile, Opt, TARGET};
 
 const HELP: &str = "\
 cosmicc - C to SIA32 compiler for Cosmic OS
