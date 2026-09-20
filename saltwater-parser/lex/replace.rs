@@ -432,7 +432,11 @@ fn replace_function(
                 }
             }
             Token::Whitespace(_) => {
-                if !pending_hash && !pending_paste {
+                if pending_hash {
+                    // Whitespace between the two hashes of ## is insignificant.
+                    continue;
+                }
+                if !pending_paste {
                     replacements.push(Token::Whitespace(String::from(" ")));
                 }
             }
