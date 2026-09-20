@@ -502,10 +502,22 @@ fn replace_function(
         i += 1;
     }
     // TODO: this collect is useless
-    errors
+    // The replacement list produced by ## must be rescanned for macro names.
+    // Feed the generated preprocessing tokens through the normal replacer once
+    // more, while preserving the existing cycle protection at the outer level.
+    let rescanned = replacements
         .into_iter()
-        .chain(replacements.into_iter().map(|t| Ok(location.with(t))))
-        .collect()
+        .flat_map(|token| {
+            replace(
+                definitions,
+                token,
+                std::iter::empty::<CppResult<Token>>(),
+                location,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    errors.into_iter().chain(rescanned).collect()
 }
 
 fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
