@@ -719,7 +719,23 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     if let Some(return_type) = self.return_type {
                         let value_type = self.builder.func.dfg.value_type(value);
                         if value_type != return_type {
-                            value = self.builder.ins().uextend(return_type, value);
+                            if value_type.bits() < return_type.bits() {
+                                let signed = matches!(
+                                    &value.ctype,
+                                    Type::Char(true)
+                                        | Type::Short(true)
+                                        | Type::Int(true)
+                                        | Type::Long(true)
+                                        | Type::Enum(_, _)
+                                );
+                                value = if signed {
+                                    self.builder.ins().sextend(return_type, value)
+                                } else {
+                                    self.builder.ins().uextend(return_type, value)
+                                };
+                            } else {
+                                value = self.builder.ins().ireduce(return_type, value);
+                            }
                         }
                     }
                     self.builder.ins().return_(&[value]);
@@ -2227,6 +2243,23 @@ mod tests {
         assert_eq!(code.len() % 2, 0);
         assert_eq!(&code[code.len() - 2..], &[0xe0, 0xc0]);
         assert!(artifact.to_bytes().unwrap().starts_with(b"COSMIC-SIA\0"));
+    }
+
+    #[test]
+    fn compiles_signed_narrow_return_conversion() {
+        let artifact = compile_source(
+            "int f(signed char x) { return x; } unsigned int g(unsigned char x) { return x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_narrow_function_return_conversion() {
+        let artifact = compile_source("short f(int x) { return x; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
