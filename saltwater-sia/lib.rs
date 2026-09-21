@@ -1220,7 +1220,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         }
                         Initializer::InitializerList(_) => {
                             self.initialize_stack_aggregate_at(
-                                slot, &field.ctype, item, field_offset, location,
+                                slot,
+                                &field.ctype,
+                                item,
+                                field_offset,
+                                location,
                             )?;
                         }
                         _ => {
