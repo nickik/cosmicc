@@ -1212,6 +1212,44 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 Ok(())
             }
+            Type::Union(union_type) => {
+                if let Some(item) = items.first() {
+                    let field = union_type
+                        .members()
+                        .first()
+                        .ok_or_else(|| unsupported(location, "union has no initializable member"))?;
+                    match item {
+                        Initializer::Scalar(expression) => {
+                            let value = self.compile_expr(expression)?;
+                            let value_ty = ir_type(&field.ctype, location)?;
+                            let value =
+                                self.coerce_integer_value(value, value_ty, &expression.ctype);
+                            let offset = i32::try_from(base_offset).map_err(|_| {
+                                unsupported(location, "aggregate initializer offset is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, offset);
+                        }
+                        Initializer::InitializerList(_) => {
+                            self.initialize_stack_aggregate_at(
+                                slot,
+                                &field.ctype,
+                                item,
+                                base_offset,
+                                location,
+                            )?;
+                        }
+                        _ => {
+                            return Err(unsupported(
+                                location,
+                                "unsupported union initializer element",
+                            ))
+                        }
+                    }
+                }
+                Ok(())
+            }
             Type::Struct(struct_type) => {
                 let mut offset = 0u64;
                 for (field, item) in struct_type.members().iter().zip(items.iter()) {
@@ -2456,6 +2494,16 @@ mod tests {
     fn compiles_pointer_arithmetic_lvalue_assignment() {
         let artifact =
             compile_source("int store(int *p, int i, int x) { p[i] = x; return p[i]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_union_local_initializers_and_member_access() {
+        let artifact = compile_source(
+            "union value { int i; unsigned int u; }; int f(void) { union value v = { 7 }; v.u = 9; return v.i; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
