@@ -1357,6 +1357,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // Nested direct aggregate access: outer.inner.field.
                 self.compile_member_address(parent, *parent_member, location)?
             }
+            ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                // Array-of-aggregate indexing is represented as pointer
+                // arithmetic; the expression value is already the selected
+                // aggregate's address.
+                self.compile_expr(unwrapped_base)?
+            }
             _ => {
                 return Err(unsupported(
                     location,
@@ -2478,6 +2484,16 @@ mod tests {
     fn compiles_uninitialized_aggregate_local_stack_storage() {
         let artifact = compile_source(
             "struct pair { int a; int b; }; int local(void) { struct pair p; p.a = 3; p.b = 4; return p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_array_of_struct_member_reads_and_writes() {
+        let artifact = compile_source(
+            "struct pair { int x; int y; }; int f(struct pair *p, int i) { p[i].y = 7; return p[i].y; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
