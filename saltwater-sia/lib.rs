@@ -743,6 +743,86 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 Ok(())
             }
+            StmtType::Do(body, condition) => {
+                let body_block = self.builder.create_block();
+                let condition_block = self.builder.create_block();
+                let exit = self.builder.create_block();
+
+                self.builder.ins().jump(body_block, &[]);
+                self.builder.switch_to_block(body_block);
+                self.builder.seal_block(body_block);
+                self.terminated = false;
+                self.loop_targets.push((condition_block, exit));
+                self.compile_stmt(body)?;
+                self.loop_targets.pop();
+                if !self.terminated {
+                    self.builder.ins().jump(condition_block, &[]);
+                }
+
+                self.builder.switch_to_block(condition_block);
+                let condition = self.compile_expr(condition)?;
+                let condition_ty = self.builder.func.dfg.value_type(condition);
+                let zero = self.builder.ins().iconst(condition_ty, 0);
+                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                self.builder
+                    .ins()
+                    .brif(condition, body_block, &[], exit, &[]);
+                self.builder.seal_block(condition_block);
+
+                self.builder.switch_to_block(exit);
+                self.builder.seal_block(exit);
+                self.terminated = false;
+                Ok(())
+            }
+            StmtType::For(init, condition, step, body) => {
+                self.compile_stmt(init)?;
+                if self.terminated {
+                    return Ok(());
+                }
+
+                let header = self.builder.create_block();
+                let body_block = self.builder.create_block();
+                let step_block = self.builder.create_block();
+                let exit = self.builder.create_block();
+
+                self.builder.ins().jump(header, &[]);
+                self.builder.switch_to_block(header);
+                if let Some(condition) = condition {
+                    let condition = self.compile_expr(condition)?;
+                    let condition_ty = self.builder.func.dfg.value_type(condition);
+                    let zero = self.builder.ins().iconst(condition_ty, 0);
+                    let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                    self.builder
+                        .ins()
+                        .brif(condition, body_block, &[], exit, &[]);
+                } else {
+                    self.builder.ins().jump(body_block, &[]);
+                }
+
+                self.builder.switch_to_block(body_block);
+                self.builder.seal_block(body_block);
+                self.terminated = false;
+                self.loop_targets.push((step_block, exit));
+                self.compile_stmt(body)?;
+                self.loop_targets.pop();
+                if !self.terminated {
+                    self.builder.ins().jump(step_block, &[]);
+                }
+
+                self.builder.switch_to_block(step_block);
+                self.builder.seal_block(step_block);
+                self.terminated = false;
+                if let Some(step) = step {
+                    self.compile_expr(step)?;
+                }
+                self.builder.ins().jump(header, &[]);
+
+                self.builder.seal_block(header);
+                self.builder.switch_to_block(exit);
+                self.builder.seal_block(exit);
+                self.terminated = false;
+                Ok(())
+            }
             StmtType::While(condition, body) => {
                 let header = self.builder.create_block();
                 let body_block = self.builder.create_block();
