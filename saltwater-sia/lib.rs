@@ -498,12 +498,6 @@ fn compile_function(
     function_indices: &HashMap<Symbol, u32>,
     isa: &dyn TargetIsa,
 ) -> Result<FunctionArtifact, Error> {
-    if function_type.varargs {
-        return Err(unsupported(
-            location,
-            "variadic functions are not supported for SIA32 yet",
-        ));
-    }
     let mut signature = Signature::new(CallConv::SystemV);
     let parameters = function_parameters(function_type);
     for parameter in parameters {
@@ -958,9 +952,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 let mut case_blocks = HashMap::new();
                 for value in values {
-                    case_blocks
-                        .entry(value)
-                        .or_insert_with(|| self.builder.create_block());
+                    if !case_blocks.contains_key(&value) {
+                        let block = self.builder.create_block();
+                        case_blocks.insert(value, block);
+                    }
                 }
                 let default_block = has_default.then(|| self.builder.create_block());
                 let exit = self.builder.create_block();
@@ -1157,12 +1152,31 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.ins().uextend(target_ty, value)
             }
         } else {
-            self.builder.ins().ireduce(target_ty, value)
+            // The current SIA32 backend lowers ireduce from the native
+            // 32-bit integer width. If a narrow value must become even
+            // narrower, widen it first and then reduce once.
+            if source_ty.bits() < 32 && target_ty.bits() < source_ty.bits() {
+                let wide = if is_signed_integer_type(source_ctype) {
+                    self.builder.ins().sextend(types::I32, value)
+                } else {
+                    self.builder.ins().uextend(types::I32, value)
+                };
+                self.builder.ins().ireduce(target_ty, wide)
+            } else {
+                self.builder.ins().ireduce(target_ty, value)
+            }
         }
     }
 
     fn compile_expr(&mut self, expression: &Expr) -> Result<Value, Error> {
-        let ty = ir_type(&expression.ctype, expression.location)?;
+        // Void only occurs here for expressions such as a void function call.
+        // Such calls are handled explicitly below; all value-producing
+        // expressions still require a concrete CLIF integer type.
+        let ty = if matches!(expression.ctype, Type::Void) {
+            types::I32
+        } else {
+            ir_type(&expression.ctype, expression.location)?
+        };
         match &expression.expr {
             ExprType::Id(symbol) => {
                 if let Some(variable) = self.variables.get(symbol).copied() {
@@ -1287,7 +1301,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             },
             ExprType::Negate(value) => {
                 let value = self.compile_expr(value)?;
-                Ok(self.builder.ins().ineg(value))
+                let value_ty = self.builder.func.dfg.value_type(value);
+                let zero = self.builder.ins().iconst(value_ty, 0);
+                Ok(self.builder.ins().isub(zero, value))
             }
             ExprType::BitwiseNot(value) => {
                 let value = self.compile_expr(value)?;
@@ -1973,6 +1989,13 @@ mod tests {
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
         )
         .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_integer_negation_without_backend_ineg() {
+        let artifact = compile_source("int neg(int x) { return -x; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
