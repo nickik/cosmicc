@@ -701,6 +701,82 @@ fn string_symbol_name(index: u32) -> String {
     format!("__cosmic_str_{index}")
 }
 
+fn collect_static_locals(
+    statements: &[Stmt],
+    function_index: usize,
+    out: &mut Vec<(usize, Declaration, Location)>,
+) {
+    for statement in statements {
+        match &statement.data {
+            StmtType::Compound(statements) => {
+                collect_static_locals(statements, function_index, out);
+            }
+            StmtType::Decl(declarations) => {
+                for declaration in declarations {
+                    let metadata = declaration.data.symbol.get();
+                    if metadata.storage_class == StorageClass::Static
+                        && !matches!(metadata.ctype, Type::Function(_))
+                    {
+                        out.push((
+                            function_index,
+                            declaration.data.clone(),
+                            declaration.location,
+                        ));
+                    }
+                }
+            }
+            StmtType::If(_, yes, no) => {
+                collect_static_locals(
+                    std::slice::from_ref(yes.as_ref()),
+                    function_index,
+                    out,
+                );
+                if let Some(no) = no {
+                    collect_static_locals(
+                        std::slice::from_ref(no.as_ref()),
+                        function_index,
+                        out,
+                    );
+                }
+            }
+            StmtType::Do(body, _) | StmtType::While(_, body) => {
+                collect_static_locals(
+                    std::slice::from_ref(body.as_ref()),
+                    function_index,
+                    out,
+                );
+            }
+            StmtType::For(init, _, _, body) => {
+                collect_static_locals(
+                    std::slice::from_ref(init.as_ref()),
+                    function_index,
+                    out,
+                );
+                collect_static_locals(
+                    std::slice::from_ref(body.as_ref()),
+                    function_index,
+                    out,
+                );
+            }
+            StmtType::Switch(_, body)
+            | StmtType::Label(_, body)
+            | StmtType::Case(_, body)
+            | StmtType::Default(body) => {
+                collect_static_locals(
+                    std::slice::from_ref(body.as_ref()),
+                    function_index,
+                    out,
+                );
+            }
+            StmtType::Expr(_)
+            | StmtType::Goto(_)
+            | StmtType::Continue
+            | StmtType::Break
+            | StmtType::Return(_) => {}
+        }
+    }
+}
+
 fn completed_object_type(
     ctype: &Type,
     initializer: Option<&Initializer>,
@@ -1072,7 +1148,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 .then_some((declaration.data.symbol, index as u32))
         })
         .collect();
-    let global_indices: HashMap<Symbol, u32> = declarations
+    let mut global_indices: HashMap<Symbol, u32> = declarations
         .iter()
         .enumerate()
         .filter_map(|(index, declaration)| {
@@ -1082,7 +1158,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 .then_some((declaration.data.symbol, index as u32))
         })
         .collect();
-    let symbol_names: HashMap<Symbol, String> = declarations
+    let mut symbol_names: HashMap<Symbol, String> = declarations
         .iter()
         .enumerate()
         .filter(|(_, declaration)| {
@@ -1095,6 +1171,25 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             )
         })
         .collect();
+    let mut static_locals = Vec::new();
+    for (function_index, declaration) in declarations.iter().enumerate() {
+        if let Some(Initializer::FunctionBody(body)) = &declaration.data.init {
+            collect_static_locals(body, function_index, &mut static_locals);
+        }
+    }
+    for (ordinal, (function_index, declaration, _)) in static_locals.iter().enumerate() {
+        let index = declarations
+            .len()
+            .checked_add(ordinal)
+            .and_then(|index| u32::try_from(index).ok())
+            .expect("translation-unit symbol table fits in u32");
+        let raw = declaration.symbol.get().id.resolve_and_clone();
+        let name = format!(
+            "__cosmic_static_local_{function_index}_{ordinal}_{raw}"
+        );
+        global_indices.insert(declaration.symbol, index);
+        symbol_names.insert(declaration.symbol, name);
+    }
     let mut functions = Vec::new();
     let mut pooled_strings = string_indices
         .iter()
@@ -1111,6 +1206,48 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             relocations: Vec::new(),
         })
         .collect::<Vec<_>>();
+    for (_, declaration, location) in &static_locals {
+        let metadata = declaration.symbol.get();
+        let completed_type =
+            completed_object_type(&metadata.ctype, declaration.init.as_ref(), *location)?;
+        let size = usize::try_from(
+            completed_type
+                .sizeof()
+                .map_err(|error| unsupported(*location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(*location, "static local is too large"))?;
+        let align = u32::try_from(
+            completed_type
+                .alignof()
+                .map_err(|error| unsupported(*location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(*location, "static local alignment is too large"))?;
+        let mut bytes = vec![0; size];
+        let mut relocations = Vec::new();
+        if let Some(initializer) = &declaration.init {
+            write_global_initializer(
+                &mut bytes,
+                &mut relocations,
+                &symbol_names,
+                &string_indices,
+                0,
+                &completed_type,
+                initializer,
+                *location,
+            )?;
+        }
+        let name = symbol_names
+            .get(&declaration.symbol)
+            .cloned()
+            .expect("static local has a symbol name");
+        data.push(DataArtifact {
+            name,
+            bytes,
+            align: align.max(1),
+            read_only: metadata.qualifiers.c_const,
+            relocations,
+        });
+    }
     for (index, declaration) in declarations.iter().enumerate() {
         let metadata = declaration.data.symbol.get();
         if metadata.storage_class == StorageClass::Typedef {
@@ -1911,6 +2048,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         if metadata.storage_class == StorageClass::Typedef {
             return Ok(());
         }
+        if metadata.storage_class == StorageClass::Static
+            && !matches!(metadata.ctype, Type::Function(_))
+        {
+            return Ok(());
+        }
         if matches!(
             metadata.ctype,
             Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
@@ -2617,6 +2759,18 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             self.builder.def_var(variable, value);
                             return Ok(value);
                         }
+                        if self.global_indices.contains_key(symbol) {
+                            let address =
+                                self.symbol_address(*symbol, 0, left.location)?;
+                            let target_ty =
+                                ir_type(&symbol.get().ctype, left.location)?;
+                            let value =
+                                self.coerce_integer_value(value, target_ty, &right.ctype);
+                            self.builder
+                                .ins()
+                                .store(MemFlagsData::new(), value, address, 0);
+                            return Ok(value);
+                        }
                         return Err(unsupported(
                             left.location,
                             format!(
@@ -3309,6 +3463,27 @@ mod tests {
         assert_eq!(artifact.data[1].bytes, 4660u16.to_le_bytes());
         assert_eq!(artifact.data[2].bytes, vec![65]);
         assert_eq!(artifact.data[3].bytes, vec![0; 4]);
+    }
+
+    #[test]
+    fn lowers_static_locals_into_translation_unit_data() {
+        let artifact = compile_source(
+            "int f(void) { static int x = 3; x = x + 1; return x; } int g(void) { static int x; return &x != 0; }",
+        )
+        .unwrap();
+        let locals = artifact
+            .data
+            .iter()
+            .filter(|object| object.name.starts_with("__cosmic_static_local_"))
+            .collect::<Vec<_>>();
+        assert_eq!(locals.len(), 2);
+        assert_eq!(locals[0].bytes, 3i32.to_le_bytes());
+        assert_ne!(locals[0].name, locals[1].name);
+        assert!(artifact
+            .functions
+            .iter()
+            .flat_map(|function| function.relocations.iter())
+            .any(|relocation| relocation.target == locals[0].name));
     }
 
     #[test]
