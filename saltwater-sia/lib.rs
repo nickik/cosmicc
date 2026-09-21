@@ -537,10 +537,9 @@ fn compile_function(
                     .declare_var(ir_type(&parameter.get().ctype, location)?);
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
-                lowerer.variable_types.insert(
-                    *parameter,
-                    ir_type(&parameter.get().ctype, location)?,
-                );
+                lowerer
+                    .variable_types
+                    .insert(*parameter, ir_type(&parameter.get().ctype, location)?);
             }
             for statement in body {
                 lowerer.compile_stmt(statement)?;
@@ -1009,12 +1008,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                     if let ExprType::Id(symbol) = &pointer.expr {
                         if let Some(variable) = self.variables.get(symbol).copied() {
-                            let variable_ty = *self.variable_types.get(symbol).ok_or_else(|| {
-                                unsupported(
-                                    expression.location,
-                                    "SIA32 local variable type metadata is missing",
-                                )
-                            })?;
+                            let variable_ty =
+                                *self.variable_types.get(symbol).ok_or_else(|| {
+                                    unsupported(
+                                        expression.location,
+                                        "SIA32 local variable type metadata is missing",
+                                    )
+                                })?;
                             let value_ty = self.builder.func.dfg.value_type(value);
 
                             let value = if value_ty == variable_ty {
