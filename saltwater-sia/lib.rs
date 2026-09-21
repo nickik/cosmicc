@@ -1692,13 +1692,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.switch_to_block(yes_block);
                 self.builder.seal_block(yes_block);
                 let yes_value = self.compile_expr(yes)?;
-                let yes_value = self.coerce_integer_value(yes_value, ty, &yes.ctype);
+                let yes_value = if is_address_valued_type(&yes.ctype) {
+                    yes_value
+                } else {
+                    self.coerce_integer_value(yes_value, ty, &yes.ctype)
+                };
                 self.builder.ins().jump(merge_block, &[yes_value.into()]);
 
                 self.builder.switch_to_block(no_block);
                 self.builder.seal_block(no_block);
                 let no_value = self.compile_expr(no)?;
-                let no_value = self.coerce_integer_value(no_value, ty, &no.ctype);
+                let no_value = if is_address_valued_type(&no.ctype) {
+                    no_value
+                } else {
+                    self.coerce_integer_value(no_value, ty, &no.ctype)
+                };
                 self.builder.ins().jump(merge_block, &[no_value.into()]);
 
                 self.builder.seal_block(merge_block);
@@ -2359,6 +2367,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_conditional_operator_with_aggregate_addresses() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(struct pair *a, struct pair *b, int c) { struct pair *p = c ? a : b; return p->x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
