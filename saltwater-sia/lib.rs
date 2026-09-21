@@ -1854,36 +1854,33 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 let right_expr_type = right.ctype.clone();
 
                 if matches!(operator, BinaryOp::Add | BinaryOp::Sub) {
-                    if let Type::Pointer(pointee, _) = &expression.ctype {
-                        let (pointer_expr, index_expr, subtract) =
-                            if matches!(left.ctype, Type::Pointer(_, _)) {
-                                (left.as_ref(), right.as_ref(), *operator == BinaryOp::Sub)
-                            } else if *operator == BinaryOp::Add
-                                && matches!(right.ctype, Type::Pointer(_, _))
-                            {
-                                (right.as_ref(), left.as_ref(), false)
-                            } else {
-                                (left.as_ref(), right.as_ref(), false)
-                            };
-                        if matches!(pointer_expr.ctype, Type::Pointer(_, _)) {
-                            let base = self.compile_expr(pointer_expr)?;
-                            let index = self.compile_expr(index_expr)?;
-                            let index =
-                                self.coerce_integer_value(index, types::I32, &index_expr.ctype);
-                            let element_size = pointee.sizeof().map_err(|_| {
-                                unsupported(
-                                    expression.location,
-                                    "SIA32 pointer arithmetic requires a complete pointee type",
-                                )
-                            })?;
-                            let scale = self.builder.ins().iconst(types::I32, element_size as i64);
-                            let delta = self.builder.ins().imul(index, scale);
-                            return Ok(if subtract {
-                                self.builder.ins().isub(base, delta)
-                            } else {
-                                self.builder.ins().iadd(base, delta)
-                            });
+                    let pointer_side = match (&left.ctype, &right.ctype) {
+                        (Type::Pointer(pointee, _), _) => {
+                            Some((left.as_ref(), right.as_ref(), pointee.as_ref(), *operator == BinaryOp::Sub))
                         }
+                        (_, Type::Pointer(pointee, _)) if *operator == BinaryOp::Add => {
+                            Some((right.as_ref(), left.as_ref(), pointee.as_ref(), false))
+                        }
+                        _ => None,
+                    };
+                    if let Some((pointer_expr, index_expr, pointee, subtract)) = pointer_side {
+                        let base = self.compile_expr(pointer_expr)?;
+                        let index = self.compile_expr(index_expr)?;
+                        let index =
+                            self.coerce_integer_value(index, types::I32, &index_expr.ctype);
+                        let element_size = pointee.sizeof().map_err(|_| {
+                            unsupported(
+                                expression.location,
+                                "SIA32 pointer arithmetic requires a complete pointee type",
+                            )
+                        })?;
+                        let scale = self.builder.ins().iconst(types::I32, element_size as i64);
+                        let delta = self.builder.ins().imul(index, scale);
+                        return Ok(if subtract {
+                            self.builder.ins().isub(base, delta)
+                        } else {
+                            self.builder.ins().iadd(base, delta)
+                        });
                     }
                 }
 
