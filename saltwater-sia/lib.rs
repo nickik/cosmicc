@@ -1084,6 +1084,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 let left = self.compile_expr(left)?;
                 let right = self.compile_expr(right)?;
                 let value = match operator {
+                    BinaryOp::Mul => self.builder.ins().imul(left, right),
                     BinaryOp::Add => self.builder.ins().iadd(left, right),
                     BinaryOp::Sub => self.builder.ins().isub(left, right),
                     BinaryOp::BitwiseAnd => self.builder.ins().band(left, right),
