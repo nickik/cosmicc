@@ -1090,6 +1090,63 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 let all_ones = self.builder.ins().iconst(ty, -1);
                 Ok(self.builder.ins().bxor(value, all_ones))
             }
+            ExprType::PostIncrement(value, increment) => {
+                let mut lvalue = value.as_ref();
+                while let ExprType::Noop(inner) = &lvalue.expr {
+                    lvalue = inner;
+                }
+
+                if matches!(lvalue.ctype, Type::Pointer(_, _)) {
+                    return Err(unsupported(
+                        expression.location,
+                        "SIA32 pointer post-increment/decrement is not supported yet",
+                    ));
+                }
+
+                let old = self.compile_expr(lvalue)?;
+                let value_ty = self.builder.func.dfg.value_type(old);
+                let one = self.builder.ins().iconst(value_ty, 1);
+                let updated = if *increment {
+                    self.builder.ins().iadd(old, one)
+                } else {
+                    self.builder.ins().isub(old, one)
+                };
+
+                match &lvalue.expr {
+                    ExprType::Id(symbol) => {
+                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                            unsupported(
+                                expression.location,
+                                "SIA32 post-increment/decrement target is not a mapped local",
+                            )
+                        })?;
+                        self.builder.def_var(variable, updated);
+                    }
+                    ExprType::Member(base, member) => {
+                        let address =
+                            self.compile_member_address(base, *member, expression.location)?;
+                        self.builder
+                            .ins()
+                            .store(MemFlagsData::new(), updated, address, 0);
+                    }
+                    ExprType::Deref(pointer) => {
+                        let address = self.compile_expr(pointer)?;
+                        self.builder
+                            .ins()
+                            .store(MemFlagsData::new(), updated, address, 0);
+                    }
+                    _ => {
+                        return Err(unsupported(
+                            expression.location,
+                            format!(
+                                "SIA32 post-increment/decrement lowering is not implemented for {lvalue:?}"
+                            ),
+                        ));
+                    }
+                }
+
+                Ok(old)
+            }
             ExprType::Binary(operator, left, right) => {
                 use saltwater_parser::data::hir::BinaryOp;
                 if *operator == BinaryOp::Assign {
@@ -1505,6 +1562,26 @@ mod tests {
             &artifact.functions[0].code[artifact.functions[0].code.len() - 2..],
             &[0xe0, 0xc0]
         );
+    }
+
+    #[test]
+    fn compiles_for_and_do_while_control_flow() {
+        let artifact = compile_source(
+            "int loops(int n) { int sum = 0; int i = 0; for (i = 0; i < n; i = i + 1) { if (i == 2) continue; sum = sum + i; } do { sum = sum - 1; } while (sum > n); return sum; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_scalar_post_increment_and_decrement() {
+        let artifact = compile_source(
+            "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
