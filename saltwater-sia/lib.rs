@@ -1600,7 +1600,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -1643,10 +1646,9 @@ mod tests {
 
     #[test]
     fn compiles_narrow_uninitialized_local_assigned_before_read() {
-        let artifact = compile_source(
-            "int f(int n) { unsigned char value; value = n; return value; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int f(int n) { unsigned char value; value = n; return value; }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
