@@ -1306,16 +1306,31 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     BinaryOp::BitwiseOr => self.builder.ins().bor(left, right),
                     BinaryOp::Xor => self.builder.ins().bxor(left, right),
                     BinaryOp::Shl => self.builder.ins().ishl(left, right),
-                    BinaryOp::Shr => self.builder.ins().sshr(left, right),
+                    BinaryOp::Shr => {
+                        if is_signed_integer_type(&left_expr_type) {
+                            self.builder.ins().sshr(left, right)
+                        } else {
+                            self.builder.ins().ushr(left, right)
+                        }
+                    }
                     BinaryOp::Compare(compare) => {
                         use saltwater_parser::data::lex::ComparisonToken;
+                        let signed = is_signed_integer_type(&left_expr_type);
                         let condition = match compare {
-                            ComparisonToken::Less => IntCC::SignedLessThan,
-                            ComparisonToken::Greater => IntCC::SignedGreaterThan,
+                            ComparisonToken::Less => {
+                                if signed { IntCC::SignedLessThan } else { IntCC::UnsignedLessThan }
+                            }
+                            ComparisonToken::Greater => {
+                                if signed { IntCC::SignedGreaterThan } else { IntCC::UnsignedGreaterThan }
+                            }
                             ComparisonToken::EqualEqual => IntCC::Equal,
                             ComparisonToken::NotEqual => IntCC::NotEqual,
-                            ComparisonToken::LessEqual => IntCC::SignedLessThanOrEqual,
-                            ComparisonToken::GreaterEqual => IntCC::SignedGreaterThanOrEqual,
+                            ComparisonToken::LessEqual => {
+                                if signed { IntCC::SignedLessThanOrEqual } else { IntCC::UnsignedLessThanOrEqual }
+                            }
+                            ComparisonToken::GreaterEqual => {
+                                if signed { IntCC::SignedGreaterThanOrEqual } else { IntCC::UnsignedGreaterThanOrEqual }
+                            }
                         };
                         // CLIF icmp produces I8, but a C comparison expression
                         // has integer type. Normalize the canonical boolean to
@@ -1597,6 +1612,19 @@ mod tests {
     fn compiles_signed_and_unsigned_integer_division_and_remainder() {
         let artifact = compile_source(
             "int signed_ops(int a, int b) { return (a / b) + (a % b); } unsigned int unsigned_ops(unsigned int a, unsigned int b) { return (a / b) + (a % b); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_signed_and_unsigned_right_shift_and_comparisons() {
+        let artifact = compile_source(
+            "int signed_ops(int a, int b) { return (a >> 1) + (a < b) + (a >= b); } unsigned int unsigned_ops(unsigned int a, unsigned int b) { return (a >> 1) + (a < b) + (a >= b); }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
