@@ -1077,11 +1077,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 align_shift,
             ));
             self.stack_locals.insert(declaration.symbol, slot);
-            if declaration.init.is_some() {
-                return Err(unsupported(
-                    location,
-                    "aggregate local initialization is not supported for SIA32 yet",
-                ));
+            if let Some(initializer) = &declaration.init {
+                self.initialize_stack_aggregate(slot, &metadata.ctype, initializer, location)?;
             }
             return Ok(());
         }
@@ -1110,6 +1107,80 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
 
         Ok(())
+    }
+
+    fn initialize_stack_aggregate(
+        &mut self,
+        slot: StackSlot,
+        ctype: &Type,
+        initializer: &Initializer,
+        location: Location,
+    ) -> Result<(), Error> {
+        let Initializer::InitializerList(items) = initializer else {
+            return Err(unsupported(
+                location,
+                "aggregate local initialization requires an initializer list",
+            ));
+        };
+        match ctype {
+            Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
+                let element_size = element
+                    .sizeof()
+                    .map_err(|_| unsupported(location, "array element has incomplete type"))?;
+                for (index, item) in items.iter().enumerate() {
+                    if u64::try_from(index).unwrap_or(u64::MAX) >= *count {
+                        break;
+                    }
+                    let Initializer::Scalar(expression) = item else {
+                        return Err(unsupported(
+                            location,
+                            "nested aggregate initialization is not supported for SIA32 yet",
+                        ));
+                    };
+                    let value = self.compile_expr(expression)?;
+                    let value_ty = ir_type(element, location)?;
+                    let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
+                    let offset = i32::try_from((index as u64) * element_size)
+                        .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
+                    self.builder.ins().stack_store(value, slot, offset);
+                }
+                Ok(())
+            }
+            Type::Struct(struct_type) => {
+                let mut offset = 0u64;
+                for (field, item) in struct_type.members().iter().zip(items.iter()) {
+                    let align = field
+                        .ctype
+                        .alignof()
+                        .map_err(|_| unsupported(location, "struct field has unsupported alignment"))?;
+                    let rem = offset % align;
+                    if rem != 0 {
+                        offset += align - rem;
+                    }
+                    let Initializer::Scalar(expression) = item else {
+                        return Err(unsupported(
+                            location,
+                            "nested aggregate initialization is not supported for SIA32 yet",
+                        ));
+                    };
+                    let value = self.compile_expr(expression)?;
+                    let value_ty = ir_type(&field.ctype, location)?;
+                    let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
+                    let field_offset = i32::try_from(offset)
+                        .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
+                    self.builder.ins().stack_store(value, slot, field_offset);
+                    offset += field
+                        .ctype
+                        .sizeof()
+                        .map_err(|_| unsupported(location, "struct field has incomplete type"))?;
+                }
+                Ok(())
+            }
+            _ => Err(unsupported(
+                location,
+                "this aggregate initializer shape is not supported for SIA32 yet",
+            )),
+        }
     }
 
     fn compile_member_address(
@@ -2144,6 +2215,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_scalar_array_and_struct_local_initializers() {
+        let artifact = compile_source(
+            "struct pair { int a; short b; }; int local(void) { int a[3] = { 1, 2, 3 }; struct pair p = { 4, 5 }; return a[0] + a[2] + p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
