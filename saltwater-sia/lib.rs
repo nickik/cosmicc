@@ -15,9 +15,9 @@ use cranelift_codegen::ir::{
     UserExternalName, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
-use cranelift_codegen::RelocTarget;
 use cranelift_codegen::settings::{self, Configurable, Flags};
 use cranelift_codegen::Context;
+use cranelift_codegen::RelocTarget;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use saltwater_parser::check_semantics;
 pub use saltwater_parser::data::error::LexError;
@@ -189,19 +189,48 @@ impl Artifact {
             .expect("a u32 always fits in usize on supported Cosmic C hosts");
             let code = take(bytes, &mut cursor, code_len, "function code")?.to_vec();
             let reloc_count = usize::from(u16::from_le_bytes(read_array(take(
-                bytes, &mut cursor, 2, "function relocation count",
+                bytes,
+                &mut cursor,
+                2,
+                "function relocation count",
             )?)));
             let mut relocations = Vec::with_capacity(reloc_count);
             for _ in 0..reloc_count {
-                let offset = u32::from_le_bytes(read_array(take(bytes, &mut cursor, 4, "relocation offset")?));
-                let addend = i64::from_le_bytes(read_array(take(bytes, &mut cursor, 8, "relocation addend")?));
-                let target_len = usize::from(u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "relocation target length")?)));
-                let target = std::str::from_utf8(take(bytes, &mut cursor, target_len, "relocation target")?)
-                    .map_err(|_| Error::Codegen("COSMIC-SIA relocation target is not UTF-8".into()))?
-                    .to_owned();
-                relocations.push(RelocationArtifact { offset, target, addend });
+                let offset = u32::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    4,
+                    "relocation offset",
+                )?));
+                let addend = i64::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    8,
+                    "relocation addend",
+                )?));
+                let target_len = usize::from(u16::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    2,
+                    "relocation target length",
+                )?)));
+                let target =
+                    std::str::from_utf8(take(bytes, &mut cursor, target_len, "relocation target")?)
+                        .map_err(|_| {
+                            Error::Codegen("COSMIC-SIA relocation target is not UTF-8".into())
+                        })?
+                        .to_owned();
+                relocations.push(RelocationArtifact {
+                    offset,
+                    target,
+                    addend,
+                });
             }
-            functions.push(FunctionArtifact { name, code, relocations });
+            functions.push(FunctionArtifact {
+                name,
+                code,
+                relocations,
+            });
         }
         if cursor != bytes.len() {
             return Err(Error::Codegen(
@@ -544,21 +573,29 @@ fn compile_function(
     for relocation in compiled.buffer.relocs() {
         if relocation.kind != Reloc::Abs4 {
             return Err(Error::Codegen(format!(
-                "SIA32 emitted unsupported relocation {:?} in {name}", relocation.kind
+                "SIA32 emitted unsupported relocation {:?} in {name}",
+                relocation.kind
             )));
         }
         let target = match &relocation.target {
             RelocTarget::ExternalName(ExternalName::User(reference)) => {
                 let user = user_named_funcs[*reference].clone();
-                function_indices.iter().find_map(|(symbol, index)| {
-                    (*index == user.index).then(|| symbol.get().id.resolve_and_clone())
-                }).ok_or_else(|| Error::Codegen(format!(
-                    "SIA32 emitted unknown function relocation in {name}"
-                )))?
+                function_indices
+                    .iter()
+                    .find_map(|(symbol, index)| {
+                        (*index == user.index).then(|| symbol.get().id.resolve_and_clone())
+                    })
+                    .ok_or_else(|| {
+                        Error::Codegen(format!(
+                            "SIA32 emitted unknown function relocation in {name}"
+                        ))
+                    })?
             }
-            other => return Err(Error::Codegen(format!(
-                "SIA32 emitted unsupported relocation target {other:?} in {name}"
-            ))),
+            other => {
+                return Err(Error::Codegen(format!(
+                    "SIA32 emitted unsupported relocation target {other:?} in {name}"
+                )))
+            }
         };
         relocations.push(RelocationArtifact {
             offset: relocation.offset,
@@ -571,7 +608,11 @@ fn compile_function(
             "SIA32 emitted invalid instruction bytes for {name}"
         )));
     }
-    Ok(FunctionArtifact { name, code, relocations })
+    Ok(FunctionArtifact {
+        name,
+        code,
+        relocations,
+    })
 }
 
 fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
@@ -591,7 +632,10 @@ struct FunctionLowerer<'a, 'b, 'c> {
 }
 
 impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
-    fn new(builder: &'a mut FunctionBuilder<'b>, function_indices: &'c HashMap<Symbol, u32>) -> Self {
+    fn new(
+        builder: &'a mut FunctionBuilder<'b>,
+        function_indices: &'c HashMap<Symbol, u32>,
+    ) -> Self {
         let return_type = builder
             .func
             .signature
@@ -1056,35 +1100,58 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::FuncCall(function, arguments) => {
                 let ExprType::Id(symbol) = &function.expr else {
-                    return Err(unsupported(expression.location, "SIA32 indirect calls are not supported yet"));
+                    return Err(unsupported(
+                        expression.location,
+                        "SIA32 indirect calls are not supported yet",
+                    ));
                 };
                 let metadata = symbol.get();
                 let Type::Function(function_type) = &metadata.ctype else {
-                    return Err(unsupported(expression.location, "SIA32 call target is not a function"));
+                    return Err(unsupported(
+                        expression.location,
+                        "SIA32 call target is not a function",
+                    ));
                 };
                 if function_type.varargs {
-                    return Err(unsupported(expression.location, "variadic calls are not supported for SIA32 yet"));
+                    return Err(unsupported(
+                        expression.location,
+                        "variadic calls are not supported for SIA32 yet",
+                    ));
                 }
-                let function_index = self.function_indices.get(symbol).copied().ok_or_else(|| {
-                    unsupported(expression.location, format!(
-                        "SIA32 direct call target `{}` has no translation-unit definition",
-                        metadata.id.resolve_and_clone()
-                    ))
-                })?;
+                let function_index =
+                    self.function_indices.get(symbol).copied().ok_or_else(|| {
+                        unsupported(
+                            expression.location,
+                            format!(
+                                "SIA32 direct call target `{}` has no translation-unit definition",
+                                metadata.id.resolve_and_clone()
+                            ),
+                        )
+                    })?;
                 let parameters = function_parameters(function_type);
                 if arguments.len() != parameters.len() {
-                    return Err(unsupported(expression.location, "SIA32 call argument count mismatch"));
+                    return Err(unsupported(
+                        expression.location,
+                        "SIA32 call argument count mismatch",
+                    ));
                 }
                 let mut signature = Signature::new(CallConv::SystemV);
                 for parameter in parameters {
-                    signature.params.push(AbiParam::new(ir_type(&parameter.get().ctype, expression.location)?));
+                    signature.params.push(AbiParam::new(ir_type(
+                        &parameter.get().ctype,
+                        expression.location,
+                    )?));
                 }
                 if !matches!(*function_type.return_type, Type::Void) {
-                    signature.returns.push(AbiParam::new(ir_type(&function_type.return_type, expression.location)?));
+                    signature.returns.push(AbiParam::new(ir_type(
+                        &function_type.return_type,
+                        expression.location,
+                    )?));
                 }
-                let external = self.builder.func.declare_imported_user_function(
-                    UserExternalName::new(0, function_index)
-                );
+                let external = self
+                    .builder
+                    .func
+                    .declare_imported_user_function(UserExternalName::new(0, function_index));
                 let signature = self.builder.import_signature(signature);
                 let function_ref = self.builder.import_function(ExtFuncData {
                     name: ExternalName::user(external),
@@ -1098,7 +1165,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 let call = self.builder.ins().call(function_ref, &values);
                 if matches!(*function_type.return_type, Type::Void) {
-                    return Err(unsupported(expression.location, "void calls as expressions are not supported yet"));
+                    return Err(unsupported(
+                        expression.location,
+                        "void calls as expressions are not supported yet",
+                    ));
                 }
                 Ok(self.builder.func.dfg.first_result(call))
             }
