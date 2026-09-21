@@ -775,9 +775,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Break => {
-                let (_, exit) = self.loop_targets.last().copied().ok_or_else(|| {
-                    unsupported(statement.location, "break outside a SIA32 loop")
-                })?;
+                let (_, exit) =
+                    self.loop_targets.last().copied().ok_or_else(|| {
+                        unsupported(statement.location, "break outside a SIA32 loop")
+                    })?;
                 self.builder.ins().jump(exit, &[]);
                 self.terminated = true;
                 Ok(())
