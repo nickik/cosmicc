@@ -2320,10 +2320,7 @@ mod tests {
 
     #[test]
     fn compiles_integer_function_pointer_calls() {
-        let artifact = compile_source(
-            "int apply(int (*f)(int), int x) { return f(x); }",
-        )
-        .unwrap();
+        let artifact = compile_source("int apply(int (*f)(int), int x) { return f(x); }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
