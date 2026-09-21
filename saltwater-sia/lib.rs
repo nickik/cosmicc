@@ -750,7 +750,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 self.builder.ins().jump(body_block, &[]);
                 self.builder.switch_to_block(body_block);
-                self.builder.seal_block(body_block);
+                // body_block has a backedge from the condition block, so it
+                // cannot be sealed until that predecessor has been emitted.
                 self.terminated = false;
                 self.loop_targets.push((condition_block, exit));
                 self.compile_stmt(body)?;
@@ -768,6 +769,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     .ins()
                     .brif(condition, body_block, &[], exit, &[]);
                 self.builder.seal_block(condition_block);
+                self.builder.seal_block(body_block);
 
                 self.builder.switch_to_block(exit);
                 self.builder.seal_block(exit);
@@ -1568,6 +1570,16 @@ mod tests {
     fn compiles_for_and_do_while_control_flow() {
         let artifact = compile_source(
             "int loops(int n) { int sum = 0; int i = 0; for (i = 0; i < n; i = i + 1) { if (i == 2) continue; sum = sum + i; } do { sum = sum - 1; } while (sum > n); return sum; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_do_while_with_loop_carried_local() {
+        let artifact = compile_source(
+            "int countdown(int n) { int i = n; do { i = i - 1; } while (i > 0); return i; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
