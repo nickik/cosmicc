@@ -632,6 +632,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     function_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
+    loop_targets: Vec<(cranelift_codegen::ir::Block, cranelift_codegen::ir::Block)>,
     terminated: bool,
 }
 
@@ -652,6 +653,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             variable_types: HashMap::new(),
             function_indices,
             return_type,
+            loop_targets: Vec::new(),
             terminated: false,
         }
     }
@@ -739,6 +741,53 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     self.terminated = false;
                 }
 
+                Ok(())
+            }
+            StmtType::While(condition, body) => {
+                let header = self.builder.create_block();
+                let body_block = self.builder.create_block();
+                let exit = self.builder.create_block();
+
+                self.builder.ins().jump(header, &[]);
+                self.builder.switch_to_block(header);
+                let condition = self.compile_expr(condition)?;
+                let condition_ty = self.builder.func.dfg.value_type(condition);
+                let zero = self.builder.ins().iconst(condition_ty, 0);
+                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                self.builder
+                    .ins()
+                    .brif(condition, body_block, &[], exit, &[]);
+
+                self.builder.switch_to_block(body_block);
+                self.builder.seal_block(body_block);
+                self.terminated = false;
+                self.loop_targets.push((header, exit));
+                self.compile_stmt(body)?;
+                self.loop_targets.pop();
+                if !self.terminated {
+                    self.builder.ins().jump(header, &[]);
+                }
+
+                self.builder.seal_block(header);
+                self.builder.switch_to_block(exit);
+                self.builder.seal_block(exit);
+                self.terminated = false;
+                Ok(())
+            }
+            StmtType::Break => {
+                let (_, exit) = self.loop_targets.last().copied().ok_or_else(|| {
+                    unsupported(statement.location, "break outside a SIA32 loop")
+                })?;
+                self.builder.ins().jump(exit, &[]);
+                self.terminated = true;
+                Ok(())
+            }
+            StmtType::Continue => {
+                let (header, _) = self.loop_targets.last().copied().ok_or_else(|| {
+                    unsupported(statement.location, "continue outside a SIA32 loop")
+                })?;
+                self.builder.ins().jump(header, &[]);
+                self.terminated = true;
                 Ok(())
             }
             _ => Err(unsupported(
