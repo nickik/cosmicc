@@ -2528,10 +2528,8 @@ mod tests {
 
     #[test]
     fn compiles_narrow_integer_unary_promotions() {
-        let artifact = compile_source(
-            "int f(signed char x, unsigned short y) { return -x + ~y; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int f(signed char x, unsigned short y) { return -x + ~y; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
