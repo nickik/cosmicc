@@ -1142,7 +1142,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
                     let offset = i32::try_from((index as u64) * element_size)
                         .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
-                    self.builder.ins().stack_store(value, slot, offset);
+                    self.builder.ins().stack_store(types::I32, value, slot, offset);
                 }
                 Ok(())
             }
@@ -1168,7 +1168,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
                     let field_offset = i32::try_from(offset)
                         .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
-                    self.builder.ins().stack_store(value, slot, field_offset);
+                    self.builder.ins().stack_store(types::I32, value, slot, field_offset);
                     offset += field
                         .ctype
                         .sizeof()
@@ -1179,6 +1179,25 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             _ => Err(unsupported(
                 location,
                 "this aggregate initializer shape is not supported for SIA32 yet",
+            )),
+        }
+    }
+
+    fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
+        match &lvalue.expr {
+            ExprType::Deref(pointer) => self.compile_expr(pointer),
+            ExprType::Member(base, member) => {
+                self.compile_member_address(base, *member, lvalue.location)
+            }
+            // Saltwater lowers subscripting into pointer arithmetic and can
+            // leave that Binary(Add, ...) directly as the lvalue.
+            ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                self.compile_expr(lvalue)
+            }
+            ExprType::Noop(inner) => self.compile_lvalue_address(inner),
+            _ => Err(unsupported(
+                lvalue.location,
+                format!("SIA32 cannot form address for lvalue {lvalue:?}"),
             )),
         }
     }
@@ -1599,6 +1618,19 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                     if let ExprType::Member(base, member) = &assignment_left.expr {
                         let address = self.compile_member_address(base, *member, left.location)?;
+                        let target_ty = ir_type(&assignment_left.ctype, left.location)?;
+                        let value = self.coerce_integer_value(value, target_ty, &right.ctype);
+                        self.builder
+                            .ins()
+                            .store(MemFlagsData::new(), value, address, 0);
+                        return Ok(value);
+                    }
+
+                    if matches!(
+                        assignment_left.expr,
+                        ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _)
+                    ) {
+                        let address = self.compile_lvalue_address(assignment_left)?;
                         let target_ty = ir_type(&assignment_left.ctype, left.location)?;
                         let value = self.coerce_integer_value(value, target_ty, &right.ctype);
                         self.builder
@@ -2215,6 +2247,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_pointer_arithmetic_lvalue_assignment() {
+        let artifact = compile_source(
+            "int store(int *p, int i, int x) { p[i] = x; return p[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
