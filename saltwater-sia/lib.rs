@@ -2250,20 +2250,28 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         initializer: &Initializer,
         location: Location,
     ) -> Result<(), Error> {
-        if let (Type::Array(element, _), Initializer::Scalar(expression)) = (ctype, initializer) {
-            if matches!(element.as_ref(), Type::Char(_)) {
-                if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
-                    for (offset, byte) in bytes.iter().copied().enumerate() {
-                        let value = self.builder.ins().iconst(types::I8, i64::from(byte));
-                        let offset = i32::try_from(offset).map_err(|_| {
-                            unsupported(location, "string initializer is too large")
-                        })?;
-                        self.builder
-                            .ins()
-                            .stack_store(types::I32, value, slot, offset);
+        if let Initializer::Scalar(expression) = initializer {
+            if let Type::Array(element, _) = ctype {
+                if matches!(element.as_ref(), Type::Char(_)) {
+                    if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
+                        for (offset, byte) in bytes.iter().copied().enumerate() {
+                            let value = self.builder.ins().iconst(types::I8, i64::from(byte));
+                            let offset = i32::try_from(offset).map_err(|_| {
+                                unsupported(location, "string initializer is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, offset);
+                        }
+                        return Ok(());
                     }
-                    return Ok(());
                 }
+            }
+            if is_by_value_aggregate(ctype) {
+                let destination = self.builder.ins().stack_addr(types::I32, slot, 0);
+                let source = self.compile_expr(expression)?;
+                self.copy_aggregate_value(destination, source, ctype, location)?;
+                return Ok(());
             }
         }
         self.initialize_stack_aggregate_at(slot, ctype, initializer, 0, location)
@@ -4027,6 +4035,19 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_scalar_struct_and_union_local_initializers() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; union value { int i; short s; }; struct pair make(void) { struct pair p = {1, 2}; return p; } int f(void) { struct pair a = {3, 4}; struct pair b = a; struct pair c = make(); union value u = {5}; union value v = u; return b.a + c.b + v.i; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
