@@ -1603,15 +1603,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
             },
             ExprType::Negate(value) => {
-                let value = self.compile_expr(value)?;
-                let value_ty = self.builder.func.dfg.value_type(value);
-                let zero = self.builder.ins().iconst(value_ty, 0);
-                Ok(self.builder.ins().isub(zero, value))
+                let value_clif = self.compile_expr(value)?;
+                let value_clif = self.coerce_integer_value(value_clif, ty, &value.ctype);
+                let zero = self.builder.ins().iconst(ty, 0);
+                Ok(self.builder.ins().isub(zero, value_clif))
             }
             ExprType::BitwiseNot(value) => {
-                let value = self.compile_expr(value)?;
+                let value_clif = self.compile_expr(value)?;
+                let value_clif = self.coerce_integer_value(value_clif, ty, &value.ctype);
                 let all_ones = self.builder.ins().iconst(ty, -1);
-                Ok(self.builder.ins().bxor(value, all_ones))
+                Ok(self.builder.ins().bxor(value_clif, all_ones))
             }
             ExprType::PostIncrement(value, increment) => {
                 let mut lvalue = value.as_ref();
@@ -2519,6 +2520,16 @@ mod tests {
     fn compiles_scalar_post_increment_and_decrement() {
         let artifact = compile_source(
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_narrow_integer_unary_promotions() {
+        let artifact = compile_source(
+            "int f(signed char x, unsigned short y) { return -x + ~y; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
