@@ -560,7 +560,7 @@ fn compile_function(
     // Compilation mutably borrows the Context for as long as the returned
     // CompiledCode is live. Snapshot the user-name table first so relocation
     // decoding does not need to borrow context after compilation.
-    let user_named_funcs = context.func.params.user_named_funcs().to_vec();
+    let user_named_funcs = context.func.params.user_named_funcs().clone();
     let mut control_plane = ControlPlane::default();
     let compiled = context.compile(isa, &mut control_plane).map_err(|error| {
         Error::Codegen(format!(
