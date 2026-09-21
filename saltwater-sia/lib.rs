@@ -547,9 +547,57 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 self.terminated = true;
                 Ok(())
             }
+            StmtType::If(condition, then_stmt, else_stmt) => {
+                let condition = self.compile_expr(condition)?;
+                let condition_ty = self.builder.func.dfg.value_type(condition);
+                let zero = self.builder.ins().iconst(condition_ty, 0);
+                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+
+                let then_block = self.builder.create_block();
+                let else_block = self.builder.create_block();
+                let merge_block = self.builder.create_block();
+
+                self.builder
+                    .ins()
+                    .brif(condition, then_block, &[], else_block, &[]);
+
+                self.builder.switch_to_block(then_block);
+                self.builder.seal_block(then_block);
+                self.terminated = false;
+                self.compile_stmt(then_stmt)?;
+                let then_terminated = self.terminated;
+
+                if !then_terminated {
+                    self.builder.ins().jump(merge_block, &[]);
+                }
+
+                self.builder.switch_to_block(else_block);
+                self.builder.seal_block(else_block);
+                self.terminated = false;
+
+                if let Some(else_stmt) = else_stmt {
+                    self.compile_stmt(else_stmt)?;
+                }
+
+                let else_terminated = self.terminated;
+
+                if !else_terminated {
+                    self.builder.ins().jump(merge_block, &[]);
+                }
+
+                if then_terminated && else_terminated {
+                    self.terminated = true;
+                } else {
+                    self.builder.switch_to_block(merge_block);
+                    self.builder.seal_block(merge_block);
+                    self.terminated = false;
+                }
+
+                Ok(())
+            }
             _ => Err(unsupported(
                 statement.location,
-                "control flow is not implemented in the initial SIA32 compiler path",
+                format!("SIA32 control-flow lowering is not implemented for {statement:?}"),
             )),
         }
     }
@@ -589,11 +637,14 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
         let ty = ir_type(&expression.ctype, expression.location)?;
         match &expression.expr {
             ExprType::Id(symbol) => {
-                let _ = symbol;
-                Err(unsupported(
-                    expression.location,
-                    "taking local addresses and referencing globals are not supported for SIA32 yet",
-                ))
+                if let Some(variable) = self.variables.get(symbol).copied() {
+                    Ok(self.builder.use_var(variable))
+                } else {
+                    Err(unsupported(
+                        expression.location,
+                        "taking addresses of globals or unsupported objects is not supported for SIA32 yet",
+                    ))
+                }
             }
             ExprType::Literal(LiteralValue::Int(value)) => {
                 Ok(self.builder.ins().iconst(ty, *value))
@@ -612,7 +663,41 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 expression.location,
                 "string literals require SIA32 global-data support",
             )),
-            ExprType::Cast(value) | ExprType::Noop(value) => self.compile_expr(value),
+            ExprType::Noop(value) => self.compile_expr(value),
+            ExprType::Cast(value) => {
+                let value_clif = self.compile_expr(value)?;
+                let source_ty = self.builder.func.dfg.value_type(value_clif);
+                let dest_ty = ty;
+
+                if source_ty == dest_ty {
+                    Ok(value_clif)
+                } else if source_ty.bits() < dest_ty.bits() {
+                    let signed = matches!(
+                        &value.ctype,
+                        Type::Char(true)
+                            | Type::Short(true)
+                            | Type::Int(true)
+                            | Type::Long(true)
+                            | Type::Enum(_, _)
+                    );
+
+                    if signed {
+                        Ok(self.builder.ins().sextend(dest_ty, value_clif))
+                    } else {
+                        Ok(self.builder.ins().uextend(dest_ty, value_clif))
+                    }
+                } else if source_ty.bits() > dest_ty.bits() {
+                    Ok(self.builder.ins().ireduce(dest_ty, value_clif))
+                } else {
+                    Err(unsupported(
+                        expression.location,
+                        format!(
+                            "SIA32 cast lowering is not implemented from {:?} to {:?}",
+                            value.ctype, expression.ctype
+                        ),
+                    ))
+                }
+            }
             ExprType::Sizeof(sized) => {
                 let bytes = sized.sizeof().map_err(|_| {
                     unsupported(expression.location, "sizeof requires a complete SIA32 type")
@@ -698,7 +783,9 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     let variable = self.variables.get(symbol).copied().ok_or_else(|| {
                         unsupported(
                             expression.location,
-                            "globals are not supported for SIA32 yet",
+                            format!(
+                                "SIA32 Deref(Id) has no local mapping: symbol={symbol:?}, expr={expression:?}"
+                            ),
                         )
                     })?;
                     Ok(self.builder.use_var(variable))
@@ -720,10 +807,20 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
             ExprType::Binary(operator, left, right) => {
                 use saltwater_parser::data::hir::BinaryOp;
                 if *operator == BinaryOp::Assign {
-                    let ExprType::Deref(pointer) = &left.expr else {
+                    // The analyzer can wrap an lvalue in one or more Noop
+                    // conversions. Strip those before classifying the
+                    // assignment destination.
+                    let mut assignment_left = left;
+                    while let ExprType::Noop(inner) = &assignment_left.expr {
+                        assignment_left = inner;
+                    }
+
+                    let ExprType::Deref(pointer) = &assignment_left.expr else {
                         return Err(unsupported(
                             left.location,
-                            "only plain local-variable assignment is supported for SIA32",
+                            format!(
+                                "SIA32 assignment lowering is not implemented for lhs {left:?}"
+                            ),
                         ));
                     };
                     let value = self.compile_expr(right)?;
@@ -739,6 +836,61 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                         .store(MemFlagsData::new(), value, address, 0);
                     return Ok(value);
                 }
+                // C logical operators are sequencing operations, not ordinary
+                // binary arithmetic: the right operand must only be evaluated
+                // when required. Lower them to explicit CLIF control flow and
+                // merge a canonical C int (0 or 1).
+                if matches!(operator, BinaryOp::LogicalAnd | BinaryOp::LogicalOr) {
+                    let left_value = self.compile_expr(left)?;
+                    let left_ty = self.builder.func.dfg.value_type(left_value);
+                    let zero = self.builder.ins().iconst(left_ty, 0);
+                    let left_true = self.builder.ins().icmp(IntCC::NotEqual, left_value, zero);
+
+                    let rhs_block = self.builder.create_block();
+                    let short_block = self.builder.create_block();
+                    let merge_block = self.builder.create_block();
+                    self.builder.append_block_param(merge_block, types::I32);
+
+                    match operator {
+                        BinaryOp::LogicalAnd => {
+                            self.builder
+                                .ins()
+                                .brif(left_true, rhs_block, &[], short_block, &[]);
+                        }
+                        BinaryOp::LogicalOr => {
+                            self.builder
+                                .ins()
+                                .brif(left_true, short_block, &[], rhs_block, &[]);
+                        }
+                        _ => unreachable!(),
+                    }
+
+                    self.builder.seal_block(short_block);
+                    self.builder.switch_to_block(short_block);
+                    let short_value = match operator {
+                        BinaryOp::LogicalAnd => 0,
+                        BinaryOp::LogicalOr => 1,
+                        _ => unreachable!(),
+                    };
+                    let short_value = self.builder.ins().iconst(types::I32, short_value);
+                    let short_args = [short_value.into()];
+                    self.builder.ins().jump(merge_block, &short_args);
+
+                    self.builder.seal_block(rhs_block);
+                    self.builder.switch_to_block(rhs_block);
+                    let right_value = self.compile_expr(right)?;
+                    let right_ty = self.builder.func.dfg.value_type(right_value);
+                    let zero = self.builder.ins().iconst(right_ty, 0);
+                    let right_true = self.builder.ins().icmp(IntCC::NotEqual, right_value, zero);
+                    let right_result = self.builder.ins().uextend(types::I32, right_true);
+                    let right_args = [right_result.into()];
+                    self.builder.ins().jump(merge_block, &right_args);
+
+                    self.builder.seal_block(merge_block);
+                    self.builder.switch_to_block(merge_block);
+                    return Ok(self.builder.block_params(merge_block)[0]);
+                }
+
                 let left = self.compile_expr(left)?;
                 let right = self.compile_expr(right)?;
                 let value = match operator {
@@ -759,10 +911,11 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                             ComparisonToken::LessEqual => IntCC::SignedLessThanOrEqual,
                             ComparisonToken::GreaterEqual => IntCC::SignedGreaterThanOrEqual,
                         };
-                        // Cranelift comparisons produce an I8 boolean. Keep that
-                        // canonical result here; consumers can extend it when a
-                        // wider C integer representation is required.
-                        self.builder.ins().icmp(condition, left, right)
+                        // CLIF icmp produces I8, but a C comparison expression
+                        // has integer type. Normalize the canonical boolean to
+                        // the backend's 32-bit C int representation.
+                        let boolean = self.builder.ins().icmp(condition, left, right);
+                        self.builder.ins().uextend(types::I32, boolean)
                     }
                     _ => {
                         return Err(unsupported(
