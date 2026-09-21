@@ -1215,9 +1215,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             Type::Union(union_type) => {
                 if let Some(item) = items.first() {
                     let members = union_type.members();
-                    let field = members
-                        .first()
-                        .ok_or_else(|| unsupported(location, "union has no initializable member"))?;
+                    let field = members.first().ok_or_else(|| {
+                        unsupported(location, "union has no initializable member")
+                    })?;
                     match item {
                         Initializer::Scalar(expression) => {
                             let value = self.compile_expr(expression)?;
@@ -1859,9 +1859,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 if matches!(operator, BinaryOp::Add | BinaryOp::Sub) {
                     let pointer_side = match (&left.ctype, &right.ctype) {
-                        (Type::Pointer(pointee, _), _) => {
-                            Some((left.as_ref(), right.as_ref(), pointee.as_ref(), *operator == BinaryOp::Sub))
-                        }
+                        (Type::Pointer(pointee, _), _) => Some((
+                            left.as_ref(),
+                            right.as_ref(),
+                            pointee.as_ref(),
+                            *operator == BinaryOp::Sub,
+                        )),
                         (_, Type::Pointer(pointee, _)) if *operator == BinaryOp::Add => {
                             Some((right.as_ref(), left.as_ref(), pointee.as_ref(), false))
                         }
@@ -1870,8 +1873,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     if let Some((pointer_expr, index_expr, pointee, subtract)) = pointer_side {
                         let base = self.compile_expr(pointer_expr)?;
                         let index = self.compile_expr(index_expr)?;
-                        let index =
-                            self.coerce_integer_value(index, types::I32, &index_expr.ctype);
+                        let index = self.coerce_integer_value(index, types::I32, &index_expr.ctype);
                         let element_size = pointee.sizeof().map_err(|_| {
                             unsupported(
                                 expression.location,
