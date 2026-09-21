@@ -1946,6 +1946,24 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 let left = self.compile_expr(left)?;
                 let right = self.compile_expr(right)?;
 
+                if let BinaryOp::Compare(compare) = operator {
+                    if matches!(left_expr_type, Type::Pointer(_, _))
+                        && matches!(right_expr_type, Type::Pointer(_, _))
+                    {
+                        use saltwater_parser::data::lex::ComparisonToken;
+                        let condition = match compare {
+                            ComparisonToken::Less => IntCC::UnsignedLessThan,
+                            ComparisonToken::Greater => IntCC::UnsignedGreaterThan,
+                            ComparisonToken::EqualEqual => IntCC::Equal,
+                            ComparisonToken::NotEqual => IntCC::NotEqual,
+                            ComparisonToken::LessEqual => IntCC::UnsignedLessThanOrEqual,
+                            ComparisonToken::GreaterEqual => IntCC::UnsignedGreaterThanOrEqual,
+                        };
+                        let boolean = self.builder.ins().icmp(condition, left, right);
+                        return Ok(self.builder.ins().uextend(types::I32, boolean));
+                    }
+                }
+
                 // The analyzer records C's usual arithmetic-conversion result
                 // on the binary expression. Normalize both operands to that
                 // width before emitting CLIF. This avoids type-mismatch IR for
@@ -2392,6 +2410,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_pointer_equality_and_order_comparisons() {
+        let artifact = compile_source(
+            "int f(int *a, int *b) { return (a == b) + (a != b) + (a < b) + (a <= b) + (a > b) + (a >= b); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
