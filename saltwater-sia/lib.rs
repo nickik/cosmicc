@@ -2575,7 +2575,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         unsupported(
                             expression.location,
                             format!(
-                                "SIA32 direct call target `{}` has no translation-unit definition",
+                                "SIA32 direct call target `{}` has no translation-unit declaration",
                                 symbol.get().id.resolve_and_clone()
                             ),
                         )
@@ -3085,6 +3085,15 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn emits_unresolved_relocations_for_external_function_calls() {
+        let artifact =
+            compile_source("extern int external(int); int f(void) { return external(3); }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert_eq!(artifact.functions[0].relocations.len(), 1);
+        assert_eq!(artifact.functions[0].relocations[0].target, "external");
     }
 
     #[test]
