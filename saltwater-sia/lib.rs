@@ -984,6 +984,26 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         })
     }
 
+    fn coerce_integer_value(
+        &mut self,
+        value: Value,
+        target_ty: cranelift_codegen::ir::Type,
+        source_ctype: &Type,
+    ) -> Value {
+        let source_ty = self.builder.func.dfg.value_type(value);
+        if source_ty == target_ty {
+            value
+        } else if source_ty.bits() < target_ty.bits() {
+            if is_signed_integer_type(source_ctype) {
+                self.builder.ins().sextend(target_ty, value)
+            } else {
+                self.builder.ins().uextend(target_ty, value)
+            }
+        } else {
+            self.builder.ins().ireduce(target_ty, value)
+        }
+    }
+
     fn compile_expr(&mut self, expression: &Expr) -> Result<Value, Error> {
         let ty = ir_type(&expression.ctype, expression.location)?;
         match &expression.expr {
@@ -1149,6 +1169,37 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
 
                 Ok(old)
+            }
+            ExprType::Ternary(condition, yes, no) => {
+                let condition = self.compile_expr(condition)?;
+                let condition_ty = self.builder.func.dfg.value_type(condition);
+                let zero = self.builder.ins().iconst(condition_ty, 0);
+                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+
+                let yes_block = self.builder.create_block();
+                let no_block = self.builder.create_block();
+                let merge_block = self.builder.create_block();
+                self.builder.append_block_param(merge_block, ty);
+
+                self.builder
+                    .ins()
+                    .brif(condition, yes_block, &[], no_block, &[]);
+
+                self.builder.switch_to_block(yes_block);
+                self.builder.seal_block(yes_block);
+                let yes_value = self.compile_expr(yes)?;
+                let yes_value = self.coerce_integer_value(yes_value, ty, &yes.ctype);
+                self.builder.ins().jump(merge_block, &[yes_value.into()]);
+
+                self.builder.switch_to_block(no_block);
+                self.builder.seal_block(no_block);
+                let no_value = self.compile_expr(no)?;
+                let no_value = self.coerce_integer_value(no_value, ty, &no.ctype);
+                self.builder.ins().jump(merge_block, &[no_value.into()]);
+
+                self.builder.seal_block(merge_block);
+                self.builder.switch_to_block(merge_block);
+                Ok(self.builder.block_params(merge_block)[0])
             }
             ExprType::Binary(operator, left, right) => {
                 use saltwater_parser::data::hir::BinaryOp;
@@ -1625,6 +1676,19 @@ mod tests {
     fn compiles_signed_and_unsigned_right_shift_and_comparisons() {
         let artifact = compile_source(
             "int signed_ops(int a, int b) { return (a >> 1) + (a < b) + (a >= b); } unsigned int unsigned_ops(unsigned int a, unsigned int b) { return (a >> 1) + (a < b) + (a >= b); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_conditional_operator_with_integer_conversions() {
+        let artifact = compile_source(
+            "int choose(int flag, short small, int large) { return flag ? small : large; } unsigned int choose_unsigned(int flag, unsigned char small, unsigned int large) { return flag ? small : large; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
