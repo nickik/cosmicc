@@ -278,8 +278,7 @@ impl Artifact {
                 relocations,
             });
         }
-        let data_count =
-            u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "data count")?));
+        let data_count = u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "data count")?));
         let mut data = Vec::with_capacity(usize::from(data_count));
         for _ in 0..data_count {
             let name_len = usize::from(u16::from_le_bytes(read_array(take(
@@ -548,9 +547,11 @@ fn scalar_initializer_bytes(
     location: Location,
 ) -> Result<Vec<u8>, Error> {
     let folded = expression.clone().const_fold().map_err(source_error)?;
-    let width = usize::try_from(target.sizeof().map_err(|error| {
-        unsupported(location, error.to_string())
-    })?)
+    let width = usize::try_from(
+        target
+            .sizeof()
+            .map_err(|error| unsupported(location, error.to_string()))?,
+    )
     .map_err(|_| unsupported(location, "scalar initializer is too large"))?;
     let mut bytes = vec![0; width];
     match folded.expr {
@@ -590,10 +591,7 @@ fn scalar_initializer_bytes(
     Ok(bytes)
 }
 
-fn collect_string_literals_expr(
-    expression: &Expr,
-    strings: &mut HashMap<Vec<u8>, u32>,
-) {
+fn collect_string_literals_expr(expression: &Expr, strings: &mut HashMap<Vec<u8>, u32>) {
     if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
         if !strings.contains_key(bytes) {
             let index = u32::try_from(strings.len()).expect("string pool fits in u32");
@@ -738,10 +736,7 @@ fn completed_object_type(
     }
 }
 
-fn translation_unit_symbol_name(
-    index: usize,
-    declaration: &Declaration,
-) -> String {
+fn translation_unit_symbol_name(index: usize, declaration: &Declaration) -> String {
     let metadata = declaration.symbol.get();
     let raw_name = metadata.id.resolve_and_clone();
     if !matches!(metadata.ctype, Type::Function(_))
@@ -777,9 +772,12 @@ fn aggregate_member_offset(
                     return Ok(offset);
                 }
                 offset = offset
-                    .checked_add(field.ctype.sizeof().map_err(|error| {
-                        unsupported(location, error.to_string())
-                    })?)
+                    .checked_add(
+                        field
+                            .ctype
+                            .sizeof()
+                            .map_err(|error| unsupported(location, error.to_string()))?,
+                    )
                     .ok_or_else(|| Error::Codegen("member offset overflows".into()))?;
             }
             Err(unsupported(location, "unknown aggregate member"))
@@ -809,8 +807,9 @@ fn static_address_target(
                             return Ok(None);
                         };
                         let offset = aggregate_member_offset(&base.ctype, *member, base.location)?;
-                        let addend = i64::try_from(offset)
-                            .map_err(|_| Error::Codegen("member relocation addend overflows".into()))?;
+                        let addend = i64::try_from(offset).map_err(|_| {
+                            Error::Codegen("member relocation addend overflows".into())
+                        })?;
                         Ok(Some((name, addend)))
                     } else {
                         Ok(None)
@@ -902,7 +901,16 @@ fn write_global_initializer(
                     "scalar global initializer list must contain exactly one element",
                 ));
             }
-            write_global_initializer(bytes, relocations, symbols, strings, base_offset, ctype, &items[0], location)
+            write_global_initializer(
+                bytes,
+                relocations,
+                symbols,
+                strings,
+                base_offset,
+                ctype,
+                &items[0],
+                location,
+            )
         }
         Initializer::InitializerList(items) => match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
@@ -912,9 +920,11 @@ fn write_global_initializer(
                         "too many elements in global array initializer",
                     ));
                 }
-                let element_size = usize::try_from(element.sizeof().map_err(|error| {
-                    unsupported(location, error.to_string())
-                })?)
+                let element_size = usize::try_from(
+                    element
+                        .sizeof()
+                        .map_err(|error| unsupported(location, error.to_string()))?,
+                )
                 .map_err(|_| unsupported(location, "global array element is too large"))?;
                 for (index, item) in items.iter().enumerate() {
                     let offset = base_offset
@@ -924,16 +934,28 @@ fn write_global_initializer(
                         .ok_or_else(|| {
                             Error::Codegen("global array initializer offset overflows".into())
                         })?;
-                    write_global_initializer(bytes, relocations, symbols, strings, offset, element, item, location)?;
+                    write_global_initializer(
+                        bytes,
+                        relocations,
+                        symbols,
+                        strings,
+                        offset,
+                        element,
+                        item,
+                        location,
+                    )?;
                 }
                 Ok(())
             }
             Type::Struct(struct_type) => {
                 let mut offset = 0usize;
                 for (field, item) in struct_type.members().iter().zip(items.iter()) {
-                    let align = usize::try_from(field.ctype.alignof().map_err(|error| {
-                        unsupported(location, error.to_string())
-                    })?)
+                    let align = usize::try_from(
+                        field
+                            .ctype
+                            .alignof()
+                            .map_err(|error| unsupported(location, error.to_string()))?,
+                    )
                     .map_err(|_| unsupported(location, "struct field alignment is too large"))?;
                     if align > 1 {
                         let rem = offset % align;
@@ -955,10 +977,15 @@ fn write_global_initializer(
                         location,
                     )?;
                     offset = offset
-                        .checked_add(usize::try_from(field.ctype.sizeof().map_err(|error| {
-                            unsupported(location, error.to_string())
-                        })?)
-                        .map_err(|_| unsupported(location, "struct field is too large"))?)
+                        .checked_add(
+                            usize::try_from(
+                                field
+                                    .ctype
+                                    .sizeof()
+                                    .map_err(|error| unsupported(location, error.to_string()))?,
+                            )
+                            .map_err(|_| unsupported(location, "struct field is too large"))?,
+                        )
                         .ok_or_else(|| Error::Codegen("global struct offset overflows".into()))?;
                 }
                 Ok(())
@@ -991,12 +1018,14 @@ fn write_global_initializer(
             if let Type::Array(element, _) = ctype {
                 if matches!(element.as_ref(), Type::Char(_)) {
                     if let ExprType::Literal(LiteralValue::Str(string)) = &expression.expr {
-                        let end = base_offset
-                            .checked_add(string.len())
-                            .ok_or_else(|| Error::Codegen("string initializer offset overflows".into()))?;
+                        let end = base_offset.checked_add(string.len()).ok_or_else(|| {
+                            Error::Codegen("string initializer offset overflows".into())
+                        })?;
                         bytes
                             .get_mut(base_offset..end)
-                            .ok_or_else(|| Error::Codegen("string initializer exceeds array".into()))?
+                            .ok_or_else(|| {
+                                Error::Codegen("string initializer exceeds array".into())
+                            })?
                             .copy_from_slice(string);
                         return Ok(());
                     }
@@ -1056,7 +1085,9 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let symbol_names: HashMap<Symbol, String> = declarations
         .iter()
         .enumerate()
-        .filter(|(_, declaration)| declaration.data.symbol.get().storage_class != StorageClass::Typedef)
+        .filter(|(_, declaration)| {
+            declaration.data.symbol.get().storage_class != StorageClass::Typedef
+        })
         .map(|(index, declaration)| {
             (
                 declaration.data.symbol,
@@ -1085,67 +1116,70 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
         if metadata.storage_class == StorageClass::Typedef {
             continue;
         }
-        let function_type = match &metadata.ctype {
-            Type::Function(function_type) => function_type,
-            _ if metadata.storage_class == StorageClass::Extern
-                && declaration.data.init.is_none() =>
-            {
-                // Declaration-only extern objects allocate no storage here.
-                continue;
-            }
-            object_type => {
-                let completed_type = completed_object_type(
-                    object_type,
-                    declaration.data.init.as_ref(),
-                    declaration.location,
-                )?;
-                let object_type = &completed_type;
-                let size = usize::try_from(object_type.sizeof().map_err(|error| {
-                    unsupported(declaration.location, error.to_string())
-                })?)
-                .map_err(|_| {
-                    unsupported(
-                        declaration.location,
-                        "global object is too large for the host compiler",
-                    )
-                })?;
-                let align = u32::try_from(object_type.alignof().map_err(|error| {
-                    unsupported(declaration.location, error.to_string())
-                })?)
-                .map_err(|_| {
-                    unsupported(
-                        declaration.location,
-                        "global object alignment does not fit in u32",
-                    )
-                })?;
-                let mut bytes = vec![0; size];
-                let mut relocations = Vec::new();
-                if let Some(initializer) = &declaration.data.init {
-                    write_global_initializer(
-                        &mut bytes,
-                        &mut relocations,
-                        &symbol_names,
-                        &string_indices,
-                        0,
+        let function_type =
+            match &metadata.ctype {
+                Type::Function(function_type) => function_type,
+                _ if metadata.storage_class == StorageClass::Extern
+                    && declaration.data.init.is_none() =>
+                {
+                    // Declaration-only extern objects allocate no storage here.
+                    continue;
+                }
+                object_type => {
+                    let completed_type = completed_object_type(
                         object_type,
-                        initializer,
+                        declaration.data.init.as_ref(),
                         declaration.location,
                     )?;
+                    let object_type = &completed_type;
+                    let size =
+                        usize::try_from(object_type.sizeof().map_err(|error| {
+                            unsupported(declaration.location, error.to_string())
+                        })?)
+                        .map_err(|_| {
+                            unsupported(
+                                declaration.location,
+                                "global object is too large for the host compiler",
+                            )
+                        })?;
+                    let align =
+                        u32::try_from(object_type.alignof().map_err(|error| {
+                            unsupported(declaration.location, error.to_string())
+                        })?)
+                        .map_err(|_| {
+                            unsupported(
+                                declaration.location,
+                                "global object alignment does not fit in u32",
+                            )
+                        })?;
+                    let mut bytes = vec![0; size];
+                    let mut relocations = Vec::new();
+                    if let Some(initializer) = &declaration.data.init {
+                        write_global_initializer(
+                            &mut bytes,
+                            &mut relocations,
+                            &symbol_names,
+                            &string_indices,
+                            0,
+                            object_type,
+                            initializer,
+                            declaration.location,
+                        )?;
+                    }
+                    let name = symbol_names
+                        .get(&declaration.data.symbol)
+                        .cloned()
+                        .expect("every global definition has a symbol name");
+                    data.push(DataArtifact {
+                        name,
+                        bytes,
+                        align: align.max(1),
+                        read_only: metadata.qualifiers.c_const,
+                        relocations,
+                    });
+                    continue;
                 }
-                let name = symbol_names
-                    .get(&declaration.data.symbol)
-                    .cloned()
-                    .expect("every global definition has a symbol name");
-                data.push(DataArtifact {
-                    name,
-                    bytes,
-                    align: align.max(1),
-                    read_only: metadata.qualifiers.c_const,
-                    relocations,
-                });
-                continue;
-            }
-        };
+            };
         let body = match &declaration.data.init {
             Some(Initializer::FunctionBody(body)) => body,
             Some(_) => {
@@ -1311,9 +1345,13 @@ fn compile_function(
                     2 => {
                         let target = string_indices
                             .iter()
-                            .find_map(|(_, index)| (*index == user.index).then(|| string_symbol_name(*index)))
+                            .find_map(|(_, index)| {
+                                (*index == user.index).then(|| string_symbol_name(*index))
+                            })
                             .ok_or_else(|| {
-                                Error::Codegen(format!("SIA32 emitted unknown string relocation in {name}"))
+                                Error::Codegen(format!(
+                                    "SIA32 emitted unknown string relocation in {name}"
+                                ))
                             })?;
                         relocations.push(RelocationArtifact {
                             offset: relocation.offset,
@@ -1336,9 +1374,7 @@ fn compile_function(
                             .flatten()
                     })
                     .ok_or_else(|| {
-                        Error::Codegen(format!(
-                            "SIA32 emitted unknown symbol relocation in {name}"
-                        ))
+                        Error::Codegen(format!("SIA32 emitted unknown symbol relocation in {name}"))
                     })?
             }
             other => {
@@ -1439,29 +1475,38 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             .builder
             .func
             .declare_imported_user_function(UserExternalName::new(namespace, index));
-        let global = self.builder.func.create_global_value(GlobalValueData::Symbol {
-            name: ExternalName::user(external),
-            offset: addend.into(),
-            colocated: false,
-            tls: false,
-        });
+        let global = self
+            .builder
+            .func
+            .create_global_value(GlobalValueData::Symbol {
+                name: ExternalName::user(external),
+                offset: addend.into(),
+                colocated: false,
+                tls: false,
+            });
         Ok(self.builder.ins().symbol_value(types::I32, global))
     }
 
     fn string_address(&mut self, bytes: &[u8], location: Location) -> Result<Value, Error> {
         let index = self.string_indices.get(bytes).copied().ok_or_else(|| {
-            unsupported(location, "string literal has no translation-unit data object")
+            unsupported(
+                location,
+                "string literal has no translation-unit data object",
+            )
         })?;
         let external = self
             .builder
             .func
             .declare_imported_user_function(UserExternalName::new(2, index));
-        let global = self.builder.func.create_global_value(GlobalValueData::Symbol {
-            name: ExternalName::user(external),
-            offset: 0.into(),
-            colocated: false,
-            tls: false,
-        });
+        let global = self
+            .builder
+            .func
+            .create_global_value(GlobalValueData::Symbol {
+                name: ExternalName::user(external),
+                offset: 0.into(),
+                colocated: false,
+                tls: false,
+            });
         Ok(self.builder.ins().symbol_value(types::I32, global))
     }
 
@@ -1951,18 +1996,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         initializer: &Initializer,
         location: Location,
     ) -> Result<(), Error> {
-        if let (
-            Type::Array(element, _),
-            Initializer::Scalar(expression),
-        ) = (ctype, initializer)
-        {
+        if let (Type::Array(element, _), Initializer::Scalar(expression)) = (ctype, initializer) {
             if matches!(element.as_ref(), Type::Char(_)) {
                 if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
                     for (offset, byte) in bytes.iter().copied().enumerate() {
                         let value = self.builder.ins().iconst(types::I8, i64::from(byte));
-                        let offset = i32::try_from(offset)
-                            .map_err(|_| unsupported(location, "string initializer is too large"))?;
-                        self.builder.ins().stack_store(types::I32, value, slot, offset);
+                        let offset = i32::try_from(offset).map_err(|_| {
+                            unsupported(location, "string initializer is too large")
+                        })?;
+                        self.builder
+                            .ins()
+                            .stack_store(types::I32, value, slot, offset);
                     }
                     return Ok(());
                 }
@@ -2123,7 +2167,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else {
                     self.symbol_address(*symbol, 0, lvalue.location)
                 }
-            },
+            }
             ExprType::Deref(pointer) => self.compile_expr(pointer),
             ExprType::Member(base, member) => {
                 self.compile_member_address(base, *member, lvalue.location)
@@ -2321,7 +2365,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             )),
             ExprType::Literal(LiteralValue::Str(bytes)) => {
                 self.string_address(bytes, expression.location)
-            },
+            }
             ExprType::Noop(value) => self.compile_expr(value),
             ExprType::Cast(value) => {
                 let value_clif = self.compile_expr(value)?;
@@ -3178,10 +3222,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 3);
-        assert!(artifact
-            .functions
+        assert!(artifact.functions.iter().all(|function| function
+            .relocations
             .iter()
-            .all(|function| function.relocations.iter().any(|reloc| reloc.target == "global")));
+            .any(|reloc| reloc.target == "global")));
     }
 
     #[test]
@@ -3207,9 +3251,10 @@ mod tests {
 
     #[test]
     fn initializes_character_arrays_from_string_literals() {
-        let artifact =
-            compile_source("char global[] = \"abc\"; int f(void) { char local[] = \"xy\"; return local[1]; }")
-                .unwrap();
+        let artifact = compile_source(
+            "char global[] = \"abc\"; int f(void) { char local[] = \"xy\"; return local[1]; }",
+        )
+        .unwrap();
         assert!(artifact
             .data
             .iter()
@@ -3481,7 +3526,8 @@ mod tests {
     #[test]
     fn emits_unresolved_relocations_for_external_function_calls() {
         let artifact =
-            compile_source("extern int external(int); int f(void) { return external(3); }").unwrap();
+            compile_source("extern int external(int); int f(void) { return external(3); }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert_eq!(artifact.functions[0].relocations.len(), 1);
         assert_eq!(artifact.functions[0].relocations[0].target, "external");
