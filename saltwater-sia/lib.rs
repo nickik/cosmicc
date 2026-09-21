@@ -1085,16 +1085,6 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             return Ok(());
         }
-            ));
-            self.stack_locals.insert(declaration.symbol, slot);
-            if declaration.init.is_some() {
-                return Err(unsupported(
-                    location,
-                    "aggregate local initialization is not supported for SIA32 yet",
-                ));
-            }
-            return Ok(());
-        }
         let declared_ty = ir_type(&metadata.ctype, location)?;
         let ty = if declared_ty.bits() < 32 {
             types::I32
