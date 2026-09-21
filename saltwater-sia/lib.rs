@@ -1566,12 +1566,27 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::Member(base, member) => {
                 let address = self.compile_member_address(base, *member, expression.location)?;
-                Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+                if matches!(
+                    expression.ctype,
+                    Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+                ) {
+                    Ok(address)
+                } else {
+                    Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+                }
             }
             // The established HIR represents an ordinary C local read as
             // `Deref(Id(symbol))`: `Id` creates the lvalue address and Deref
             // loads it. This backend keeps non-address-taken locals in SSA,
             // so this pair becomes a direct `use_var` instead of a memory load.
+            ExprType::Deref(pointer)
+                if matches!(
+                    expression.ctype,
+                    Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+                ) =>
+            {
+                self.compile_expr(pointer)
+            }
             ExprType::Deref(pointer) => match &pointer.expr {
                 ExprType::Id(symbol) => {
                     if let Some(slot) = self.stack_locals.get(symbol).copied() {
@@ -2612,6 +2627,16 @@ mod tests {
     fn compiles_array_of_struct_member_reads_and_writes() {
         let artifact = compile_source(
             "struct pair { int x; int y; }; int f(struct pair *p, int i) { p[i].y = 7; return p[i].y; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn nested_aggregate_members_remain_address_valued() {
+        let artifact = compile_source(
+            "struct inner { int x; }; struct outer { struct inner i; }; int f(struct outer *p) { struct inner *q = &p->i; q->x = 6; return q->x; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
