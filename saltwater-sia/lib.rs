@@ -1638,12 +1638,6 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         "SIA32 call target is not a function",
                     ));
                 };
-                if function_type.varargs {
-                    return Err(unsupported(
-                        expression.location,
-                        "variadic calls are not supported for SIA32 yet",
-                    ));
-                }
                 let function_index =
                     self.function_indices.get(symbol).copied().ok_or_else(|| {
                         unsupported(
@@ -1655,7 +1649,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         )
                     })?;
                 let parameters = function_parameters(function_type);
-                if arguments.len() != parameters.len() {
+                if (!function_type.varargs && arguments.len() != parameters.len())
+                    || (function_type.varargs && arguments.len() < parameters.len())
+                {
                     return Err(unsupported(
                         expression.location,
                         "SIA32 call argument count mismatch",
@@ -1667,6 +1663,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         &parameter.get().ctype,
                         expression.location,
                     )?));
+                }
+                if function_type.varargs {
+                    // Cranelift signatures describe the concrete call site.
+                    // Apply C's default argument promotions to the unnamed
+                    // arguments and append their promoted machine types.
+                    for argument in arguments.iter().skip(parameters.len()) {
+                        let promoted_ty = match &argument.ctype {
+                            Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
+                                types::I32
+                            }
+                            _ => ir_type(&argument.ctype, expression.location)?,
+                        };
+                        signature.params.push(AbiParam::new(promoted_ty));
+                    }
                 }
                 if !matches!(*function_type.return_type, Type::Void) {
                     signature.returns.push(AbiParam::new(ir_type(
@@ -1686,9 +1696,18 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     patchable: false,
                 });
                 let mut values = Vec::with_capacity(arguments.len());
-                for (argument, parameter) in arguments.iter().zip(parameters.iter()) {
+                for (index, argument) in arguments.iter().enumerate() {
                     let value = self.compile_expr(argument)?;
-                    let parameter_ty = ir_type(&parameter.get().ctype, expression.location)?;
+                    let parameter_ty = if let Some(parameter) = parameters.get(index) {
+                        ir_type(&parameter.get().ctype, expression.location)?
+                    } else {
+                        match &argument.ctype {
+                            Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
+                                types::I32
+                            }
+                            _ => ir_type(&argument.ctype, expression.location)?,
+                        }
+                    };
                     values.push(self.coerce_integer_value(value, parameter_ty, &argument.ctype));
                 }
                 let call = self.builder.ins().call(function_ref, &values);
@@ -1954,6 +1973,26 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_integer_variadic_direct_calls_with_default_promotions() {
+        let artifact = compile_source(
+            "static int pick(int n, ...) { return n; } int run(char c, short s) { return pick(2, c, s); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact.functions.iter().any(|function| !function.relocations.is_empty()));
+    }
+
+    #[test]
+    fn rejects_too_few_fixed_arguments_to_variadic_call() {
+        let error = compile_source(
+            "static int pick(int n, int x, ...) { return n + x; } int run(void) { return pick(1); }",
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("argument count"));
     }
 
     #[test]
