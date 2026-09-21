@@ -533,6 +533,10 @@ fn compile_function(
                     other => ir_type(other, location)?,
                 };
                 let variable = lowerer.builder.declare_var(parameter_ty);
+                let variable = lowerer.builder.declare_var(match &parameter.get().ctype {
+                    Type::Function(_) => types::I32,
+                    other => ir_type(other, location)?,
+                });
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
                 lowerer.variable_types.insert(*parameter, parameter_ty);
