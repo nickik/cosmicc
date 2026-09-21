@@ -1388,14 +1388,16 @@ fn compile_function(
 ) -> Result<FunctionArtifact, Error> {
     let mut signature = Signature::new(CallConv::SystemV);
     let parameters = function_parameters(function_type);
-    for parameter in parameters {
-        let parameter_ty = match &parameter.get().ctype {
-            Type::Function(_) => types::I32,
-            other => ir_type(other, location)?,
-        };
-        signature.params.push(AbiParam::new(parameter_ty));
+    let aggregate_return = is_by_value_aggregate(&function_type.return_type);
+    if aggregate_return {
+        signature.params.push(AbiParam::new(types::I32));
     }
-    if !matches!(*function_type.return_type, Type::Void) {
+    for parameter in parameters {
+        signature
+            .params
+            .push(AbiParam::new(abi_parameter_type(&parameter.get().ctype, location)?));
+    }
+    if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
         signature.returns.push(AbiParam::new(ir_type(
             &function_type.return_type,
             location,
@@ -1414,17 +1416,34 @@ fn compile_function(
         let entry_values = builder.block_params(entry).to_vec();
 
         let terminated = {
+            let aggregate_return_address = aggregate_return.then(|| entry_values[0]);
+            let parameter_values = if aggregate_return {
+                &entry_values[1..]
+            } else {
+                &entry_values[..]
+            };
             let mut lowerer = FunctionLowerer::new(
                 &mut builder,
                 function_indices,
                 global_indices,
                 string_indices,
+                aggregate_return_address,
             );
-            for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
-                let parameter_ty = match &parameter.get().ctype {
-                    Type::Function(_) => types::I32,
-                    other => ir_type(other, location)?,
-                };
+            for (parameter, value) in parameters.iter().zip(parameter_values.iter()) {
+                let parameter_ctype = &parameter.get().ctype;
+                if is_by_value_aggregate(parameter_ctype) {
+                    let (slot, address) =
+                        lowerer.create_aggregate_slot(parameter_ctype, location)?;
+                    lowerer.copy_aggregate_value(
+                        address,
+                        *value,
+                        parameter_ctype,
+                        location,
+                    )?;
+                    lowerer.stack_locals.insert(*parameter, slot);
+                    continue;
+                }
+                let parameter_ty = abi_parameter_type(parameter_ctype, location)?;
                 let variable = lowerer.builder.declare_var(parameter_ty);
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
@@ -1538,6 +1557,17 @@ fn compile_function(
     })
 }
 
+fn is_by_value_aggregate(ctype: &Type) -> bool {
+    matches!(ctype, Type::Struct(_) | Type::Union(_))
+}
+
+fn abi_parameter_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
+    match ctype {
+        Type::Function(_) | Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => Ok(types::I32),
+        other => ir_type(other, location),
+    }
+}
+
 fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
     if function_type.params.len() == 1 && function_type.params[0].get().ctype == Type::Void {
         &[]
@@ -1554,6 +1584,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     function_indices: &'c HashMap<Symbol, u32>,
     global_indices: &'c HashMap<Symbol, u32>,
     string_indices: &'c HashMap<Vec<u8>, u32>,
+    aggregate_return_address: Option<Value>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block)>,
     break_targets: Vec<Block>,
@@ -1568,6 +1599,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         function_indices: &'c HashMap<Symbol, u32>,
         global_indices: &'c HashMap<Symbol, u32>,
         string_indices: &'c HashMap<Vec<u8>, u32>,
+        aggregate_return_address: Option<Value>,
     ) -> Self {
         let return_type = builder
             .func
@@ -1583,6 +1615,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             function_indices,
             global_indices,
             string_indices,
+            aggregate_return_address,
             return_type,
             loop_targets: Vec::new(),
             break_targets: Vec::new(),
@@ -1645,6 +1678,31 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 tls: false,
             });
         Ok(self.builder.ins().symbol_value(types::I32, global))
+    }
+
+    fn create_aggregate_slot(
+        &mut self,
+        ctype: &Type,
+        location: Location,
+    ) -> Result<(StackSlot, Value), Error> {
+        let size = u32::try_from(
+            ctype
+                .sizeof()
+                .map_err(|error| unsupported(location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(location, "aggregate ABI object is too large for SIA32"))?;
+        let align = ctype
+            .alignof()
+            .map_err(|error| unsupported(location, error.to_string()))?;
+        let align_shift = u8::try_from(align.trailing_zeros())
+            .map_err(|_| unsupported(location, "aggregate ABI alignment is too large"))?;
+        let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            size,
+            align_shift,
+        ));
+        let address = self.builder.ins().stack_addr(types::I32, slot, 0);
+        Ok((slot, address))
     }
 
     fn copy_aggregate_value(
@@ -1738,6 +1796,24 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Return(value) => {
+                if let Some(destination) = self.aggregate_return_address {
+                    let expression = value.as_ref().ok_or_else(|| {
+                        unsupported(
+                            statement.location,
+                            "aggregate-returning function requires a return value",
+                        )
+                    })?;
+                    let source = self.compile_expr(expression)?;
+                    self.copy_aggregate_value(
+                        destination,
+                        source,
+                        &expression.ctype,
+                        statement.location,
+                    )?;
+                    self.builder.ins().return_(&[]);
+                    self.terminated = true;
+                    return Ok(());
+                }
                 if let Some(expression) = value {
                     let signed = matches!(
                         &expression.ctype,
@@ -3177,12 +3253,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     ));
                 }
                 let mut signature = Signature::new(CallConv::SystemV);
+                let aggregate_return = is_by_value_aggregate(&function_type.return_type);
+                if aggregate_return {
+                    signature.params.push(AbiParam::new(types::I32));
+                }
                 for parameter in parameters {
-                    let parameter_ty = match &parameter.get().ctype {
-                        Type::Function(_) => types::I32,
-                        other => ir_type(other, expression.location)?,
-                    };
-                    signature.params.push(AbiParam::new(parameter_ty));
+                    signature.params.push(AbiParam::new(abi_parameter_type(
+                        &parameter.get().ctype,
+                        expression.location,
+                    )?));
                 }
                 if function_type.varargs {
                     // Cranelift signatures describe the concrete call site.
@@ -3198,7 +3277,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         signature.params.push(AbiParam::new(promoted_ty));
                     }
                 }
-                if !matches!(*function_type.return_type, Type::Void) {
+                if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
                     signature.returns.push(AbiParam::new(ir_type(
                         &function_type.return_type,
                         expression.location,
@@ -3219,14 +3298,26 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else {
                     None
                 };
-                let mut values = Vec::with_capacity(arguments.len());
+                let mut aggregate_result = None;
+                let mut values = Vec::with_capacity(arguments.len() + usize::from(aggregate_return));
+                if aggregate_return {
+                    let (_, address) = self.create_aggregate_slot(
+                        &function_type.return_type,
+                        expression.location,
+                    )?;
+                    aggregate_result = Some(address);
+                    values.push(address);
+                }
                 for (index, argument) in arguments.iter().enumerate() {
                     let value = self.compile_expr(argument)?;
-                    let parameter_ty = if let Some(parameter) = parameters.get(index) {
-                        match &parameter.get().ctype {
-                            Type::Function(_) => types::I32,
-                            other => ir_type(other, expression.location)?,
+                    if let Some(parameter) = parameters.get(index) {
+                        if is_by_value_aggregate(&parameter.get().ctype) {
+                            values.push(value);
+                            continue;
                         }
+                    }
+                    let parameter_ty = if let Some(parameter) = parameters.get(index) {
+                        abi_parameter_type(&parameter.get().ctype, expression.location)?
                     } else {
                         match &argument.ctype {
                             Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
@@ -3243,6 +3334,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let callee = self.compile_expr(function)?;
                     self.builder.ins().call_indirect(signature, callee, &values)
                 };
+                if let Some(address) = aggregate_result {
+                    return Ok(address);
+                }
                 if matches!(*function_type.return_type, Type::Void) {
                     // Expression statements discard this value. Returning a
                     // harmless integer placeholder keeps compile_expr uniform
@@ -3581,6 +3675,19 @@ mod tests {
         let artifact = compile_source("short f(int x) { return x; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_struct_arguments_and_returns_by_value() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; struct pair make(int x) { struct pair p = { x, x + 1 }; return p; } int sum(struct pair p) { p.a = p.a + 10; return p.a + p.b; } int run(void) { return sum(make(3)); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 3);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
