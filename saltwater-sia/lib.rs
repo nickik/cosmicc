@@ -1868,11 +1868,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         if matches!(pointer_expr.ctype, Type::Pointer(_, _)) {
                             let base = self.compile_expr(pointer_expr)?;
                             let index = self.compile_expr(index_expr)?;
-                            let index = self.coerce_integer_value(
-                                index,
-                                types::I32,
-                                &index_expr.ctype,
-                            );
+                            let index =
+                                self.coerce_integer_value(index, types::I32, &index_expr.ctype);
                             let element_size = pointee.sizeof().map_err(|_| {
                                 unsupported(
                                     expression.location,
