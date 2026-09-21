@@ -589,6 +589,41 @@ fn scalar_initializer_bytes(
     Ok(bytes)
 }
 
+fn completed_object_type(
+    ctype: &Type,
+    initializer: Option<&Initializer>,
+    location: Location,
+) -> Result<Type, Error> {
+    if let Type::Array(element, saltwater_parser::data::types::ArrayType::Unbounded) = ctype {
+        let len = match initializer {
+            Some(Initializer::InitializerList(items)) => u64::try_from(items.len())
+                .map_err(|_| unsupported(location, "array initializer is too large"))?,
+            Some(Initializer::Scalar(expression)) => match &expression.expr {
+                ExprType::Literal(LiteralValue::Str(bytes)) => u64::try_from(bytes.len())
+                    .map_err(|_| unsupported(location, "string initializer is too large"))?,
+                _ => {
+                    return Err(unsupported(
+                        location,
+                        "unbounded array requires an initializer that determines its size",
+                    ))
+                }
+            },
+            _ => {
+                return Err(unsupported(
+                    location,
+                    "unbounded array requires an initializer that determines its size",
+                ))
+            }
+        };
+        Ok(Type::Array(
+            element.clone(),
+            saltwater_parser::data::types::ArrayType::Fixed(len),
+        ))
+    } else {
+        Ok(ctype.clone())
+    }
+}
+
 fn translation_unit_symbol_name(
     index: usize,
     declaration: &Declaration,
@@ -871,6 +906,12 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 continue;
             }
             object_type => {
+                let completed_type = completed_object_type(
+                    object_type,
+                    declaration.data.init.as_ref(),
+                    declaration.location,
+                )?;
+                let object_type = &completed_type;
                 let size = usize::try_from(object_type.sizeof().map_err(|error| {
                     unsupported(declaration.location, error.to_string())
                 })?)
@@ -1552,15 +1593,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             metadata.ctype,
             Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
         ) {
+            let completed_type =
+                completed_object_type(&metadata.ctype, declaration.init.as_ref(), location)?;
             let size = u32::try_from(
-                metadata
-                    .ctype
+                completed_type
                     .sizeof()
                     .map_err(|_| unsupported(location, "aggregate local has incomplete type"))?,
             )
             .map_err(|_| unsupported(location, "aggregate local is too large for SIA32"))?;
-            let align = metadata
-                .ctype
+            let align = completed_type
                 .alignof()
                 .map_err(|_| unsupported(location, "aggregate local has unsupported alignment"))?;
             let align_shift = u8::try_from(align.trailing_zeros())
@@ -1572,7 +1613,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ));
             self.stack_locals.insert(declaration.symbol, slot);
             if let Some(initializer) = &declaration.init {
-                self.initialize_stack_aggregate(slot, &metadata.ctype, initializer, location)?;
+                self.initialize_stack_aggregate(slot, &completed_type, initializer, location)?;
             }
             return Ok(());
         }
@@ -2848,6 +2889,17 @@ mod tests {
         assert_eq!(artifact.data[2].relocations[0].target, "target");
         assert_eq!(artifact.data[3].relocations[0].target, "pair");
         assert_eq!(artifact.data[3].relocations[0].addend, 4);
+    }
+
+    #[test]
+    fn infers_unbounded_array_sizes_from_initializers() {
+        let artifact = compile_source(
+            "int global[] = {1, 2, 3}; int f(void) { int local[] = {4, 5}; return local[1]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.data[0].bytes.len(), 12);
+        assert_eq!(artifact.data[0].bytes[8..12], 3i32.to_le_bytes());
+        assert_eq!(artifact.functions.len(), 1);
     }
 
     #[test]
