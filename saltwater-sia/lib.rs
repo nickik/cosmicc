@@ -589,6 +589,116 @@ fn scalar_initializer_bytes(
     Ok(bytes)
 }
 
+fn write_global_initializer(
+    bytes: &mut [u8],
+    base_offset: usize,
+    ctype: &Type,
+    initializer: &Initializer,
+    location: Location,
+) -> Result<(), Error> {
+    match initializer {
+        Initializer::Scalar(expression) if ctype.is_scalar() => {
+            let value = scalar_initializer_bytes(expression, ctype, location)?;
+            let end = base_offset
+                .checked_add(value.len())
+                .ok_or_else(|| Error::Codegen("global initializer offset overflows".into()))?;
+            bytes
+                .get_mut(base_offset..end)
+                .ok_or_else(|| Error::Codegen("global initializer exceeds object size".into()))?
+                .copy_from_slice(&value);
+            Ok(())
+        }
+        Initializer::InitializerList(items) if ctype.is_scalar() => {
+            if items.len() != 1 {
+                return Err(unsupported(
+                    location,
+                    "scalar global initializer list must contain exactly one element",
+                ));
+            }
+            write_global_initializer(bytes, base_offset, ctype, &items[0], location)
+        }
+        Initializer::InitializerList(items) => match ctype {
+            Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
+                if u64::try_from(items.len()).unwrap_or(u64::MAX) > *count {
+                    return Err(unsupported(
+                        location,
+                        "too many elements in global array initializer",
+                    ));
+                }
+                let element_size = usize::try_from(element.sizeof().map_err(|error| {
+                    unsupported(location, error.to_string())
+                })?)
+                .map_err(|_| unsupported(location, "global array element is too large"))?;
+                for (index, item) in items.iter().enumerate() {
+                    let offset = base_offset
+                        .checked_add(index.checked_mul(element_size).ok_or_else(|| {
+                            Error::Codegen("global array initializer offset overflows".into())
+                        })?)
+                        .ok_or_else(|| {
+                            Error::Codegen("global array initializer offset overflows".into())
+                        })?;
+                    write_global_initializer(bytes, offset, element, item, location)?;
+                }
+                Ok(())
+            }
+            Type::Struct(struct_type) => {
+                let mut offset = 0usize;
+                for (field, item) in struct_type.members().iter().zip(items.iter()) {
+                    let align = usize::try_from(field.ctype.alignof().map_err(|error| {
+                        unsupported(location, error.to_string())
+                    })?)
+                    .map_err(|_| unsupported(location, "struct field alignment is too large"))?;
+                    if align > 1 {
+                        let rem = offset % align;
+                        if rem != 0 {
+                            offset += align - rem;
+                        }
+                    }
+                    let field_offset = base_offset
+                        .checked_add(offset)
+                        .ok_or_else(|| Error::Codegen("global struct offset overflows".into()))?;
+                    write_global_initializer(
+                        bytes,
+                        field_offset,
+                        &field.ctype,
+                        item,
+                        location,
+                    )?;
+                    offset = offset
+                        .checked_add(usize::try_from(field.ctype.sizeof().map_err(|error| {
+                            unsupported(location, error.to_string())
+                        })?)
+                        .map_err(|_| unsupported(location, "struct field is too large"))?)
+                        .ok_or_else(|| Error::Codegen("global struct offset overflows".into()))?;
+                }
+                Ok(())
+            }
+            Type::Union(union_type) => {
+                if let Some(item) = items.first() {
+                    let members = union_type.members();
+                    let first = members.first().ok_or_else(|| {
+                        unsupported(location, "union has no initializable member")
+                    })?;
+                    write_global_initializer(bytes, base_offset, &first.ctype, item, location)?;
+                }
+                Ok(())
+            }
+            _ => Err(unsupported(
+                location,
+                "unsupported global aggregate initializer shape",
+            )),
+        },
+        Initializer::Scalar(_) => Err(unsupported(
+            location,
+            "aggregate global scalar initialization requires aggregate-copy lowering",
+        )),
+        Initializer::FunctionBody(_) => Err(unsupported(
+            location,
+            "function body cannot initialize a global data object",
+        )),
+    }
+}
+
 /// Compile C source to SIA32 instructions through the production Cranelift backend.
 pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let program = check_semantics(source, opt);
@@ -646,18 +756,16 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                         "global object alignment does not fit in u32",
                     )
                 })?;
-                let bytes = match &declaration.data.init {
-                    None => vec![0; size],
-                    Some(Initializer::Scalar(expression)) if object_type.is_scalar() => {
-                        scalar_initializer_bytes(expression, object_type, declaration.location)?
-                    }
-                    Some(_) => {
-                        return Err(unsupported(
-                            declaration.location,
-                            "aggregate global initialization requires SIA32 aggregate-data lowering",
-                        ))
-                    }
-                };
+                let mut bytes = vec![0; size];
+                if let Some(initializer) = &declaration.data.init {
+                    write_global_initializer(
+                        &mut bytes,
+                        0,
+                        object_type,
+                        initializer,
+                        declaration.location,
+                    )?;
+                }
                 let raw_name = metadata.id.resolve_and_clone();
                 let name = if metadata.storage_class == StorageClass::Static {
                     format!("__cosmic_static_global_{index}_{raw_name}")
@@ -2592,6 +2700,18 @@ mod tests {
 
     fn compile_source(source: &str) -> Result<Artifact, Error> {
         compile(source, Opt::default())
+    }
+
+    #[test]
+    fn emits_recursive_aggregate_global_initializers() {
+        let artifact = compile_source(
+            "struct pair { int a; short b; }; union value { int i; short s; }; int a[3] = {1, 2}; struct pair p = {3, 4}; union value u = {5}; int f(void) { return 0; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.data.len(), 3);
+        assert_eq!(&artifact.data[0].bytes[..8], &[1, 0, 0, 0, 2, 0, 0, 0]);
+        assert_eq!(&artifact.data[1].bytes[..6], &[3, 0, 0, 0, 4, 0]);
+        assert_eq!(&artifact.data[2].bytes[..4], &[5, 0, 0, 0]);
     }
 
     #[test]
