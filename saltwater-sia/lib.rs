@@ -537,6 +537,58 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+fn source_error(error: CompileError) -> Error {
+    Error::Source(VecDeque::from([error]))
+}
+
+fn scalar_initializer_bytes(
+    expression: &Expr,
+    target: &Type,
+    location: Location,
+) -> Result<Vec<u8>, Error> {
+    let folded = expression.clone().const_fold().map_err(source_error)?;
+    let width = usize::try_from(target.sizeof().map_err(|error| {
+        unsupported(location, error.to_string())
+    })?)
+    .map_err(|_| unsupported(location, "scalar initializer is too large"))?;
+    let mut bytes = vec![0; width];
+    match folded.expr {
+        ExprType::Literal(LiteralValue::Int(value)) => {
+            let raw = value.to_le_bytes();
+            bytes.copy_from_slice(&raw[..width.min(raw.len())]);
+        }
+        ExprType::Literal(LiteralValue::UnsignedInt(value)) => {
+            let raw = value.to_le_bytes();
+            bytes.copy_from_slice(&raw[..width.min(raw.len())]);
+        }
+        ExprType::Literal(LiteralValue::Char(value)) => {
+            if let Some(first) = bytes.first_mut() {
+                *first = value;
+            }
+        }
+        ExprType::Literal(LiteralValue::Float(_)) => {
+            return Err(unsupported(
+                location,
+                "floating-point global initialization requires SIA32 float lowering",
+            ));
+        }
+        ExprType::Literal(LiteralValue::Str(_)) => {
+            return Err(unsupported(
+                location,
+                "string scalar initialization requires SIA32 string-data lowering",
+            ));
+        }
+        _ if folded.is_zero() && matches!(target, Type::Pointer(_, _)) => {}
+        _ => {
+            return Err(unsupported(
+                location,
+                "global scalar initializer is not a link-time constant",
+            ))
+        }
+    }
+    Ok(bytes)
+}
+
 /// Compile C source to SIA32 instructions through the production Cranelift backend.
 pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let program = check_semantics(source, opt);
@@ -576,12 +628,6 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 continue;
             }
             object_type => {
-                if declaration.data.init.is_some() {
-                    return Err(unsupported(
-                        declaration.location,
-                        "initialized global objects require SIA32 global-initializer lowering",
-                    ));
-                }
                 let size = usize::try_from(object_type.sizeof().map_err(|error| {
                     unsupported(declaration.location, error.to_string())
                 })?)
@@ -600,6 +646,18 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                         "global object alignment does not fit in u32",
                     )
                 })?;
+                let bytes = match &declaration.data.init {
+                    None => vec![0; size],
+                    Some(Initializer::Scalar(expression)) if object_type.is_scalar() => {
+                        scalar_initializer_bytes(expression, object_type, declaration.location)?
+                    }
+                    Some(_) => {
+                        return Err(unsupported(
+                            declaration.location,
+                            "aggregate global initialization requires SIA32 aggregate-data lowering",
+                        ))
+                    }
+                };
                 let raw_name = metadata.id.resolve_and_clone();
                 let name = if metadata.storage_class == StorageClass::Static {
                     format!("__cosmic_static_global_{index}_{raw_name}")
@@ -608,7 +666,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 };
                 data.push(DataArtifact {
                     name,
-                    bytes: vec![0; size],
+                    bytes,
                     align: align.max(1),
                     read_only: metadata.qualifiers.c_const,
                     relocations: Vec::new(),
@@ -2534,6 +2592,19 @@ mod tests {
 
     fn compile_source(source: &str) -> Result<Artifact, Error> {
         compile(source, Opt::default())
+    }
+
+    #[test]
+    fn emits_scalar_global_initializers() {
+        let artifact = compile_source(
+            "int a = 1 + 2; unsigned short b = 4660; char c = 65; int *p = 0; int f(void) { return 0; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.data.len(), 4);
+        assert_eq!(artifact.data[0].bytes, 3i32.to_le_bytes());
+        assert_eq!(artifact.data[1].bytes, 4660u16.to_le_bytes());
+        assert_eq!(artifact.data[2].bytes, vec![65]);
+        assert_eq!(artifact.data[3].bytes, vec![0; 4]);
     }
 
     #[test]
