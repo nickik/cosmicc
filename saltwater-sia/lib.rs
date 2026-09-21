@@ -687,6 +687,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         match &statement.data {
             StmtType::Compound(statements) => {
                 for statement in statements {
+                    if self.terminated
+                        && !matches!(statement.data, StmtType::Case(_, _) | StmtType::Default(_))
+                    {
+                        continue;
+                    }
                     self.compile_stmt(statement)?;
                 }
                 Ok(())
@@ -983,9 +988,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 self.switch_cases.push((case_blocks, default_block));
                 self.break_targets.push(exit);
-                // Dispatch reaches only case/default blocks, but the compound
-                // walker must still visit them to emit their bodies.
-                self.terminated = false;
+                // The dispatch block is already terminated. The compound
+                // walker still visits case/default labels and skips ordinary
+                // statements until a label establishes a reachable block.
+                self.terminated = true;
                 self.compile_stmt(body)?;
                 self.break_targets.pop();
                 self.switch_cases.pop();
@@ -1042,6 +1048,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         let metadata = declaration.symbol.get();
         if metadata.storage_class == StorageClass::Typedef {
             return Ok(());
+        }
+        if matches!(metadata.ctype, Type::Struct(_) | Type::Union(_) | Type::Array(_, _)) {
+            return Err(unsupported(
+                location,
+                "aggregate locals require SIA32 stack-slot lowering",
+            ));
         }
         let declared_ty = ir_type(&metadata.ctype, location)?;
         let ty = if declared_ty.bits() < 32 {
