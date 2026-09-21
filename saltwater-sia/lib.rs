@@ -7,12 +7,15 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
+use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Function, InstBuilder, MemFlagsData, Signature, UserFuncName, Value,
+    types, AbiParam, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData, Signature,
+    UserExternalName, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
+use cranelift_codegen::machinst::RelocTarget;
 use cranelift_codegen::settings::{self, Configurable, Flags};
 use cranelift_codegen::Context;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
@@ -30,7 +33,7 @@ use target_lexicon::Triple;
 pub const TARGET: &str = "sia32-unknown-none";
 
 const BUNDLE_MAGIC: &[u8] = b"COSMIC-SIA\0";
-const BUNDLE_VERSION: u16 = 1;
+const BUNDLE_VERSION: u16 = 2;
 const SIA_REGISTER_COUNT: usize = 16;
 const SIA_ARGUMENT_REGISTER: usize = 1;
 const SIA_LINK_REGISTER: usize = 14;
@@ -43,6 +46,16 @@ pub struct FunctionArtifact {
     pub name: String,
     /// Native SIA32 instruction bytes.
     pub code: Vec<u8>,
+    /// Link-time relocations emitted by the SIA32 backend.
+    pub relocations: Vec<RelocationArtifact>,
+}
+
+/// One SIA32 link-time relocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelocationArtifact {
+    pub offset: u32,
+    pub target: String,
+    pub addend: i64,
 }
 
 /// A relocatable-in-spirit SIA code bundle.
@@ -120,6 +133,18 @@ impl Artifact {
             bytes.extend_from_slice(name);
             bytes.extend_from_slice(&code_len.to_le_bytes());
             bytes.extend_from_slice(&function.code);
+            let reloc_count = u16::try_from(function.relocations.len())
+                .map_err(|_| Error::Codegen("too many relocations for a SIA function".into()))?;
+            bytes.extend_from_slice(&reloc_count.to_le_bytes());
+            for relocation in &function.relocations {
+                let target = relocation.target.as_bytes();
+                let target_len = u16::try_from(target.len())
+                    .map_err(|_| Error::Codegen("relocation target name is too long".into()))?;
+                bytes.extend_from_slice(&relocation.offset.to_le_bytes());
+                bytes.extend_from_slice(&relocation.addend.to_le_bytes());
+                bytes.extend_from_slice(&target_len.to_le_bytes());
+                bytes.extend_from_slice(target);
+            }
         }
         Ok(bytes)
     }
@@ -163,7 +188,20 @@ impl Artifact {
             )?)))
             .expect("a u32 always fits in usize on supported Cosmic C hosts");
             let code = take(bytes, &mut cursor, code_len, "function code")?.to_vec();
-            functions.push(FunctionArtifact { name, code });
+            let reloc_count = usize::from(u16::from_le_bytes(read_array(take(
+                bytes, &mut cursor, 2, "function relocation count",
+            )?)));
+            let mut relocations = Vec::with_capacity(reloc_count);
+            for _ in 0..reloc_count {
+                let offset = u32::from_le_bytes(read_array(take(bytes, &mut cursor, 4, "relocation offset")?));
+                let addend = i64::from_le_bytes(read_array(take(bytes, &mut cursor, 8, "relocation addend")?));
+                let target_len = usize::from(u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "relocation target length")?)));
+                let target = std::str::from_utf8(take(bytes, &mut cursor, target_len, "relocation target")?)
+                    .map_err(|_| Error::Codegen("COSMIC-SIA relocation target is not UTF-8".into()))?
+                    .to_owned();
+                relocations.push(RelocationArtifact { offset, target, addend });
+            }
+            functions.push(FunctionArtifact { name, code, relocations });
         }
         if cursor != bytes.len() {
             return Err(Error::Codegen(
@@ -208,6 +246,11 @@ impl Artifact {
         let function = self
             .function(name)
             .ok_or_else(|| Error::Codegen(format!("COSMIC-SIA bundle has no function `{name}`")))?;
+        if !function.relocations.is_empty() {
+            return Err(Error::Codegen(format!(
+                "SIA function `{name}` requires linking before direct Lighting execution"
+            )));
+        }
         let code_len = u32::try_from(function.code.len())
             .map_err(|_| Error::Codegen("SIA function body exceeds 32-bit address space".into()))?;
         let return_address = entry_address
@@ -320,17 +363,6 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let declarations = program.result.map_err(Error::Source)?;
 
     for declaration in &declarations {
-        let metadata = declaration.data.symbol.get();
-        let name = metadata.id.resolve_and_clone();
-        if name == "ext2fs_has_feature_metadata_csum" {
-            eprintln!(
-                "TARGET FUNCTION: symbol={:?} metadata={metadata:?} init={:?}",
-                declaration.data.symbol, declaration.data.init,
-            );
-        }
-    }
-
-    for declaration in &declarations {
         if declaration_uses_float(&declaration.data) {
             return Err(unsupported(
                 declaration.location,
@@ -340,6 +372,14 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     }
 
     let isa = target_isa()?;
+    let function_indices: HashMap<Symbol, u32> = declarations
+        .iter()
+        .enumerate()
+        .filter_map(|(index, declaration)| {
+            matches!(declaration.data.symbol.get().ctype, Type::Function(_))
+                .then_some((declaration.data.symbol, index as u32))
+        })
+        .collect();
     let mut functions = Vec::new();
     for (index, declaration) in declarations.iter().enumerate() {
         let metadata = declaration.data.symbol.get();
@@ -383,6 +423,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             body,
             declaration.location,
             index as u32,
+            &function_indices,
             &*isa,
         )?);
     }
@@ -425,6 +466,7 @@ fn compile_function(
     body: &[Stmt],
     location: Location,
     function_index: u32,
+    function_indices: &HashMap<Symbol, u32>,
     isa: &dyn TargetIsa,
 ) -> Result<FunctionArtifact, Error> {
     if function_type.varargs {
@@ -459,7 +501,7 @@ fn compile_function(
         let entry_values = builder.block_params(entry).to_vec();
 
         let terminated = {
-            let mut lowerer = FunctionLowerer::new(&mut builder);
+            let mut lowerer = FunctionLowerer::new(&mut builder, function_indices);
             for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
                 let variable = lowerer
                     .builder
@@ -494,12 +536,38 @@ fn compile_function(
         ))
     })?;
     let code = compiled.code_buffer().to_vec();
+    let mut relocations = Vec::new();
+    for relocation in compiled.buffer.relocs() {
+        if relocation.kind != Reloc::Abs4 {
+            return Err(Error::Codegen(format!(
+                "SIA32 emitted unsupported relocation {:?} in {name}", relocation.kind
+            )));
+        }
+        let target = match &relocation.target {
+            RelocTarget::ExternalName(ExternalName::User(reference)) => {
+                let user = context.func.params.user_named_funcs()[*reference].clone();
+                function_indices.iter().find_map(|(symbol, index)| {
+                    (*index == user.index).then(|| symbol.get().id.resolve_and_clone())
+                }).ok_or_else(|| Error::Codegen(format!(
+                    "SIA32 emitted unknown function relocation in {name}"
+                )))?
+            }
+            other => return Err(Error::Codegen(format!(
+                "SIA32 emitted unsupported relocation target {other:?} in {name}"
+            ))),
+        };
+        relocations.push(RelocationArtifact {
+            offset: relocation.offset,
+            target,
+            addend: relocation.addend,
+        });
+    }
     if code.is_empty() || code.len() % 2 != 0 {
         return Err(Error::Codegen(format!(
             "SIA32 emitted invalid instruction bytes for {name}"
         )));
     }
-    Ok(FunctionArtifact { name, code })
+    Ok(FunctionArtifact { name, code, relocations })
 }
 
 fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
@@ -510,15 +578,16 @@ fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
     }
 }
 
-struct FunctionLowerer<'a, 'b> {
+struct FunctionLowerer<'a, 'b, 'c> {
     builder: &'a mut FunctionBuilder<'b>,
     variables: HashMap<Symbol, Variable>,
+    function_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
     terminated: bool,
 }
 
-impl<'a, 'b> FunctionLowerer<'a, 'b> {
-    fn new(builder: &'a mut FunctionBuilder<'b>) -> Self {
+impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
+    fn new(builder: &'a mut FunctionBuilder<'b>, function_indices: &'c HashMap<Symbol, u32>) -> Self {
         let return_type = builder
             .func
             .signature
@@ -528,6 +597,7 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
         Self {
             builder,
             variables: HashMap::new(),
+            function_indices,
             return_type,
             terminated: false,
         }
@@ -981,16 +1051,52 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 Ok(value)
             }
             ExprType::FuncCall(function, arguments) => {
-                Err(unsupported(
-                    expression.location,
-                    format!(
-                        "SIA32 FuncCall unsupported: function={function:?}, arguments={arguments:?}, callee_metadata={:?}",
-                        match &function.expr {
-                            ExprType::Id(symbol) => Some(symbol.get()),
-                            _ => None,
-                        },
-                    ),
-                ))
+                let ExprType::Id(symbol) = &function.expr else {
+                    return Err(unsupported(expression.location, "SIA32 indirect calls are not supported yet"));
+                };
+                let metadata = symbol.get();
+                let Type::Function(function_type) = &metadata.ctype else {
+                    return Err(unsupported(expression.location, "SIA32 call target is not a function"));
+                };
+                if function_type.varargs {
+                    return Err(unsupported(expression.location, "variadic calls are not supported for SIA32 yet"));
+                }
+                let function_index = self.function_indices.get(symbol).copied().ok_or_else(|| {
+                    unsupported(expression.location, format!(
+                        "SIA32 direct call target `{}` has no translation-unit definition",
+                        metadata.id.resolve_and_clone()
+                    ))
+                })?;
+                let parameters = function_parameters(function_type);
+                if arguments.len() != parameters.len() {
+                    return Err(unsupported(expression.location, "SIA32 call argument count mismatch"));
+                }
+                let mut signature = Signature::new(CallConv::SystemV);
+                for parameter in parameters {
+                    signature.params.push(AbiParam::new(ir_type(&parameter.get().ctype, expression.location)?));
+                }
+                if !matches!(*function_type.return_type, Type::Void) {
+                    signature.returns.push(AbiParam::new(ir_type(&function_type.return_type, expression.location)?));
+                }
+                let external = self.builder.func.declare_imported_user_function(
+                    UserExternalName::new(0, function_index)
+                );
+                let signature = self.builder.import_signature(signature);
+                let function_ref = self.builder.import_function(ExtFuncData {
+                    name: ExternalName::user(external),
+                    signature,
+                    colocated: true,
+                    patchable: false,
+                });
+                let mut values = Vec::with_capacity(arguments.len());
+                for argument in arguments {
+                    values.push(self.compile_expr(argument)?);
+                }
+                let call = self.builder.ins().call(function_ref, &values);
+                if matches!(*function_type.return_type, Type::Void) {
+                    return Err(unsupported(expression.location, "void calls as expressions are not supported yet"));
+                }
+                Ok(self.builder.func.dfg.first_result(call))
             }
             other => Err(unsupported(
                 expression.location,
