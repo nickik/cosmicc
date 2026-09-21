@@ -1425,6 +1425,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                     if let ExprType::Member(base, member) = &assignment_left.expr {
                         let address = self.compile_member_address(base, *member, left.location)?;
+                        let target_ty = ir_type(&assignment_left.ctype, left.location)?;
+                        let value = self.coerce_integer_value(value, target_ty, &right.ctype);
                         self.builder
                             .ins()
                             .store(MemFlagsData::new(), value, address, 0);
@@ -1457,6 +1459,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
 
                     let address = self.compile_expr(pointer)?;
+                    let target_ty = ir_type(&assignment_left.ctype, left.location)?;
+                    let value = self.coerce_integer_value(value, target_ty, &right.ctype);
                     self.builder
                         .ins()
                         .store(MemFlagsData::new(), value, address, 0);
@@ -1661,8 +1665,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     patchable: false,
                 });
                 let mut values = Vec::with_capacity(arguments.len());
-                for argument in arguments {
-                    values.push(self.compile_expr(argument)?);
+                for (argument, parameter) in arguments.iter().zip(parameters.iter()) {
+                    let value = self.compile_expr(argument)?;
+                    let parameter_ty = ir_type(&parameter.get().ctype, expression.location)?;
+                    values.push(self.coerce_integer_value(value, parameter_ty, &argument.ctype));
                 }
                 let call = self.builder.ins().call(function_ref, &values);
                 if matches!(*function_type.return_type, Type::Void) {
@@ -1923,6 +1929,26 @@ mod tests {
     fn compiles_scalar_post_increment_and_decrement() {
         let artifact = compile_source(
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_call_argument_integer_conversions() {
+        let artifact = compile_source(
+            "static int take(char c, unsigned short s) { return c + s; } int run(int x) { return take(x, x); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_narrow_member_and_pointer_stores() {
+        let artifact = compile_source(
+            "struct bytes { char c; short s; }; int store(struct bytes *p, char *q, int x) { p->c = x; p->s = x; *q = x; return p->c + *q; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
