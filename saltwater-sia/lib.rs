@@ -528,17 +528,14 @@ fn compile_function(
         let terminated = {
             let mut lowerer = FunctionLowerer::new(&mut builder, function_indices);
             for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
-                let variable = lowerer
-                    .builder
-                    .declare_var(match &parameter.get().ctype {
-                        Type::Function(_) => types::I32,
-                        other => ir_type(other, location)?,
-                    });
+                let parameter_ty = match &parameter.get().ctype {
+                    Type::Function(_) => types::I32,
+                    other => ir_type(other, location)?,
+                };
+                let variable = lowerer.builder.declare_var(parameter_ty);
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
-                lowerer
-                    .variable_types
-                    .insert(*parameter, ir_type(&parameter.get().ctype, location)?);
+                lowerer.variable_types.insert(*parameter, parameter_ty);
             }
             for statement in body {
                 lowerer.compile_stmt(statement)?;
