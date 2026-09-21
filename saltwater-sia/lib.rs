@@ -773,6 +773,46 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         Ok(())
     }
 
+    fn compile_member_address(&mut self, base: &Expr, member: saltwater_parser::intern::InternedStr, location: Location) -> Result<Value, Error> {
+        let struct_type = match &base.ctype {
+            Type::Struct(struct_type) | Type::Union(struct_type) => struct_type,
+            _ => return Err(unsupported(location, "member access requires a struct or union base")),
+        };
+        let mut offset = 0u64;
+        if matches!(&base.ctype, Type::Struct(_)) {
+            let mut found = false;
+            for field in struct_type.members().iter() {
+                let align = field.ctype.alignof().map_err(|_| unsupported(location, "member has unsupported alignment"))?;
+                let rem = offset % align;
+                if rem != 0 { offset += align - rem; }
+                if field.id == member { found = true; break; }
+                offset += field.ctype.sizeof().map_err(|_| unsupported(location, "member has incomplete type"))?;
+            }
+            if !found { return Err(unsupported(location, "unknown struct member")); }
+        }
+        fn member_base_pointer(expr: &Expr) -> Option<&Expr> {
+            match &expr.expr {
+                ExprType::Noop(inner) | ExprType::Cast(inner) => member_base_pointer(inner),
+                ExprType::Deref(pointer) => Some(pointer),
+                _ => None,
+            }
+        }
+        let pointer = member_base_pointer(base).ok_or_else(|| unsupported(location, "SIA32 member access requires an addressable aggregate"))?;
+        let address = match &pointer.expr {
+            ExprType::Id(symbol) => {
+                let variable = self.variables.get(symbol).copied().ok_or_else(|| unsupported(location, "global aggregate addresses are not supported for SIA32 yet"))?;
+                self.builder.use_var(variable)
+            }
+            _ => self.compile_expr(pointer)?,
+        };
+        Ok(if offset == 0 {
+            address
+        } else {
+            let delta = self.builder.ins().iconst(types::I32, offset as i64);
+            self.builder.ins().iadd(address, delta)
+        })
+    }
+
     fn compile_expr(&mut self, expression: &Expr) -> Result<Value, Error> {
         let ty = ir_type(&expression.ctype, expression.location)?;
         match &expression.expr {
@@ -849,69 +889,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.compile_expr(right)
             }
             ExprType::Member(base, member) => {
-                let struct_type = match &base.ctype {
-                    Type::Struct(struct_type) | Type::Union(struct_type) => struct_type,
-                    _ => {
-                        return Err(unsupported(
-                            expression.location,
-                            "member access requires a struct or union base",
-                        ));
-                    }
-                };
-                let mut offset = 0u64;
-                if matches!(&base.ctype, Type::Struct(_)) {
-                    let mut found = false;
-                    for field in struct_type.members().iter() {
-                        let align = field.ctype.alignof().map_err(|_| {
-                            unsupported(expression.location, "member has unsupported alignment")
-                        })?;
-                        let rem = offset % align;
-                        if rem != 0 {
-                            offset += align - rem;
-                        }
-                        if field.id == *member {
-                            found = true;
-                            break;
-                        }
-                        offset += field.ctype.sizeof().map_err(|_| {
-                            unsupported(expression.location, "member has incomplete type")
-                        })?;
-                    }
-                    if !found {
-                        return Err(unsupported(expression.location, "unknown struct member"));
-                    }
-                }
-                fn member_base_pointer<'a>(expr: &'a Expr) -> Option<&'a Expr> {
-                    match &expr.expr {
-                        ExprType::Noop(inner) | ExprType::Cast(inner) => member_base_pointer(inner),
-                        ExprType::Deref(pointer) => Some(pointer),
-                        _ => None,
-                    }
-                }
-                let pointer = member_base_pointer(base).ok_or_else(|| {
-                    unsupported(
-                        expression.location,
-                        "SIA32 member access requires an addressable aggregate",
-                    )
-                })?;
-                let address = match &pointer.expr {
-                    ExprType::Id(symbol) => {
-                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                            unsupported(
-                                expression.location,
-                                "global aggregate addresses are not supported for SIA32 yet",
-                            )
-                        })?;
-                        self.builder.use_var(variable)
-                    }
-                    _ => self.compile_expr(pointer)?,
-                };
-                let address = if offset == 0 {
-                    address
-                } else {
-                    let delta = self.builder.ins().iconst(types::I32, offset as i64);
-                    self.builder.ins().iadd(address, delta)
-                };
+                let address = self.compile_member_address(base, *member, expression.location)?;
                 Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
             }
             // The established HIR represents an ordinary C local read as
@@ -971,6 +949,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 "SIA32 assignment to unmapped Id: symbol={symbol:?}, lhs={left:?}"
                             ),
                         ));
+                    }
+
+                    if let ExprType::Member(base, member) = &assignment_left.expr {
+                        let address = self.compile_member_address(base, *member, left.location)?;
+                        self.builder.ins().store(MemFlagsData::new(), value, address, 0);
+                        return Ok(value);
                     }
 
                     let ExprType::Deref(pointer) = &assignment_left.expr else {
