@@ -1603,27 +1603,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             let variable =
                                 self.variables.get(symbol).copied().ok_or_else(|| {
                                     unsupported(
-                                    expression.location,
-                                    "SIA32 post-increment/decrement target is not a mapped local",
-                                )
+                                        expression.location,
+                                        "SIA32 post-increment/decrement target is not a mapped local",
+                                    )
                                 })?;
                             self.builder.def_var(variable, updated);
                         }
                     }
-                    ExprType::Member(base, member) => {
-                        let address =
-                            self.compile_member_address(base, *member, expression.location)?;
-                        self.builder
-                            .ins()
-                            .store(MemFlagsData::new(), updated, address, 0);
-                    }
-                    ExprType::Deref(pointer) => {
-                        let address = self.compile_expr(pointer)?;
-                        self.builder
-                            .ins()
-                            .store(MemFlagsData::new(), updated, address, 0);
-                    }
-                    ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                    ExprType::Member(_, _)
+                    | ExprType::Deref(_)
+                    | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
                         let address = self.compile_lvalue_address(lvalue)?;
                         self.builder
                             .ins()
@@ -2615,6 +2604,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_member_and_array_post_increment_through_lvalue_addressing() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(struct pair *p, int *a, int i) { p->x++; a[i]--; return p->x + a[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
