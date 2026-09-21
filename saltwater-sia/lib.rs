@@ -590,6 +590,119 @@ fn scalar_initializer_bytes(
     Ok(bytes)
 }
 
+fn collect_string_literals_expr(
+    expression: &Expr,
+    strings: &mut HashMap<Vec<u8>, u32>,
+) {
+    if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
+        if !strings.contains_key(bytes) {
+            let index = u32::try_from(strings.len()).expect("string pool fits in u32");
+            strings.insert(bytes.clone(), index);
+        }
+    }
+    match &expression.expr {
+        ExprType::FuncCall(function, arguments) => {
+            collect_string_literals_expr(function, strings);
+            for argument in arguments {
+                collect_string_literals_expr(argument, strings);
+            }
+        }
+        ExprType::Member(value, _)
+        | ExprType::PostIncrement(value, _)
+        | ExprType::Cast(value)
+        | ExprType::Deref(value)
+        | ExprType::Negate(value)
+        | ExprType::BitwiseNot(value)
+        | ExprType::StaticRef(value)
+        | ExprType::Noop(value) => collect_string_literals_expr(value, strings),
+        ExprType::Binary(_, left, right) | ExprType::Comma(left, right) => {
+            collect_string_literals_expr(left, strings);
+            collect_string_literals_expr(right, strings);
+        }
+        ExprType::Ternary(condition, yes, no) => {
+            collect_string_literals_expr(condition, strings);
+            collect_string_literals_expr(yes, strings);
+            collect_string_literals_expr(no, strings);
+        }
+        ExprType::Id(_) | ExprType::Literal(_) | ExprType::Sizeof(_) => {}
+    }
+}
+
+fn collect_string_literals_initializer(
+    initializer: &Initializer,
+    strings: &mut HashMap<Vec<u8>, u32>,
+) {
+    match initializer {
+        Initializer::Scalar(expression) => collect_string_literals_expr(expression, strings),
+        Initializer::InitializerList(items) => {
+            for item in items {
+                collect_string_literals_initializer(item, strings);
+            }
+        }
+        Initializer::FunctionBody(statements) => {
+            for statement in statements {
+                collect_string_literals_stmt(statement, strings);
+            }
+        }
+    }
+}
+
+fn collect_string_literals_stmt(statement: &Stmt, strings: &mut HashMap<Vec<u8>, u32>) {
+    match &statement.data {
+        StmtType::Compound(statements) => {
+            for statement in statements {
+                collect_string_literals_stmt(statement, strings);
+            }
+        }
+        StmtType::If(condition, yes, no) => {
+            collect_string_literals_expr(condition, strings);
+            collect_string_literals_stmt(yes, strings);
+            if let Some(no) = no {
+                collect_string_literals_stmt(no, strings);
+            }
+        }
+        StmtType::Do(body, condition) | StmtType::While(condition, body) => {
+            collect_string_literals_stmt(body, strings);
+            collect_string_literals_expr(condition, strings);
+        }
+        StmtType::For(init, condition, step, body) => {
+            collect_string_literals_stmt(init, strings);
+            if let Some(condition) = condition {
+                collect_string_literals_expr(condition, strings);
+            }
+            if let Some(step) = step {
+                collect_string_literals_expr(step, strings);
+            }
+            collect_string_literals_stmt(body, strings);
+        }
+        StmtType::Switch(expression, body) => {
+            collect_string_literals_expr(expression, strings);
+            collect_string_literals_stmt(body, strings);
+        }
+        StmtType::Label(_, body) | StmtType::Case(_, body) | StmtType::Default(body) => {
+            collect_string_literals_stmt(body, strings);
+        }
+        StmtType::Expr(expression) => collect_string_literals_expr(expression, strings),
+        StmtType::Return(value) => {
+            if let Some(value) = value {
+                collect_string_literals_expr(value, strings);
+            }
+        }
+        StmtType::Decl(declarations) => {
+            for declaration in declarations {
+                if let Some(initializer) = &declaration.data.init {
+                    collect_string_literals_initializer(initializer, strings);
+                }
+            }
+        }
+        StmtType::Goto(_) | StmtType::Continue | StmtType::Break => {}
+    }
+}
+
+fn string_symbol_name(index: u32) -> String {
+    format!("__cosmic_str_{index}")
+}
+
 fn completed_object_type(
     ctype: &Type,
     initializer: Option<&Initializer>,
@@ -719,6 +832,7 @@ fn write_global_initializer(
     bytes: &mut [u8],
     relocations: &mut Vec<RelocationArtifact>,
     symbols: &HashMap<Symbol, String>,
+    strings: &HashMap<Vec<u8>, u32>,
     base_offset: usize,
     ctype: &Type,
     initializer: &Initializer,
@@ -727,6 +841,31 @@ fn write_global_initializer(
     match initializer {
         Initializer::Scalar(expression) if ctype.is_scalar() => {
             if matches!(ctype, Type::Pointer(_, _) | Type::Function(_)) {
+                let mut string_expression = expression;
+                while let ExprType::Noop(inner) | ExprType::Cast(inner) = &string_expression.expr {
+                    string_expression = inner;
+                }
+                let string_bytes = match &string_expression.expr {
+                    ExprType::StaticRef(inner) => match &inner.expr {
+                        ExprType::Literal(LiteralValue::Str(bytes)) => Some(bytes),
+                        _ => None,
+                    },
+                    ExprType::Literal(LiteralValue::Str(bytes)) => Some(bytes),
+                    _ => None,
+                };
+                if let Some(bytes_value) = string_bytes {
+                    let index = strings.get(bytes_value).copied().ok_or_else(|| {
+                        Error::Codegen("string literal missing from translation-unit pool".into())
+                    })?;
+                    let offset = u32::try_from(base_offset)
+                        .map_err(|_| Error::Codegen("data relocation offset overflows".into()))?;
+                    relocations.push(RelocationArtifact {
+                        offset,
+                        target: string_symbol_name(index),
+                        addend: 0,
+                    });
+                    return Ok(());
+                }
                 if let Some((target, addend)) = static_address_target(expression, symbols)? {
                     let offset = u32::try_from(base_offset)
                         .map_err(|_| Error::Codegen("data relocation offset overflows".into()))?;
@@ -763,7 +902,7 @@ fn write_global_initializer(
                     "scalar global initializer list must contain exactly one element",
                 ));
             }
-            write_global_initializer(bytes, relocations, symbols, base_offset, ctype, &items[0], location)
+            write_global_initializer(bytes, relocations, symbols, strings, base_offset, ctype, &items[0], location)
         }
         Initializer::InitializerList(items) => match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
@@ -785,7 +924,7 @@ fn write_global_initializer(
                         .ok_or_else(|| {
                             Error::Codegen("global array initializer offset overflows".into())
                         })?;
-                    write_global_initializer(bytes, relocations, symbols, offset, element, item, location)?;
+                    write_global_initializer(bytes, relocations, symbols, strings, offset, element, item, location)?;
                 }
                 Ok(())
             }
@@ -809,6 +948,7 @@ fn write_global_initializer(
                         bytes,
                         relocations,
                         symbols,
+                        strings,
                         field_offset,
                         &field.ctype,
                         item,
@@ -833,6 +973,7 @@ fn write_global_initializer(
                         bytes,
                         relocations,
                         symbols,
+                        strings,
                         base_offset,
                         &first.ctype,
                         item,
@@ -846,10 +987,26 @@ fn write_global_initializer(
                 "unsupported global aggregate initializer shape",
             )),
         },
-        Initializer::Scalar(_) => Err(unsupported(
-            location,
-            "aggregate global scalar initialization requires aggregate-copy lowering",
-        )),
+        Initializer::Scalar(expression) => {
+            if let Type::Array(element, _) = ctype {
+                if matches!(element.as_ref(), Type::Char(_)) {
+                    if let ExprType::Literal(LiteralValue::Str(string)) = &expression.expr {
+                        let end = base_offset
+                            .checked_add(string.len())
+                            .ok_or_else(|| Error::Codegen("string initializer offset overflows".into()))?;
+                        bytes
+                            .get_mut(base_offset..end)
+                            .ok_or_else(|| Error::Codegen("string initializer exceeds array".into()))?
+                            .copy_from_slice(string);
+                        return Ok(());
+                    }
+                }
+            }
+            Err(unsupported(
+                location,
+                "aggregate global scalar initialization requires aggregate-copy lowering",
+            ))
+        }
         Initializer::FunctionBody(_) => Err(unsupported(
             location,
             "function body cannot initialize a global data object",
@@ -872,6 +1029,12 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     }
 
     let isa = target_isa()?;
+    let mut string_indices = HashMap::new();
+    for declaration in &declarations {
+        if let Some(initializer) = &declaration.data.init {
+            collect_string_literals_initializer(initializer, &mut string_indices);
+        }
+    }
     let function_indices: HashMap<Symbol, u32> = declarations
         .iter()
         .enumerate()
@@ -902,7 +1065,21 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
         })
         .collect();
     let mut functions = Vec::new();
-    let mut data = Vec::new();
+    let mut pooled_strings = string_indices
+        .iter()
+        .map(|(bytes, index)| (*index, bytes.clone()))
+        .collect::<Vec<_>>();
+    pooled_strings.sort_by_key(|(index, _)| *index);
+    let mut data = pooled_strings
+        .into_iter()
+        .map(|(index, bytes)| DataArtifact {
+            name: string_symbol_name(index),
+            bytes,
+            align: 1,
+            read_only: true,
+            relocations: Vec::new(),
+        })
+        .collect::<Vec<_>>();
     for (index, declaration) in declarations.iter().enumerate() {
         let metadata = declaration.data.symbol.get();
         if metadata.storage_class == StorageClass::Typedef {
@@ -948,6 +1125,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                         &mut bytes,
                         &mut relocations,
                         &symbol_names,
+                        &string_indices,
                         0,
                         object_type,
                         initializer,
@@ -986,6 +1164,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             index as u32,
             &function_indices,
             &global_indices,
+            &string_indices,
             &symbol_names,
             &*isa,
         )?);
@@ -1032,6 +1211,7 @@ fn compile_function(
     function_index: u32,
     function_indices: &HashMap<Symbol, u32>,
     global_indices: &HashMap<Symbol, u32>,
+    string_indices: &HashMap<Vec<u8>, u32>,
     symbol_names: &HashMap<Symbol, String>,
     isa: &dyn TargetIsa,
 ) -> Result<FunctionArtifact, Error> {
@@ -1067,6 +1247,7 @@ fn compile_function(
                 &mut builder,
                 function_indices,
                 global_indices,
+                string_indices,
             );
             for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
                 let parameter_ty = match &parameter.get().ctype {
@@ -1127,6 +1308,20 @@ fn compile_function(
                 let table = match user.namespace {
                     0 => function_indices,
                     1 => global_indices,
+                    2 => {
+                        let target = string_indices
+                            .iter()
+                            .find_map(|(_, index)| (*index == user.index).then(|| string_symbol_name(*index)))
+                            .ok_or_else(|| {
+                                Error::Codegen(format!("SIA32 emitted unknown string relocation in {name}"))
+                            })?;
+                        relocations.push(RelocationArtifact {
+                            offset: relocation.offset,
+                            target,
+                            addend: relocation.addend,
+                        });
+                        continue;
+                    }
                     namespace => {
                         return Err(Error::Codegen(format!(
                             "SIA32 emitted relocation from unknown namespace {namespace} in {name}"
@@ -1185,6 +1380,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     stack_locals: HashMap<Symbol, StackSlot>,
     function_indices: &'c HashMap<Symbol, u32>,
     global_indices: &'c HashMap<Symbol, u32>,
+    string_indices: &'c HashMap<Vec<u8>, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block)>,
     break_targets: Vec<Block>,
@@ -1198,6 +1394,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         builder: &'a mut FunctionBuilder<'b>,
         function_indices: &'c HashMap<Symbol, u32>,
         global_indices: &'c HashMap<Symbol, u32>,
+        string_indices: &'c HashMap<Vec<u8>, u32>,
     ) -> Self {
         let return_type = builder
             .func
@@ -1212,6 +1409,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             stack_locals: HashMap::new(),
             function_indices,
             global_indices,
+            string_indices,
             return_type,
             loop_targets: Vec::new(),
             break_targets: Vec::new(),
@@ -1244,6 +1442,23 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         let global = self.builder.func.create_global_value(GlobalValueData::Symbol {
             name: ExternalName::user(external),
             offset: addend.into(),
+            colocated: false,
+            tls: false,
+        });
+        Ok(self.builder.ins().symbol_value(types::I32, global))
+    }
+
+    fn string_address(&mut self, bytes: &[u8], location: Location) -> Result<Value, Error> {
+        let index = self.string_indices.get(bytes).copied().ok_or_else(|| {
+            unsupported(location, "string literal has no translation-unit data object")
+        })?;
+        let external = self
+            .builder
+            .func
+            .declare_imported_user_function(UserExternalName::new(2, index));
+        let global = self.builder.func.create_global_value(GlobalValueData::Symbol {
+            name: ExternalName::user(external),
+            offset: 0.into(),
             colocated: false,
             tls: false,
         });
@@ -1736,6 +1951,23 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         initializer: &Initializer,
         location: Location,
     ) -> Result<(), Error> {
+        if let (
+            Type::Array(element, _),
+            Initializer::Scalar(expression),
+        ) = (ctype, initializer)
+        {
+            if matches!(element.as_ref(), Type::Char(_)) {
+                if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
+                    for (offset, byte) in bytes.iter().copied().enumerate() {
+                        let value = self.builder.ins().iconst(types::I8, i64::from(byte));
+                        let offset = i32::try_from(offset)
+                            .map_err(|_| unsupported(location, "string initializer is too large"))?;
+                        self.builder.ins().stack_store(types::I32, value, slot, offset);
+                    }
+                    return Ok(());
+                }
+            }
+        }
         self.initialize_stack_aggregate_at(slot, ctype, initializer, 0, location)
     }
 
@@ -2087,10 +2319,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 expression.location,
                 "floating-point C is not supported for the SIA32 target",
             )),
-            ExprType::Literal(LiteralValue::Str(_)) => Err(unsupported(
-                expression.location,
-                "string literals require SIA32 global-data support",
-            )),
+            ExprType::Literal(LiteralValue::Str(bytes)) => {
+                self.string_address(bytes, expression.location)
+            },
             ExprType::Noop(value) => self.compile_expr(value),
             ExprType::Cast(value) => {
                 let value_clif = self.compile_expr(value)?;
@@ -2951,6 +3182,38 @@ mod tests {
             .functions
             .iter()
             .all(|function| function.relocations.iter().any(|reloc| reloc.target == "global")));
+    }
+
+    #[test]
+    fn pools_string_literals_into_read_only_data() {
+        let artifact = compile_source(
+            "const char *g = \"hello\"; int f(void) { const char *p = \"hello\"; return p[0]; }",
+        )
+        .unwrap();
+        let strings = artifact
+            .data
+            .iter()
+            .filter(|object| object.name.starts_with("__cosmic_str_"))
+            .collect::<Vec<_>>();
+        assert_eq!(strings.len(), 1);
+        assert_eq!(strings[0].bytes, b"hello\0");
+        assert!(strings[0].read_only);
+        assert!(artifact
+            .functions
+            .iter()
+            .flat_map(|function| function.relocations.iter())
+            .any(|reloc| reloc.target == strings[0].name));
+    }
+
+    #[test]
+    fn initializes_character_arrays_from_string_literals() {
+        let artifact =
+            compile_source("char global[] = \"abc\"; int f(void) { char local[] = \"xy\"; return local[1]; }")
+                .unwrap();
+        assert!(artifact
+            .data
+            .iter()
+            .any(|object| object.name == "global" && object.bytes == b"abc\0"));
     }
 
     #[test]
