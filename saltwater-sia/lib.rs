@@ -501,9 +501,11 @@ fn compile_function(
     let mut signature = Signature::new(CallConv::SystemV);
     let parameters = function_parameters(function_type);
     for parameter in parameters {
-        signature
-            .params
-            .push(AbiParam::new(ir_type(&parameter.get().ctype, location)?));
+        let parameter_ty = match &parameter.get().ctype {
+            Type::Function(_) => types::I32,
+            other => ir_type(other, location)?,
+        };
+        signature.params.push(AbiParam::new(parameter_ty));
     }
     if !matches!(*function_type.return_type, Type::Void) {
         signature.returns.push(AbiParam::new(ir_type(
@@ -528,7 +530,10 @@ fn compile_function(
             for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
                 let variable = lowerer
                     .builder
-                    .declare_var(ir_type(&parameter.get().ctype, location)?);
+                    .declare_var(match &parameter.get().ctype {
+                        Type::Function(_) => types::I32,
+                        other => ir_type(other, location)?,
+                    });
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
                 lowerer
@@ -1959,7 +1964,6 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         ))
                     }
                 };
-                let metadata = direct_symbol.map(|symbol| symbol.get());
                 let function_type = function_type;
                 let function_index = if let Some(symbol) = direct_symbol {
                     Some(self.function_indices.get(&symbol).copied().ok_or_else(|| {
@@ -1985,10 +1989,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 let mut signature = Signature::new(CallConv::SystemV);
                 for parameter in parameters {
-                    signature.params.push(AbiParam::new(ir_type(
-                        &parameter.get().ctype,
-                        expression.location,
-                    )?));
+                    let parameter_ty = match &parameter.get().ctype {
+                        Type::Function(_) => types::I32,
+                        other => ir_type(other, expression.location)?,
+                    };
+                    signature.params.push(AbiParam::new(parameter_ty));
                 }
                 if function_type.varargs {
                     // Cranelift signatures describe the concrete call site.
@@ -2029,7 +2034,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 for (index, argument) in arguments.iter().enumerate() {
                     let value = self.compile_expr(argument)?;
                     let parameter_ty = if let Some(parameter) = parameters.get(index) {
-                        ir_type(&parameter.get().ctype, expression.location)?
+                        match &parameter.get().ctype {
+                            Type::Function(_) => types::I32,
+                            other => ir_type(other, expression.location)?,
+                        }
                     } else {
                         match &argument.ctype {
                             Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
