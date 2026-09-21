@@ -1158,6 +1158,30 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     ))
                 }
             }
+            ExprType::StaticRef(value) => {
+                let mut lvalue = value.as_ref();
+                while let ExprType::Noop(inner) = &lvalue.expr {
+                    lvalue = inner;
+                }
+                match &lvalue.expr {
+                    // &*p is exactly p and does not perform a load.
+                    ExprType::Deref(pointer) => self.compile_expr(pointer),
+                    // Member-address lowering already computes the lvalue address.
+                    ExprType::Member(base, member) => {
+                        self.compile_member_address(base, *member, expression.location)
+                    }
+                    // Address-taken scalar locals require stack-slot lowering; do not
+                    // silently manufacture an address for an SSA variable.
+                    ExprType::Id(_) => Err(unsupported(
+                        expression.location,
+                        "taking the address of an SSA local requires SIA32 stack-local support",
+                    )),
+                    _ => Err(unsupported(
+                        expression.location,
+                        format!("SIA32 address-of lowering is not implemented for {lvalue:?}"),
+                    )),
+                }
+            }
             ExprType::Literal(LiteralValue::Int(value)) => {
                 Ok(self.builder.ins().iconst(ty, *value))
             }
@@ -1632,10 +1656,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 let call = self.builder.ins().call(function_ref, &values);
                 if matches!(*function_type.return_type, Type::Void) {
-                    return Err(unsupported(
-                        expression.location,
-                        "void calls as expressions are not supported yet",
-                    ));
+                    // Expression statements discard this value. Returning a
+                    // harmless integer placeholder keeps compile_expr uniform
+                    // without inventing a machine-level return value.
+                    return Ok(self.builder.ins().iconst(types::I32, 0));
                 }
                 Ok(self.builder.func.dfg.first_result(call))
             }
@@ -1893,6 +1917,26 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_address_of_dereference_and_member_lvalues() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; int *same(int *p) { return &*p; } int *member(struct pair *p) { return &p->b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_void_direct_call_expression_statement() {
+        let artifact = compile_source(
+            "static void touch(int *p) { *p = 7; } int run(int *p) { touch(p); return *p; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().any(|function| !function.relocations.is_empty()));
     }
 
     #[test]
