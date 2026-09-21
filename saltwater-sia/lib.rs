@@ -726,47 +726,23 @@ fn collect_static_locals(
                 }
             }
             StmtType::If(_, yes, no) => {
-                collect_static_locals(
-                    std::slice::from_ref(yes.as_ref()),
-                    function_index,
-                    out,
-                );
+                collect_static_locals(std::slice::from_ref(yes.as_ref()), function_index, out);
                 if let Some(no) = no {
-                    collect_static_locals(
-                        std::slice::from_ref(no.as_ref()),
-                        function_index,
-                        out,
-                    );
+                    collect_static_locals(std::slice::from_ref(no.as_ref()), function_index, out);
                 }
             }
             StmtType::Do(body, _) | StmtType::While(_, body) => {
-                collect_static_locals(
-                    std::slice::from_ref(body.as_ref()),
-                    function_index,
-                    out,
-                );
+                collect_static_locals(std::slice::from_ref(body.as_ref()), function_index, out);
             }
             StmtType::For(init, _, _, body) => {
-                collect_static_locals(
-                    std::slice::from_ref(init.as_ref()),
-                    function_index,
-                    out,
-                );
-                collect_static_locals(
-                    std::slice::from_ref(body.as_ref()),
-                    function_index,
-                    out,
-                );
+                collect_static_locals(std::slice::from_ref(init.as_ref()), function_index, out);
+                collect_static_locals(std::slice::from_ref(body.as_ref()), function_index, out);
             }
             StmtType::Switch(_, body)
             | StmtType::Label(_, body)
             | StmtType::Case(_, body)
             | StmtType::Default(body) => {
-                collect_static_locals(
-                    std::slice::from_ref(body.as_ref()),
-                    function_index,
-                    out,
-                );
+                collect_static_locals(std::slice::from_ref(body.as_ref()), function_index, out);
             }
             StmtType::Expr(_)
             | StmtType::Goto(_)
@@ -1184,9 +1160,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             .and_then(|index| u32::try_from(index).ok())
             .expect("translation-unit symbol table fits in u32");
         let raw = declaration.symbol.get().id.resolve_and_clone();
-        let name = format!(
-            "__cosmic_static_local_{function_index}_{ordinal}_{raw}"
-        );
+        let name = format!("__cosmic_static_local_{function_index}_{ordinal}_{raw}");
         global_indices.insert(declaration.symbol, index);
         symbol_names.insert(declaration.symbol, name);
     }
@@ -1393,9 +1367,10 @@ fn compile_function(
         signature.params.push(AbiParam::new(types::I32));
     }
     for parameter in parameters {
-        signature
-            .params
-            .push(AbiParam::new(abi_parameter_type(&parameter.get().ctype, location)?));
+        signature.params.push(AbiParam::new(abi_parameter_type(
+            &parameter.get().ctype,
+            location,
+        )?));
     }
     if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
         signature.returns.push(AbiParam::new(ir_type(
@@ -1434,12 +1409,7 @@ fn compile_function(
                 if is_by_value_aggregate(parameter_ctype) {
                     let (slot, address) =
                         lowerer.create_aggregate_slot(parameter_ctype, location)?;
-                    lowerer.copy_aggregate_value(
-                        address,
-                        *value,
-                        parameter_ctype,
-                        location,
-                    )?;
+                    lowerer.copy_aggregate_value(address, *value, parameter_ctype, location)?;
                     lowerer.stack_locals.insert(*parameter, slot);
                     continue;
                 }
@@ -1561,7 +1531,10 @@ fn is_by_value_aggregate(ctype: &Type) -> bool {
     matches!(ctype, Type::Struct(_) | Type::Union(_))
 }
 
-fn abi_parameter_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
+fn abi_parameter_type(
+    ctype: &Type,
+    location: Location,
+) -> Result<cranelift_codegen::ir::Type, Error> {
     match ctype {
         Type::Function(_) | Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => Ok(types::I32),
         other => ir_type(other, location),
@@ -2895,12 +2868,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             return Ok(value);
                         }
                         if self.global_indices.contains_key(symbol) {
-                            let address =
-                                self.symbol_address(*symbol, 0, left.location)?;
-                            let target_ty =
-                                ir_type(&symbol.get().ctype, left.location)?;
-                            let value =
-                                self.coerce_integer_value(value, target_ty, &right.ctype);
+                            let address = self.symbol_address(*symbol, 0, left.location)?;
+                            let target_ty = ir_type(&symbol.get().ctype, left.location)?;
+                            let value = self.coerce_integer_value(value, target_ty, &right.ctype);
                             self.builder
                                 .ins()
                                 .store(MemFlagsData::new(), value, address, 0);
@@ -3307,12 +3277,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     None
                 };
                 let mut aggregate_result = None;
-                let mut values = Vec::with_capacity(arguments.len() + usize::from(aggregate_return));
+                let mut values =
+                    Vec::with_capacity(arguments.len() + usize::from(aggregate_return));
                 if aggregate_return {
-                    let (_, address) = self.create_aggregate_slot(
-                        &function_type.return_type,
-                        expression.location,
-                    )?;
+                    let (_, address) = self
+                        .create_aggregate_slot(&function_type.return_type, expression.location)?;
                     aggregate_result = Some(address);
                     values.push(address);
                 }
