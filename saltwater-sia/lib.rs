@@ -1551,7 +1551,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::Comma(left, right) => {
                 let _ = self.compile_expr(left)?;
-                self.compile_expr(right)
+                let value = self.compile_expr(right)?;
+                if is_address_valued_type(&right.ctype) {
+                    Ok(value)
+                } else {
+                    Ok(self.coerce_integer_value(value, ty, &right.ctype))
+                }
             }
             ExprType::Member(base, member) => {
                 let address = self.compile_member_address(base, *member, expression.location)?;
@@ -2365,6 +2370,26 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_comma_expression_with_pointer_result() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(struct pair *a, struct pair *b) { struct pair *p = (a, b); return p->x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_comma_expression_integer_conversion() {
+        let artifact = compile_source(
+            "int f(unsigned char x) { return (x++, x); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
