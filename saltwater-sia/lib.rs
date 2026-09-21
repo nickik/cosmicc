@@ -1214,8 +1214,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             Type::Union(union_type) => {
                 if let Some(item) = items.first() {
-                    let field = union_type
-                        .members()
+                    let members = union_type.members();
+                    let field = members
                         .first()
                         .ok_or_else(|| unsupported(location, "union has no initializable member"))?;
                     match item {
