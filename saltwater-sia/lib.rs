@@ -537,6 +537,10 @@ fn compile_function(
                     .declare_var(ir_type(&parameter.get().ctype, location)?);
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
+                lowerer.variable_types.insert(
+                    *parameter,
+                    ir_type(&parameter.get().ctype, location)?,
+                );
             }
             for statement in body {
                 lowerer.compile_stmt(statement)?;
@@ -626,6 +630,7 @@ fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
 struct FunctionLowerer<'a, 'b, 'c> {
     builder: &'a mut FunctionBuilder<'b>,
     variables: HashMap<Symbol, Variable>,
+    variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     function_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
     terminated: bool,
@@ -645,6 +650,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         Self {
             builder,
             variables: HashMap::new(),
+            variable_types: HashMap::new(),
             function_indices,
             return_type,
             terminated: false,
@@ -1003,8 +1009,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                     if let ExprType::Id(symbol) = &pointer.expr {
                         if let Some(variable) = self.variables.get(symbol).copied() {
-                            let current_value = self.builder.use_var(variable);
-                            let variable_ty = self.builder.func.dfg.value_type(current_value);
+                            let variable_ty = *self.variable_types.get(symbol).ok_or_else(|| {
+                                unsupported(
+                                    expression.location,
+                                    "SIA32 local variable type metadata is missing",
+                                )
+                            })?;
                             let value_ty = self.builder.func.dfg.value_type(value);
 
                             let value = if value_ty == variable_ty {
