@@ -1242,44 +1242,44 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 return Err(unsupported(location, "unknown struct member"));
             }
         }
-        fn member_base_pointer(expr: &Expr) -> Option<&Expr> {
+        fn strip_wrappers(expr: &Expr) -> &Expr {
             match &expr.expr {
-                ExprType::Noop(inner) | ExprType::Cast(inner) => member_base_pointer(inner),
-                ExprType::Deref(pointer) => Some(pointer),
-                _ => None,
+                ExprType::Noop(inner) | ExprType::Cast(inner) => strip_wrappers(inner),
+                _ => expr,
             }
         }
-        let address = if let ExprType::Id(symbol) = &base.expr {
-            // Direct local aggregate member access, e.g. local.field.
-            let slot = self.stack_locals.get(symbol).copied().ok_or_else(|| {
-                unsupported(
-                    location,
-                    "direct aggregate member base has no SIA32 stack storage",
-                )
-            })?;
-            self.builder.ins().stack_addr(types::I32, slot, 0)
-        } else {
-            let pointer = member_base_pointer(base).ok_or_else(|| {
-                unsupported(
-                    location,
-                    "SIA32 member access requires an addressable aggregate",
-                )
-            })?;
-            match &pointer.expr {
-                ExprType::Id(symbol) => {
-                    if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                        self.builder.ins().stack_addr(types::I32, slot, 0)
-                    } else {
-                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                            unsupported(
-                                location,
-                                "global aggregate addresses are not supported for SIA32 yet",
-                            )
-                        })?;
-                        self.builder.use_var(variable)
-                    }
+        let unwrapped_base = strip_wrappers(base);
+        let address = match &unwrapped_base.expr {
+            ExprType::Id(symbol) => {
+                // Direct local aggregate member access, e.g. local.field.
+                if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                    self.builder.ins().stack_addr(types::I32, slot, 0)
+                } else {
+                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                        unsupported(
+                            location,
+                            "direct aggregate member base has no SIA32 storage",
+                        )
+                    })?;
+                    self.builder.use_var(variable)
                 }
-                _ => self.compile_expr(pointer)?,
+            }
+            ExprType::Deref(pointer) => {
+                // Pointer-derived aggregate member access, including nested
+                // expressions such as (*array_of_structs[i]).field.
+                self.compile_expr(pointer)?
+            }
+            ExprType::Member(parent, parent_member) => {
+                // Nested direct aggregate access: outer.inner.field.
+                self.compile_member_address(parent, *parent_member, location)?
+            }
+            _ => {
+                return Err(unsupported(
+                    location,
+                    format!(
+                        "SIA32 member access requires an addressable aggregate: base={unwrapped_base:?}"
+                    ),
+                ))
             }
         };
         Ok(if offset == 0 {
@@ -2212,7 +2212,7 @@ mod tests {
             message.contains("argument count")
                 || message.contains("argument")
                 || message.contains("parameter"),
-            "unexpected diagnostic: {message}"
+            "unexpected diagnostic: {}", message
         );
     }
 
@@ -2273,6 +2273,16 @@ mod tests {
     fn compiles_uninitialized_aggregate_local_stack_storage() {
         let artifact = compile_source(
             "struct pair { int a; int b; }; int local(void) { struct pair p; p.a = 3; p.b = 4; return p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_wrapped_and_nested_aggregate_member_addresses() {
+        let artifact = compile_source(
+            "struct inner { int x; }; struct outer { struct inner i; }; int f(struct outer *p) { p->i.x = 7; return p->i.x; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
