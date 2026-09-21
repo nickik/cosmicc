@@ -1935,29 +1935,45 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(value)
             }
             ExprType::FuncCall(function, arguments) => {
-                let ExprType::Id(symbol) = &function.expr else {
-                    return Err(unsupported(
-                        expression.location,
-                        "SIA32 indirect calls are not supported yet",
-                    ));
+                let direct_symbol = match &function.expr {
+                    ExprType::Id(symbol) if matches!(symbol.get().ctype, Type::Function(_)) => {
+                        Some(*symbol)
+                    }
+                    _ => None,
                 };
-                let metadata = symbol.get();
-                let Type::Function(function_type) = &metadata.ctype else {
-                    return Err(unsupported(
-                        expression.location,
-                        "SIA32 call target is not a function",
-                    ));
+                let function_type = match &function.ctype {
+                    Type::Function(function_type) => function_type,
+                    Type::Pointer(pointee, _) => match pointee.as_ref() {
+                        Type::Function(function_type) => function_type,
+                        _ => {
+                            return Err(unsupported(
+                                expression.location,
+                                "SIA32 call target pointer does not point to a function",
+                            ))
+                        }
+                    },
+                    _ => {
+                        return Err(unsupported(
+                            expression.location,
+                            "SIA32 call target is not a function",
+                        ))
+                    }
                 };
-                let function_index =
-                    self.function_indices.get(symbol).copied().ok_or_else(|| {
+                let metadata = direct_symbol.map(|symbol| symbol.get());
+                let function_type = function_type;
+                let function_index = if let Some(symbol) = direct_symbol {
+                    Some(self.function_indices.get(&symbol).copied().ok_or_else(|| {
                         unsupported(
                             expression.location,
                             format!(
                                 "SIA32 direct call target `{}` has no translation-unit definition",
-                                metadata.id.resolve_and_clone()
+                                symbol.get().id.resolve_and_clone()
                             ),
                         )
-                    })?;
+                    })?)
+                } else {
+                    None
+                };
                 let parameters = function_parameters(function_type);
                 if (!function_type.varargs && arguments.len() != parameters.len())
                     || (function_type.varargs && arguments.len() < parameters.len())
@@ -1994,17 +2010,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         expression.location,
                     )?));
                 }
-                let external = self
-                    .builder
-                    .func
-                    .declare_imported_user_function(UserExternalName::new(0, function_index));
                 let signature = self.builder.import_signature(signature);
-                let function_ref = self.builder.import_function(ExtFuncData {
-                    name: ExternalName::user(external),
-                    signature,
-                    colocated: true,
-                    patchable: false,
-                });
+                let function_ref = if let Some(function_index) = function_index {
+                    let external = self
+                        .builder
+                        .func
+                        .declare_imported_user_function(UserExternalName::new(0, function_index));
+                    Some(self.builder.import_function(ExtFuncData {
+                        name: ExternalName::user(external),
+                        signature,
+                        colocated: true,
+                        patchable: false,
+                    }))
+                } else {
+                    None
+                };
                 let mut values = Vec::with_capacity(arguments.len());
                 for (index, argument) in arguments.iter().enumerate() {
                     let value = self.compile_expr(argument)?;
@@ -2020,7 +2040,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     };
                     values.push(self.coerce_integer_value(value, parameter_ty, &argument.ctype));
                 }
-                let call = self.builder.ins().call(function_ref, &values);
+                let call = if let Some(function_ref) = function_ref {
+                    self.builder.ins().call(function_ref, &values)
+                } else {
+                    let callee = self.compile_expr(function)?;
+                    self.builder.ins().call_indirect(signature, callee, &values)
+                };
                 if matches!(*function_type.return_type, Type::Void) {
                     // Expression statements discard this value. Returning a
                     // harmless integer placeholder keeps compile_expr uniform
@@ -2284,6 +2309,16 @@ mod tests {
     #[test]
     fn compiles_integer_negation_without_backend_ineg() {
         let artifact = compile_source("int neg(int x) { return -x; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_integer_function_pointer_calls() {
+        let artifact = compile_source(
+            "int apply(int (*f)(int), int x) { return f(x); }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
