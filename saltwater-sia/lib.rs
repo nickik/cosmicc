@@ -1428,6 +1428,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     // Address-taken scalar locals require stack-slot lowering; do not
                     // silently manufacture an address for an SSA variable.
                     ExprType::Id(symbol) => self.address_of_local(*symbol, expression.location),
+                    ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                        self.compile_lvalue_address(lvalue)
+                    }
                     _ => Err(unsupported(
                         expression.location,
                         format!("SIA32 address-of lowering is not implemented for {lvalue:?}"),
@@ -1581,13 +1584,19 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 match &lvalue.expr {
                     ExprType::Id(symbol) => {
-                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                            unsupported(
-                                expression.location,
-                                "SIA32 post-increment/decrement target is not a mapped local",
-                            )
-                        })?;
-                        self.builder.def_var(variable, updated);
+                        if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, updated, slot, 0);
+                        } else {
+                            let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                                unsupported(
+                                    expression.location,
+                                    "SIA32 post-increment/decrement target is not a mapped local",
+                                )
+                            })?;
+                            self.builder.def_var(variable, updated);
+                        }
                     }
                     ExprType::Member(base, member) => {
                         let address =
@@ -1598,6 +1607,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     ExprType::Deref(pointer) => {
                         let address = self.compile_expr(pointer)?;
+                        self.builder
+                            .ins()
+                            .store(MemFlagsData::new(), updated, address, 0);
+                    }
+                    ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                        let address = self.compile_lvalue_address(lvalue)?;
                         self.builder
                             .ins()
                             .store(MemFlagsData::new(), updated, address, 0);
@@ -2329,6 +2344,26 @@ mod tests {
         let artifact =
             compile_source("int local(void) { int x = 3; int *p = &x; *p = 7; return x; }")
                 .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_address_of_array_element_and_post_increment() {
+        let artifact = compile_source(
+            "int f(int *p, int i) { int *q = &p[i]; p[i]++; return *q; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_post_increment_of_address_taken_scalar_local() {
+        let artifact = compile_source(
+            "int f(void) { int x = 1; int *p = &x; x++; return *p; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
