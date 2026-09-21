@@ -561,6 +561,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
         })
         .collect();
     let mut functions = Vec::new();
+    let mut data = Vec::new();
     for (index, declaration) in declarations.iter().enumerate() {
         let metadata = declaration.data.symbol.get();
         if metadata.storage_class == StorageClass::Typedef {
@@ -571,20 +572,48 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             _ if metadata.storage_class == StorageClass::Extern
                 && declaration.data.init.is_none() =>
             {
-                // A declaration-only extern object allocates no storage in this
-                // translation unit. Accept it here; an actual reference still
-                // requires global-symbol lowering.
+                // Declaration-only extern objects allocate no storage here.
                 continue;
             }
-            _ => {
-                return Err(unsupported(
-                    declaration.location,
-                    format!(
-                        "SIA32 top-level data unsupported: symbol={:?}, metadata={metadata:?}, init={:?}",
-                        declaration.data.symbol,
-                        declaration.data.init,
-                    ),
-                ));
+            object_type => {
+                if declaration.data.init.is_some() {
+                    return Err(unsupported(
+                        declaration.location,
+                        "initialized global objects require SIA32 global-initializer lowering",
+                    ));
+                }
+                let size = usize::try_from(object_type.sizeof().map_err(|error| {
+                    unsupported(declaration.location, error.to_string())
+                })?)
+                .map_err(|_| {
+                    unsupported(
+                        declaration.location,
+                        "global object is too large for the host compiler",
+                    )
+                })?;
+                let align = u32::try_from(object_type.alignof().map_err(|error| {
+                    unsupported(declaration.location, error.to_string())
+                })?)
+                .map_err(|_| {
+                    unsupported(
+                        declaration.location,
+                        "global object alignment does not fit in u32",
+                    )
+                })?;
+                let raw_name = metadata.id.resolve_and_clone();
+                let name = if metadata.storage_class == StorageClass::Static {
+                    format!("__cosmic_static_global_{index}_{raw_name}")
+                } else {
+                    raw_name
+                };
+                data.push(DataArtifact {
+                    name,
+                    bytes: vec![0; size],
+                    align: align.max(1),
+                    read_only: metadata.qualifiers.c_const,
+                    relocations: Vec::new(),
+                });
+                continue;
             }
         };
         let body = match &declaration.data.init {
@@ -616,7 +645,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     Ok(Artifact {
         target: TARGET,
         functions,
-        data: Vec::new(),
+        data,
     })
 }
 
@@ -2505,6 +2534,19 @@ mod tests {
 
     fn compile_source(source: &str) -> Result<Artifact, Error> {
         compile(source, Opt::default())
+    }
+
+    #[test]
+    fn emits_zero_initialized_top_level_objects() {
+        let artifact =
+            compile_source("int global; static unsigned short hidden; int f(void) { return 0; }")
+                .unwrap();
+        assert_eq!(artifact.data.len(), 2);
+        assert_eq!(artifact.data[0].name, "global");
+        assert_eq!(artifact.data[0].bytes, vec![0; 4]);
+        assert_eq!(artifact.data[0].align, 4);
+        assert_eq!(artifact.data[1].bytes, vec![0; 2]);
+        assert!(artifact.data[1].name.contains("hidden"));
     }
 
     #[test]
