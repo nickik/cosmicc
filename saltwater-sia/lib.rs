@@ -11,7 +11,7 @@ use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData, Signature,
+    types, AbiParam, Block, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData, Signature,
     UserExternalName, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
@@ -556,6 +556,10 @@ fn compile_function(
                 ));
             }
         }
+        // Forward gotos can add predecessors after their target block is first
+        // encountered, so defer sealing those blocks until the whole function
+        // has been lowered.
+        builder.seal_all_blocks();
         builder.finalize(isa.frontend_config());
     }
 
@@ -632,7 +636,8 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     function_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
-    loop_targets: Vec<(cranelift_codegen::ir::Block, cranelift_codegen::ir::Block)>,
+    loop_targets: Vec<(Block, Block)>,
+    labels: HashMap<saltwater_parser::intern::InternedStr, Block>,
     terminated: bool,
 }
 
@@ -654,11 +659,27 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             function_indices,
             return_type,
             loop_targets: Vec::new(),
+            labels: HashMap::new(),
             terminated: false,
         }
     }
 
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
+        // A label starts a new reachable basic block even when the preceding
+        // statement terminated (for example with goto or return).
+        if let StmtType::Label(label, inner) = &statement.data {
+            let block = *self
+                .labels
+                .entry(*label)
+                .or_insert_with(|| self.builder.create_block());
+            if !self.terminated {
+                self.builder.ins().jump(block, &[]);
+            }
+            self.builder.switch_to_block(block);
+            self.terminated = false;
+            return self.compile_stmt(inner);
+        }
+
         if self.terminated {
             return Ok(());
         }
@@ -862,6 +883,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         unsupported(statement.location, "break outside a SIA32 loop")
                     })?;
                 self.builder.ins().jump(exit, &[]);
+                self.terminated = true;
+                Ok(())
+            }
+            StmtType::Goto(label) => {
+                let block = *self
+                    .labels
+                    .entry(*label)
+                    .or_insert_with(|| self.builder.create_block());
+                self.builder.ins().jump(block, &[]);
                 self.terminated = true;
                 Ok(())
             }
@@ -1752,6 +1782,16 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_forward_and_backward_goto_labels() {
+        let artifact = compile_source(
+            "int forward(int x) { goto done; x = 9; done: return x; } int backward(int x) { again: if (x) { x = x - 1; goto again; } return x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
     }
 
     #[test]
