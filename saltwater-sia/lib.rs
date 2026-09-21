@@ -11,8 +11,9 @@ use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Block, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData,
-    Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName, UserFuncName, Value,
+    types, AbiParam, Block, ExtFuncData, ExternalName, Function, GlobalValueData, InstBuilder,
+    MemFlagsData, Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName,
+    UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -879,6 +880,16 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 .then_some((declaration.data.symbol, index as u32))
         })
         .collect();
+    let global_indices: HashMap<Symbol, u32> = declarations
+        .iter()
+        .enumerate()
+        .filter_map(|(index, declaration)| {
+            let metadata = declaration.data.symbol.get();
+            (!matches!(metadata.ctype, Type::Function(_))
+                && metadata.storage_class != StorageClass::Typedef)
+                .then_some((declaration.data.symbol, index as u32))
+        })
+        .collect();
     let symbol_names: HashMap<Symbol, String> = declarations
         .iter()
         .enumerate()
@@ -974,6 +985,8 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             declaration.location,
             index as u32,
             &function_indices,
+            &global_indices,
+            &symbol_names,
             &*isa,
         )?);
     }
@@ -1018,6 +1031,8 @@ fn compile_function(
     location: Location,
     function_index: u32,
     function_indices: &HashMap<Symbol, u32>,
+    global_indices: &HashMap<Symbol, u32>,
+    symbol_names: &HashMap<Symbol, String>,
     isa: &dyn TargetIsa,
 ) -> Result<FunctionArtifact, Error> {
     let mut signature = Signature::new(CallConv::SystemV);
@@ -1048,7 +1063,11 @@ fn compile_function(
         let entry_values = builder.block_params(entry).to_vec();
 
         let terminated = {
-            let mut lowerer = FunctionLowerer::new(&mut builder, function_indices);
+            let mut lowerer = FunctionLowerer::new(
+                &mut builder,
+                function_indices,
+                global_indices,
+            );
             for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
                 let parameter_ty = match &parameter.get().ctype {
                     Type::Function(_) => types::I32,
@@ -1105,14 +1124,25 @@ fn compile_function(
         let target = match &relocation.target {
             RelocTarget::ExternalName(ExternalName::User(reference)) => {
                 let user = user_named_funcs[*reference].clone();
-                function_indices
+                let table = match user.namespace {
+                    0 => function_indices,
+                    1 => global_indices,
+                    namespace => {
+                        return Err(Error::Codegen(format!(
+                            "SIA32 emitted relocation from unknown namespace {namespace} in {name}"
+                        )))
+                    }
+                };
+                table
                     .iter()
                     .find_map(|(symbol, index)| {
-                        (*index == user.index).then(|| symbol.get().id.resolve_and_clone())
+                        (*index == user.index)
+                            .then(|| symbol_names.get(symbol).cloned())
+                            .flatten()
                     })
                     .ok_or_else(|| {
                         Error::Codegen(format!(
-                            "SIA32 emitted unknown function relocation in {name}"
+                            "SIA32 emitted unknown symbol relocation in {name}"
                         ))
                     })?
             }
@@ -1154,6 +1184,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     stack_locals: HashMap<Symbol, StackSlot>,
     function_indices: &'c HashMap<Symbol, u32>,
+    global_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block)>,
     break_targets: Vec<Block>,
@@ -1166,6 +1197,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     fn new(
         builder: &'a mut FunctionBuilder<'b>,
         function_indices: &'c HashMap<Symbol, u32>,
+        global_indices: &'c HashMap<Symbol, u32>,
     ) -> Self {
         let return_type = builder
             .func
@@ -1179,6 +1211,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             variable_types: HashMap::new(),
             stack_locals: HashMap::new(),
             function_indices,
+            global_indices,
             return_type,
             loop_targets: Vec::new(),
             break_targets: Vec::new(),
@@ -1186,6 +1219,35 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             labels: HashMap::new(),
             terminated: false,
         }
+    }
+
+    fn symbol_address(
+        &mut self,
+        symbol: Symbol,
+        addend: i64,
+        location: Location,
+    ) -> Result<Value, Error> {
+        let (namespace, index) = if let Some(index) = self.function_indices.get(&symbol).copied() {
+            (0, index)
+        } else if let Some(index) = self.global_indices.get(&symbol).copied() {
+            (1, index)
+        } else {
+            return Err(unsupported(
+                location,
+                "SIA32 symbol address has no translation-unit declaration",
+            ));
+        };
+        let external = self
+            .builder
+            .func
+            .declare_imported_user_function(UserExternalName::new(namespace, index));
+        let global = self.builder.func.create_global_value(GlobalValueData::Symbol {
+            name: ExternalName::user(external),
+            offset: addend.into(),
+            colocated: false,
+            tls: false,
+        });
+        Ok(self.builder.ins().symbol_value(types::I32, global))
     }
 
     fn compile_condition(&mut self, expression: &Expr) -> Result<Value, Error> {
@@ -1823,7 +1885,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
     fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
         match &lvalue.expr {
-            ExprType::Id(symbol) => self.address_of_local(*symbol, lvalue.location),
+            ExprType::Id(symbol) => {
+                if self.variables.contains_key(symbol) || self.stack_locals.contains_key(symbol) {
+                    self.address_of_local(*symbol, lvalue.location)
+                } else {
+                    self.symbol_address(*symbol, 0, lvalue.location)
+                }
+            },
             ExprType::Deref(pointer) => self.compile_expr(pointer),
             ExprType::Member(base, member) => {
                 self.compile_member_address(base, *member, lvalue.location)
@@ -1893,14 +1961,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // Direct local aggregate member access, e.g. local.field.
                 if let Some(slot) = self.stack_locals.get(symbol).copied() {
                     self.builder.ins().stack_addr(types::I32, slot, 0)
-                } else {
-                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            location,
-                            "direct aggregate member base has no SIA32 storage",
-                        )
-                    })?;
+                } else if let Some(variable) = self.variables.get(symbol).copied() {
                     self.builder.use_var(variable)
+                } else {
+                    self.symbol_address(*symbol, 0, location)?
                 }
             }
             ExprType::Deref(pointer) => {
@@ -1988,10 +2052,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                 } else if let Some(variable) = self.variables.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
+                } else if self.global_indices.contains_key(symbol)
+                    || self.function_indices.contains_key(symbol)
+                {
+                    self.symbol_address(*symbol, 0, expression.location)
                 } else {
                     Err(unsupported(
                         expression.location,
-                        "taking addresses of globals or unsupported objects is not supported for SIA32 yet",
+                        "SIA32 identifier has no local or symbolic storage",
                     ))
                 }
             }
@@ -2103,16 +2171,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         } else {
                             Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                         }
-                    } else {
-                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                            unsupported(
-                                expression.location,
-                                format!(
-                                    "SIA32 Deref(Id) has no local mapping: symbol={symbol:?}, expr={expression:?}"
-                                ),
-                            )
-                        })?;
+                    } else if let Some(variable) = self.variables.get(symbol).copied() {
                         Ok(self.builder.use_var(variable))
+                    } else {
+                        let address = self.symbol_address(*symbol, 0, expression.location)?;
+                        Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                     }
                 }
                 ExprType::Member(_, _) | ExprType::Noop(_) | ExprType::Cast(_) => {
@@ -2875,6 +2938,19 @@ mod tests {
 
     fn compile_source(source: &str) -> Result<Artifact, Error> {
         compile(source, Opt::default())
+    }
+
+    #[test]
+    fn compiles_global_load_store_and_address_relocations() {
+        let artifact = compile_source(
+            "int global = 3; int read(void) { return global; } int write(int x) { global = x; return global; } int *address(void) { return &global; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 3);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| function.relocations.iter().any(|reloc| reloc.target == "global")));
     }
 
     #[test]
