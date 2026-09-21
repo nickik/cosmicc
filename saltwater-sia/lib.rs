@@ -1415,7 +1415,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::StaticRef(value) => {
                 let mut lvalue = value.as_ref();
-                while let ExprType::Noop(inner) = &lvalue.expr {
+                while let ExprType::Noop(inner) | ExprType::Cast(inner) = &lvalue.expr {
                     lvalue = inner;
                 }
                 match &lvalue.expr {
@@ -1745,6 +1745,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     };
 
                     if let ExprType::Id(symbol) = &pointer.expr {
+                        if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                            if let Some(variable_ty) = self.variable_types.get(symbol).copied() {
+                                let value =
+                                    self.coerce_integer_value(value, variable_ty, &right.ctype);
+                                self.builder
+                                    .ins()
+                                    .stack_store(types::I32, value, slot, 0);
+                                return Ok(value);
+                            }
+                        }
                         if let Some(variable) = self.variables.get(symbol).copied() {
                             let variable_ty =
                                 *self.variable_types.get(symbol).ok_or_else(|| {
@@ -2368,6 +2378,16 @@ mod tests {
         let artifact =
             compile_source("int f(void) { int x = 3; int *p = &x; *p = 9; return x + 1; }")
                 .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_assignment_to_address_taken_local_hir_deref() {
+        let artifact = compile_source(
+            "int f(void) { int x = 1; int *p = &x; x = 5; return *p; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
