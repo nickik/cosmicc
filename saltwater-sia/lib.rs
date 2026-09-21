@@ -320,6 +320,17 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let declarations = program.result.map_err(Error::Source)?;
 
     for declaration in &declarations {
+        let metadata = declaration.data.symbol.get();
+        let name = metadata.id.resolve_and_clone();
+        if name == "ext2fs_has_feature_metadata_csum" {
+            eprintln!(
+                "TARGET FUNCTION: symbol={:?} metadata={metadata:?} init={:?}",
+                declaration.data.symbol, declaration.data.init,
+            );
+        }
+    }
+
+    for declaration in &declarations {
         if declaration_uses_float(&declaration.data) {
             return Err(unsupported(
                 declaration.location,
@@ -856,6 +867,18 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
 
                     if let ExprType::Id(symbol) = &pointer.expr {
                         if let Some(variable) = self.variables.get(symbol).copied() {
+                            let current_value = self.builder.use_var(variable);
+                            let variable_ty = self.builder.func.dfg.value_type(current_value);
+                            let value_ty = self.builder.func.dfg.value_type(value);
+
+                            let value = if value_ty == variable_ty {
+                                value
+                            } else if value_ty.bits() < variable_ty.bits() {
+                                self.builder.ins().uextend(variable_ty, value)
+                            } else {
+                                self.builder.ins().ireduce(variable_ty, value)
+                            };
+
                             self.builder.def_var(variable, value);
                             return Ok(value);
                         }
@@ -956,6 +979,18 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     }
                 };
                 Ok(value)
+            }
+            ExprType::FuncCall(function, arguments) => {
+                Err(unsupported(
+                    expression.location,
+                    format!(
+                        "SIA32 FuncCall unsupported: function={function:?}, arguments={arguments:?}, callee_metadata={:?}",
+                        match &function.expr {
+                            ExprType::Id(symbol) => Some(symbol.get()),
+                            _ => None,
+                        },
+                    ),
+                ))
             }
             other => Err(unsupported(
                 expression.location,
