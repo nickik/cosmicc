@@ -1394,6 +1394,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     // Both denote the same SSA local in this backend.
                     if let ExprType::Id(symbol) = &assignment_left.expr {
                         if let Some(variable) = self.variables.get(symbol).copied() {
+                            let variable_ty = *self.variable_types.get(symbol).ok_or_else(|| {
+                                unsupported(
+                                    expression.location,
+                                    "SIA32 local variable type metadata is missing",
+                                )
+                            })?;
+                            let value = self.coerce_integer_value(value, variable_ty, &right.ctype);
                             self.builder.def_var(variable, value);
                             return Ok(value);
                         }
@@ -1431,15 +1438,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                         "SIA32 local variable type metadata is missing",
                                     )
                                 })?;
-                            let value_ty = self.builder.func.dfg.value_type(value);
-
-                            let value = if value_ty == variable_ty {
-                                value
-                            } else if value_ty.bits() < variable_ty.bits() {
-                                self.builder.ins().uextend(variable_ty, value)
-                            } else {
-                                self.builder.ins().ireduce(variable_ty, value)
-                            };
+                            let value =
+                                self.coerce_integer_value(value, variable_ty, &right.ctype);
 
                             self.builder.def_var(variable, value);
                             return Ok(value);
@@ -1913,6 +1913,26 @@ mod tests {
     fn compiles_scalar_post_increment_and_decrement() {
         let artifact = compile_source(
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_narrow_local_assignment_conversions() {
+        let artifact = compile_source(
+            "int narrow(int x) { char c; short s; c = x; s = x; c = s; return c; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_signed_and_unsigned_widening_assignments() {
+        let artifact = compile_source(
+            "int widen(unsigned char u, signed char s) { int a; int b; a = u; b = s; return a + b; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
