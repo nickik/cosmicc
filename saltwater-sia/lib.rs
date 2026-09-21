@@ -667,12 +667,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         // statement terminated (for example with goto or return).
         if let StmtType::Label(label, inner) = &statement.data {
             let block = if let Some(block) = self.labels.get(label).copied() {
-                    block
-                } else {
-                    let block = self.builder.create_block();
-                    self.labels.insert(*label, block);
-                    block
-                };
+                block
+            } else {
+                let block = self.builder.create_block();
+                self.labels.insert(*label, block);
+                block
+            };
             if !self.terminated {
                 self.builder.ins().jump(block, &[]);
             }
@@ -2029,8 +2029,14 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
-        assert!(artifact.functions.iter().any(|function| !function.relocations.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .any(|function| !function.relocations.is_empty()));
     }
 
     #[test]
