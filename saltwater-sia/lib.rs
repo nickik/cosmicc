@@ -3172,11 +3172,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         let boolean = self.builder.ins().icmp(condition, left, right);
                         self.builder.ins().uextend(types::I32, boolean)
                     }
-                    _ => {
-                        return Err(unsupported(
-                            expression.location,
-                            format!("SIA32 operator lowering is not implemented for {operator:?}"),
-                        ));
+                    BinaryOp::Assign | BinaryOp::LogicalAnd | BinaryOp::LogicalOr => {
+                        unreachable!("assignment and logical operators are lowered before this match")
                     }
                 };
                 Ok(value)
