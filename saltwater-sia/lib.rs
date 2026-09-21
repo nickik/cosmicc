@@ -1455,20 +1455,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         // Such calls are handled explicitly below; all value-producing
         // expressions still require a concrete CLIF integer type.
         let ty = match &expression.ctype {
-            Type::Void
-            | Type::Function(_)
-            | Type::Struct(_)
-            | Type::Union(_)
-            | Type::Array(_, _) => types::I32,
+            Type::Void => types::I32,
+            other if is_address_valued_type(other) => types::I32,
             other => ir_type(other, expression.location)?,
         };
         match &expression.expr {
             ExprType::Id(symbol) => {
                 if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                    if matches!(
-                        expression.ctype,
-                        Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
-                    ) {
+                    if is_address_valued_type(&expression.ctype) {
                         Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                     } else if let Some(value_ty) = self.variable_types.get(symbol).copied() {
                         Ok(self.builder.ins().stack_load(value_ty, types::I32, slot, 0))
@@ -1566,10 +1560,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::Member(base, member) => {
                 let address = self.compile_member_address(base, *member, expression.location)?;
-                if matches!(
-                    expression.ctype,
-                    Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
-                ) {
+                if is_address_valued_type(&expression.ctype) {
                     Ok(address)
                 } else {
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
@@ -1580,10 +1571,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             // loads it. This backend keeps non-address-taken locals in SSA,
             // so this pair becomes a direct `use_var` instead of a memory load.
             ExprType::Deref(pointer)
-                if matches!(
-                    expression.ctype,
-                    Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
-                ) =>
+                if is_address_valued_type(&expression.ctype) =>
             {
                 self.compile_expr(pointer)
             }
@@ -2145,6 +2133,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     }
 }
 
+fn is_address_valued_type(ctype: &Type) -> bool {
+    matches!(
+        ctype,
+        Type::Function(_) | Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+    )
+}
+
 fn is_signed_integer_type(ctype: &Type) -> bool {
     matches!(
         ctype,
@@ -2160,7 +2155,11 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
     let ty = match ctype {
         Type::Bool | Type::Char(_) => types::I8,
         Type::Short(_) => types::I16,
-        Type::Int(_) | Type::Long(_) | Type::Enum(_, _) | Type::Pointer(_, _) => types::I32,
+        Type::Int(_)
+        | Type::Long(_)
+        | Type::Enum(_, _)
+        | Type::Pointer(_, _)
+        | Type::Function(_) => types::I32,
         Type::Float | Type::Double => {
             return Err(unsupported(
                 location,
@@ -2418,6 +2417,16 @@ mod tests {
         let artifact = compile_source("int neg(int x) { return -x; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn function_designator_types_are_pointer_width_on_sia32() {
+        let artifact = compile_source(
+            "int inc(int x) { return x + 1; } int apply(int (*f)(int), int x) { return f(x); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
     }
 
     #[test]
