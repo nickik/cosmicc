@@ -1268,6 +1268,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
     fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
         match &lvalue.expr {
+            ExprType::Id(symbol) => self.address_of_local(*symbol, lvalue.location),
             ExprType::Deref(pointer) => self.compile_expr(pointer),
             ExprType::Member(base, member) => {
                 self.compile_member_address(base, *member, lvalue.location)
@@ -1438,20 +1439,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 match &lvalue.expr {
                     // &*p is exactly p and does not perform a load.
                     ExprType::Deref(pointer) => self.compile_expr(pointer),
-                    // Member-address lowering already computes the lvalue address.
-                    ExprType::Member(base, member) => {
-                        self.compile_member_address(base, *member, expression.location)
-                    }
-                    // Address-taken scalar locals require stack-slot lowering; do not
-                    // silently manufacture an address for an SSA variable.
-                    ExprType::Id(symbol) => self.address_of_local(*symbol, expression.location),
-                    ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
-                        self.compile_lvalue_address(lvalue)
-                    }
-                    _ => Err(unsupported(
-                        expression.location,
-                        format!("SIA32 address-of lowering is not implemented for {lvalue:?}"),
-                    )),
+                    _ => self.compile_lvalue_address(lvalue),
                 }
             }
             ExprType::Literal(LiteralValue::Int(value)) => {
@@ -1577,7 +1565,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::PostIncrement(value, increment) => {
                 let mut lvalue = value.as_ref();
-                while let ExprType::Noop(inner) = &lvalue.expr {
+                while let ExprType::Noop(inner) | ExprType::Cast(inner) = &lvalue.expr {
                     lvalue = inner;
                 }
 
@@ -2431,6 +2419,16 @@ mod tests {
         let artifact =
             compile_source("int local(void) { int x = 3; int *p = &x; *p = 7; return x; }")
                 .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_address_of_local_and_member_through_common_lvalue_path() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(void) { int x = 1; struct pair p; int *a = &x; int *b = &p.x; *b = 4; return *a + *b; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
