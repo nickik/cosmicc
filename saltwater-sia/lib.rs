@@ -1259,7 +1259,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
                 self.compile_expr(lvalue)
             }
-            ExprType::Noop(inner) => self.compile_lvalue_address(inner),
+            ExprType::Noop(inner) | ExprType::Cast(inner) => self.compile_lvalue_address(inner),
             _ => Err(unsupported(
                 lvalue.location,
                 format!("SIA32 cannot form address for lvalue {lvalue:?}"),
@@ -1509,15 +1509,23 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             // so this pair becomes a direct `use_var` instead of a memory load.
             ExprType::Deref(pointer) => match &pointer.expr {
                 ExprType::Id(symbol) => {
-                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            expression.location,
-                            format!(
-                                "SIA32 Deref(Id) has no local mapping: symbol={symbol:?}, expr={expression:?}"
-                            ),
-                        )
-                    })?;
-                    Ok(self.builder.use_var(variable))
+                    if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                        if let Some(value_ty) = self.variable_types.get(symbol).copied() {
+                            Ok(self.builder.ins().stack_load(value_ty, types::I32, slot, 0))
+                        } else {
+                            Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
+                        }
+                    } else {
+                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                            unsupported(
+                                expression.location,
+                                format!(
+                                    "SIA32 Deref(Id) has no local mapping: symbol={symbol:?}, expr={expression:?}"
+                                ),
+                            )
+                        })?;
+                        Ok(self.builder.use_var(variable))
+                    }
                 }
                 ExprType::Member(base, member) => {
                     let address =
@@ -2351,6 +2359,16 @@ mod tests {
     fn compiles_address_of_array_element_and_post_increment() {
         let artifact =
             compile_source("int f(int *p, int i) { int *q = &p[i]; p[i]++; return *q; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_direct_read_after_address_taken_scalar_local() {
+        let artifact = compile_source(
+            "int f(void) { int x = 3; int *p = &x; *p = 9; return x + 1; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
