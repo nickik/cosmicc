@@ -337,10 +337,22 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
         }
         let function_type = match &metadata.ctype {
             Type::Function(function_type) => function_type,
+            _ if metadata.storage_class == StorageClass::Extern
+                && declaration.data.init.is_none() =>
+            {
+                // A declaration-only extern object allocates no storage in this
+                // translation unit. Accept it here; an actual reference still
+                // requires global-symbol lowering.
+                continue;
+            }
             _ => {
                 return Err(unsupported(
                     declaration.location,
-                    "global data is not implemented in the initial SIA32 compiler path",
+                    format!(
+                        "SIA32 top-level data unsupported: symbol={:?}, metadata={metadata:?}, init={:?}",
+                        declaration.data.symbol,
+                        declaration.data.init,
+                    ),
                 ));
             }
         };
@@ -815,6 +827,24 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                         assignment_left = inner;
                     }
 
+                    let value = self.compile_expr(right)?;
+
+                    // The analyzer may represent an ordinary local assignment
+                    // either directly as Id(symbol) or as Deref(Id(symbol)).
+                    // Both denote the same SSA local in this backend.
+                    if let ExprType::Id(symbol) = &assignment_left.expr {
+                        if let Some(variable) = self.variables.get(symbol).copied() {
+                            self.builder.def_var(variable, value);
+                            return Ok(value);
+                        }
+                        return Err(unsupported(
+                            left.location,
+                            format!(
+                                "SIA32 assignment to unmapped Id: symbol={symbol:?}, lhs={left:?}"
+                            ),
+                        ));
+                    }
+
                     let ExprType::Deref(pointer) = &assignment_left.expr else {
                         return Err(unsupported(
                             left.location,
@@ -823,13 +853,14 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                             ),
                         ));
                     };
-                    let value = self.compile_expr(right)?;
+
                     if let ExprType::Id(symbol) = &pointer.expr {
                         if let Some(variable) = self.variables.get(symbol).copied() {
                             self.builder.def_var(variable, value);
                             return Ok(value);
                         }
                     }
+
                     let address = self.compile_expr(pointer)?;
                     self.builder
                         .ins()
