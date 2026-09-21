@@ -2365,10 +2365,9 @@ mod tests {
 
     #[test]
     fn compiles_direct_read_after_address_taken_scalar_local() {
-        let artifact = compile_source(
-            "int f(void) { int x = 3; int *p = &x; *p = 9; return x + 1; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int f(void) { int x = 3; int *p = &x; *p = 9; return x + 1; }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
