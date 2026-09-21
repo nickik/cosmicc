@@ -1139,6 +1139,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         initializer: &Initializer,
         location: Location,
     ) -> Result<(), Error> {
+        self.initialize_stack_aggregate_at(slot, ctype, initializer, 0, location)
+    }
+
+    fn initialize_stack_aggregate_at(
+        &mut self,
+        slot: StackSlot,
+        ctype: &Type,
+        initializer: &Initializer,
+        base_offset: u64,
+        location: Location,
+    ) -> Result<(), Error> {
         let Initializer::InitializerList(items) = initializer else {
             return Err(unsupported(
                 location,
@@ -1154,21 +1165,32 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     if u64::try_from(index).unwrap_or(u64::MAX) >= *count {
                         break;
                     }
-                    let Initializer::Scalar(expression) = item else {
-                        return Err(unsupported(
-                            location,
-                            "nested aggregate initialization is not supported for SIA32 yet",
-                        ));
-                    };
-                    let value = self.compile_expr(expression)?;
-                    let value_ty = ir_type(element, location)?;
-                    let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
-                    let offset = i32::try_from((index as u64) * element_size).map_err(|_| {
-                        unsupported(location, "aggregate initializer offset is too large")
-                    })?;
-                    self.builder
-                        .ins()
-                        .stack_store(types::I32, value, slot, offset);
+                    let offset = base_offset + (index as u64) * element_size;
+                    match item {
+                        Initializer::Scalar(expression) => {
+                            let value = self.compile_expr(expression)?;
+                            let value_ty = ir_type(element, location)?;
+                            let value =
+                                self.coerce_integer_value(value, value_ty, &expression.ctype);
+                            let offset = i32::try_from(offset).map_err(|_| {
+                                unsupported(location, "aggregate initializer offset is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, offset);
+                        }
+                        Initializer::InitializerList(_) => {
+                            self.initialize_stack_aggregate_at(
+                                slot, element, item, offset, location,
+                            )?;
+                        }
+                        _ => {
+                            return Err(unsupported(
+                                location,
+                                "unsupported array initializer element",
+                            ))
+                        }
+                    }
                 }
                 Ok(())
             }
@@ -1182,21 +1204,32 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     if rem != 0 {
                         offset += align - rem;
                     }
-                    let Initializer::Scalar(expression) = item else {
-                        return Err(unsupported(
-                            location,
-                            "nested aggregate initialization is not supported for SIA32 yet",
-                        ));
-                    };
-                    let value = self.compile_expr(expression)?;
-                    let value_ty = ir_type(&field.ctype, location)?;
-                    let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
-                    let field_offset = i32::try_from(offset).map_err(|_| {
-                        unsupported(location, "aggregate initializer offset is too large")
-                    })?;
-                    self.builder
-                        .ins()
-                        .stack_store(types::I32, value, slot, field_offset);
+                    let field_offset = base_offset + offset;
+                    match item {
+                        Initializer::Scalar(expression) => {
+                            let value = self.compile_expr(expression)?;
+                            let value_ty = ir_type(&field.ctype, location)?;
+                            let value =
+                                self.coerce_integer_value(value, value_ty, &expression.ctype);
+                            let field_offset = i32::try_from(field_offset).map_err(|_| {
+                                unsupported(location, "aggregate initializer offset is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, field_offset);
+                        }
+                        Initializer::InitializerList(_) => {
+                            self.initialize_stack_aggregate_at(
+                                slot, &field.ctype, item, field_offset, location,
+                            )?;
+                        }
+                        _ => {
+                            return Err(unsupported(
+                                location,
+                                "unsupported struct initializer element",
+                            ))
+                        }
+                    }
                     offset += field
                         .ctype
                         .sizeof()
@@ -2300,6 +2333,16 @@ mod tests {
     fn compiles_pointer_arithmetic_lvalue_assignment() {
         let artifact =
             compile_source("int store(int *p, int i, int x) { p[i] = x; return p[i]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_nested_aggregate_local_initializers() {
+        let artifact = compile_source(
+            "struct inner { int x; int y; }; struct outer { struct inner i; int a[2]; }; int f(void) { struct outer o = { { 1, 2 }, { 3, 4 } }; return o.i.y + o.a[1]; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
