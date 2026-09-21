@@ -773,22 +773,45 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         Ok(())
     }
 
-    fn compile_member_address(&mut self, base: &Expr, member: saltwater_parser::intern::InternedStr, location: Location) -> Result<Value, Error> {
+    fn compile_member_address(
+        &mut self,
+        base: &Expr,
+        member: saltwater_parser::intern::InternedStr,
+        location: Location,
+    ) -> Result<Value, Error> {
         let struct_type = match &base.ctype {
             Type::Struct(struct_type) | Type::Union(struct_type) => struct_type,
-            _ => return Err(unsupported(location, "member access requires a struct or union base")),
+            _ => {
+                return Err(unsupported(
+                    location,
+                    "member access requires a struct or union base",
+                ))
+            }
         };
         let mut offset = 0u64;
         if matches!(&base.ctype, Type::Struct(_)) {
             let mut found = false;
             for field in struct_type.members().iter() {
-                let align = field.ctype.alignof().map_err(|_| unsupported(location, "member has unsupported alignment"))?;
+                let align = field
+                    .ctype
+                    .alignof()
+                    .map_err(|_| unsupported(location, "member has unsupported alignment"))?;
                 let rem = offset % align;
-                if rem != 0 { offset += align - rem; }
-                if field.id == member { found = true; break; }
-                offset += field.ctype.sizeof().map_err(|_| unsupported(location, "member has incomplete type"))?;
+                if rem != 0 {
+                    offset += align - rem;
+                }
+                if field.id == member {
+                    found = true;
+                    break;
+                }
+                offset += field
+                    .ctype
+                    .sizeof()
+                    .map_err(|_| unsupported(location, "member has incomplete type"))?;
             }
-            if !found { return Err(unsupported(location, "unknown struct member")); }
+            if !found {
+                return Err(unsupported(location, "unknown struct member"));
+            }
         }
         fn member_base_pointer(expr: &Expr) -> Option<&Expr> {
             match &expr.expr {
@@ -797,10 +820,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 _ => None,
             }
         }
-        let pointer = member_base_pointer(base).ok_or_else(|| unsupported(location, "SIA32 member access requires an addressable aggregate"))?;
+        let pointer = member_base_pointer(base).ok_or_else(|| {
+            unsupported(
+                location,
+                "SIA32 member access requires an addressable aggregate",
+            )
+        })?;
         let address = match &pointer.expr {
             ExprType::Id(symbol) => {
-                let variable = self.variables.get(symbol).copied().ok_or_else(|| unsupported(location, "global aggregate addresses are not supported for SIA32 yet"))?;
+                let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                    unsupported(
+                        location,
+                        "global aggregate addresses are not supported for SIA32 yet",
+                    )
+                })?;
                 self.builder.use_var(variable)
             }
             _ => self.compile_expr(pointer)?,
@@ -953,7 +986,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                     if let ExprType::Member(base, member) = &assignment_left.expr {
                         let address = self.compile_member_address(base, *member, left.location)?;
-                        self.builder.ins().store(MemFlagsData::new(), value, address, 0);
+                        self.builder
+                            .ins()
+                            .store(MemFlagsData::new(), value, address, 0);
                         return Ok(value);
                     }
 
