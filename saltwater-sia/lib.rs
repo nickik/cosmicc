@@ -1119,20 +1119,30 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     lvalue = inner;
                 }
 
-                if matches!(lvalue.ctype, Type::Pointer(_, _)) {
-                    return Err(unsupported(
-                        expression.location,
-                        "SIA32 pointer post-increment/decrement is not supported yet",
-                    ));
-                }
-
                 let old = self.compile_expr(lvalue)?;
                 let value_ty = self.builder.func.dfg.value_type(old);
-                let one = self.builder.ins().iconst(value_ty, 1);
+                let step = match &lvalue.ctype {
+                    Type::Pointer(pointee, _) => {
+                        let bytes = pointee.sizeof().map_err(|_| {
+                            unsupported(
+                                expression.location,
+                                "SIA32 pointer increment requires a complete pointee type",
+                            )
+                        })?;
+                        i64::try_from(bytes).map_err(|_| {
+                            unsupported(
+                                expression.location,
+                                "SIA32 pointer increment step does not fit in i64",
+                            )
+                        })?
+                    }
+                    _ => 1,
+                };
+                let step = self.builder.ins().iconst(value_ty, step);
                 let updated = if *increment {
-                    self.builder.ins().iadd(old, one)
+                    self.builder.ins().iadd(old, step)
                 } else {
-                    self.builder.ins().isub(old, one)
+                    self.builder.ins().isub(old, step)
                 };
 
                 match &lvalue.expr {
@@ -1726,6 +1736,19 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_pointer_post_increment_and_decrement_with_scaled_steps() {
+        let artifact = compile_source(
+            "int *advance_int(int *p) { p++; return p; } unsigned char *rewind_byte(unsigned char *p) { p--; return p; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
