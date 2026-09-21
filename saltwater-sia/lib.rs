@@ -12,7 +12,7 @@ use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
     types, AbiParam, Block, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData,
-    Signature, UserExternalName, UserFuncName, Value,
+    Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -628,6 +628,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     builder: &'a mut FunctionBuilder<'b>,
     variables: HashMap<Symbol, Variable>,
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
+    stack_locals: HashMap<Symbol, StackSlot>,
     function_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block)>,
@@ -652,6 +653,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             builder,
             variables: HashMap::new(),
             variable_types: HashMap::new(),
+            stack_locals: HashMap::new(),
             function_indices,
             return_type,
             loop_targets: Vec::new(),
@@ -1050,10 +1052,32 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             return Ok(());
         }
         if matches!(metadata.ctype, Type::Struct(_) | Type::Union(_) | Type::Array(_, _)) {
-            return Err(unsupported(
-                location,
-                "aggregate locals require SIA32 stack-slot lowering",
+            let size = u32::try_from(
+                metadata
+                    .ctype
+                    .sizeof()
+                    .map_err(|_| unsupported(location, "aggregate local has incomplete type"))?,
+            )
+            .map_err(|_| unsupported(location, "aggregate local is too large for SIA32"))?;
+            let align = metadata
+                .ctype
+                .alignof()
+                .map_err(|_| unsupported(location, "aggregate local has unsupported alignment"))?;
+            let align_shift = u8::try_from(align.trailing_zeros())
+                .map_err(|_| unsupported(location, "aggregate alignment is too large"))?;
+            let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+                StackSlotKind::ExplicitSlot,
+                size,
+                align_shift,
             ));
+            self.stack_locals.insert(declaration.symbol, slot);
+            if declaration.init.is_some() {
+                return Err(unsupported(
+                    location,
+                    "aggregate local initialization is not supported for SIA32 yet",
+                ));
+            }
+            return Ok(());
         }
         let declared_ty = ir_type(&metadata.ctype, location)?;
         let ty = if declared_ty.bits() < 32 {
@@ -1137,13 +1161,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         })?;
         let address = match &pointer.expr {
             ExprType::Id(symbol) => {
-                let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                    unsupported(
-                        location,
-                        "global aggregate addresses are not supported for SIA32 yet",
-                    )
-                })?;
-                self.builder.use_var(variable)
+                if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                    self.builder.ins().stack_addr(types::I32, slot, 0)
+                } else {
+                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                        unsupported(
+                            location,
+                            "global aggregate addresses are not supported for SIA32 yet",
+                        )
+                    })?;
+                    self.builder.use_var(variable)
+                }
             }
             _ => self.compile_expr(pointer)?,
         };
@@ -1200,6 +1228,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::Id(symbol) => {
                 if let Some(variable) = self.variables.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
+                } else if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                    Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                 } else {
                     Err(unsupported(
                         expression.location,
@@ -2097,6 +2127,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_uninitialized_aggregate_local_stack_storage() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; int local(void) { struct pair p; p.a = 3; p.b = 4; return p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
