@@ -1294,6 +1294,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     })?;
                     Ok(self.builder.use_var(variable))
                 }
+                ExprType::Member(base, member) => {
+                    let address =
+                        self.compile_member_address(base, *member, expression.location)?;
+                    Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+                }
+                ExprType::Noop(inner) => {
+                    if let ExprType::Member(base, member) = &inner.expr {
+                        let address =
+                            self.compile_member_address(base, *member, expression.location)?;
+                        Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+                    } else {
+                        let address = self.compile_expr(pointer)?;
+                        Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+                    }
+                }
                 _ => {
                     let address = self.compile_expr(pointer)?;
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
@@ -2051,6 +2066,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_member_reads_without_double_dereference() {
+        let artifact = compile_source(
+            "struct bytes { char c; short s; }; int read(struct bytes *p) { return p->c + p->s; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
