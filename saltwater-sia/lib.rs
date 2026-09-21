@@ -8,19 +8,22 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 use cranelift_codegen::control::ControlPlane;
+use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Function, InstBuilder, Signature, UserFuncName, Value,
+    types, AbiParam, Function, InstBuilder, MemFlagsData, Signature, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
 use cranelift_codegen::Context;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
+use saltwater_parser::check_semantics;
+pub use saltwater_parser::data::error::LexError;
 use saltwater_parser::data::types::{FunctionType, StructType};
 use saltwater_parser::data::{
     hir::{Declaration, Expr, ExprType, Initializer, LiteralValue, Stmt, StmtType, Symbol},
     CompileError, Location, StorageClass, Type,
 };
-use saltwater_parser::{check_semantics, Opt};
+pub use saltwater_parser::{preprocess, Opt};
 use target_lexicon::Triple;
 
 /// The fixed target accepted by this compiler stage.
@@ -459,9 +462,13 @@ fn compile_function(
         builder.finalize(isa.frontend_config());
     }
 
+    let clif = context.func.to_string();
     let mut control_plane = ControlPlane::default();
     let compiled = context.compile(isa, &mut control_plane).map_err(|error| {
-        Error::Codegen(format!("SIA32 lowering failed for {name}: {}", error.inner))
+        Error::Codegen(format!(
+            "SIA32 lowering failed for {name}: {}\nCLIF:\n{clif}",
+            error.inner
+        ))
     })?;
     let code = compiled.code_buffer().to_vec();
     if code.is_empty() || code.len() % 2 != 0 {
@@ -483,14 +490,22 @@ fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
 struct FunctionLowerer<'a, 'b> {
     builder: &'a mut FunctionBuilder<'b>,
     variables: HashMap<Symbol, Variable>,
+    return_type: Option<cranelift_codegen::ir::Type>,
     terminated: bool,
 }
 
 impl<'a, 'b> FunctionLowerer<'a, 'b> {
     fn new(builder: &'a mut FunctionBuilder<'b>) -> Self {
+        let return_type = builder
+            .func
+            .signature
+            .returns
+            .first()
+            .map(|ret| ret.value_type);
         Self {
             builder,
             variables: HashMap::new(),
+            return_type,
             terminated: false,
         }
     }
@@ -518,7 +533,13 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
             }
             StmtType::Return(value) => {
                 if let Some(value) = value {
-                    let value = self.compile_expr(value)?;
+                    let mut value = self.compile_expr(value)?;
+                    if let Some(return_type) = self.return_type {
+                        let value_type = self.builder.func.dfg.value_type(value);
+                        if value_type != return_type {
+                            value = self.builder.ins().uextend(return_type, value);
+                        }
+                    }
                     self.builder.ins().return_(&[value]);
                 } else {
                     self.builder.ins().return_(&[]);
@@ -592,6 +613,82 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                 "string literals require SIA32 global-data support",
             )),
             ExprType::Cast(value) | ExprType::Noop(value) => self.compile_expr(value),
+            ExprType::Sizeof(sized) => {
+                let bytes = sized.sizeof().map_err(|_| {
+                    unsupported(expression.location, "sizeof requires a complete SIA32 type")
+                })?;
+                Ok(self.builder.ins().iconst(ty, bytes as i64))
+            }
+            ExprType::Comma(left, right) => {
+                let _ = self.compile_expr(left)?;
+                self.compile_expr(right)
+            }
+            ExprType::Member(base, member) => {
+                let struct_type = match &base.ctype {
+                    Type::Struct(struct_type) | Type::Union(struct_type) => struct_type,
+                    _ => {
+                        return Err(unsupported(
+                            expression.location,
+                            "member access requires a struct or union base",
+                        ));
+                    }
+                };
+                let mut offset = 0u64;
+                if matches!(&base.ctype, Type::Struct(_)) {
+                    let mut found = false;
+                    for field in struct_type.members().iter() {
+                        let align = field.ctype.alignof().map_err(|_| {
+                            unsupported(expression.location, "member has unsupported alignment")
+                        })?;
+                        let rem = offset % align;
+                        if rem != 0 {
+                            offset += align - rem;
+                        }
+                        if field.id == *member {
+                            found = true;
+                            break;
+                        }
+                        offset += field.ctype.sizeof().map_err(|_| {
+                            unsupported(expression.location, "member has incomplete type")
+                        })?;
+                    }
+                    if !found {
+                        return Err(unsupported(expression.location, "unknown struct member"));
+                    }
+                }
+                fn member_base_pointer<'a>(expr: &'a Expr) -> Option<&'a Expr> {
+                    match &expr.expr {
+                        ExprType::Noop(inner) | ExprType::Cast(inner) => member_base_pointer(inner),
+                        ExprType::Deref(pointer) => Some(pointer),
+                        _ => None,
+                    }
+                }
+                let pointer = member_base_pointer(base).ok_or_else(|| {
+                    unsupported(
+                        expression.location,
+                        "SIA32 member access requires an addressable aggregate",
+                    )
+                })?;
+                let address = match &pointer.expr {
+                    ExprType::Id(symbol) => {
+                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                            unsupported(
+                                expression.location,
+                                "global aggregate addresses are not supported for SIA32 yet",
+                            )
+                        })?;
+                        self.builder.use_var(variable)
+                    }
+                    _ => self.compile_expr(pointer)?,
+                };
+                let address = if offset == 0 {
+                    address
+                } else {
+                    let delta = self.builder.ins().iconst(types::I32, offset as i64);
+                    self.builder.ins().iadd(address, delta)
+                };
+                Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+            }
             // The established HIR represents an ordinary C local read as
             // `Deref(Id(symbol))`: `Id` creates the lvalue address and Deref
             // loads it. This backend keeps non-address-taken locals in SSA,
@@ -606,10 +703,10 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     })?;
                     Ok(self.builder.use_var(variable))
                 }
-                _ => Err(unsupported(
-                    expression.location,
-                    "pointer dereferences are not supported for SIA32 yet",
-                )),
+                _ => {
+                    let address = self.compile_expr(pointer)?;
+                    Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
+                }
             },
             ExprType::Negate(value) => {
                 let value = self.compile_expr(value)?;
@@ -629,20 +726,17 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                             "only plain local-variable assignment is supported for SIA32",
                         ));
                     };
-                    let ExprType::Id(symbol) = &pointer.expr else {
-                        return Err(unsupported(
-                            left.location,
-                            "only plain local-variable assignment is supported for SIA32",
-                        ));
-                    };
-                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            left.location,
-                            "assignment to globals is not supported for SIA32 yet",
-                        )
-                    })?;
                     let value = self.compile_expr(right)?;
-                    self.builder.def_var(variable, value);
+                    if let ExprType::Id(symbol) = &pointer.expr {
+                        if let Some(variable) = self.variables.get(symbol).copied() {
+                            self.builder.def_var(variable, value);
+                            return Ok(value);
+                        }
+                    }
+                    let address = self.compile_expr(pointer)?;
+                    self.builder
+                        .ins()
+                        .store(MemFlagsData::new(), value, address, 0);
                     return Ok(value);
                 }
                 let left = self.compile_expr(left)?;
@@ -655,18 +749,33 @@ impl<'a, 'b> FunctionLowerer<'a, 'b> {
                     BinaryOp::Xor => self.builder.ins().bxor(left, right),
                     BinaryOp::Shl => self.builder.ins().ishl(left, right),
                     BinaryOp::Shr => self.builder.ins().sshr(left, right),
+                    BinaryOp::Compare(compare) => {
+                        use saltwater_parser::data::lex::ComparisonToken;
+                        let condition = match compare {
+                            ComparisonToken::Less => IntCC::SignedLessThan,
+                            ComparisonToken::Greater => IntCC::SignedGreaterThan,
+                            ComparisonToken::EqualEqual => IntCC::Equal,
+                            ComparisonToken::NotEqual => IntCC::NotEqual,
+                            ComparisonToken::LessEqual => IntCC::SignedLessThanOrEqual,
+                            ComparisonToken::GreaterEqual => IntCC::SignedGreaterThanOrEqual,
+                        };
+                        // Cranelift comparisons produce an I8 boolean. Keep that
+                        // canonical result here; consumers can extend it when a
+                        // wider C integer representation is required.
+                        self.builder.ins().icmp(condition, left, right)
+                    }
                     _ => {
                         return Err(unsupported(
                             expression.location,
-                            "this C operator is not implemented in the initial SIA32 compiler path",
+                            format!("SIA32 operator lowering is not implemented for {operator:?}"),
                         ));
                     }
                 };
                 Ok(value)
             }
-            _ => Err(unsupported(
+            other => Err(unsupported(
                 expression.location,
-                "this C expression is not implemented in the initial SIA32 compiler path",
+                format!("SIA32 expression lowering is not implemented for {other:?}"),
             )),
         }
     }
@@ -686,7 +795,7 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         _ => {
             return Err(unsupported(
                 location,
-                "this C type is not implemented for SIA32 yet",
+                format!("SIA32 type lowering is not implemented for {ctype:?}"),
             ))
         }
     };

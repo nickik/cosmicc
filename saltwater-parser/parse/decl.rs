@@ -470,13 +470,18 @@ impl<I: Lexer> Parser<I> {
         // if None, we didn't find an ID
         // should only happen if allow_abstract is true
         let decl: Option<Locatable<InternalDeclarator>> = match self.peek_token() {
-            Some(Token::Id(_)) => Some(self.next_token().unwrap().map(|data| match data {
-                Token::Id(id) => InternalDeclarator {
-                    current: InternalDeclaratorType::Id(id),
-                    next: None,
-                },
-                _ => panic!("peek() should always return the same thing as next()"),
-            })),
+            Some(Token::Id(_)) | Some(Token::Keyword(Keyword::UserTypedef(_))) => {
+                Some(self.next_token().unwrap().map(|data| {
+                    let id = match data {
+                        Token::Id(id) | Token::Keyword(Keyword::UserTypedef(id)) => id,
+                        _ => panic!("peek() should always return the same thing as next()"),
+                    };
+                    InternalDeclarator {
+                        current: InternalDeclaratorType::Id(id),
+                        next: None,
+                    }
+                }))
+            }
             // handled by postfix_type
             Some(Token::LeftBracket) if allow_abstract => None,
             Some(Token::LeftParen) => {
@@ -631,8 +636,30 @@ impl<I: Lexer> Parser<I> {
                     left_paren.merge(right_paren),
                 ));
             }
-            let param = self.type_name()?;
-            params.push(param.data);
+            // Parameter declarations may have names. The historical parser
+            // also accepts an abstract function declarator such as f(()), so
+            // retain that special case without requiring parser backtracking.
+            if self.peek_token() == Some(&Token::LeftParen)
+                && self.peek_next_token() == Some(&Token::RightParen)
+            {
+                params.push(self.type_name()?.data);
+            } else {
+                let (specifiers, specifier_locations) = self.specifiers()?;
+                if specifier_locations.is_none() {
+                    return Err(self.next_location().with(SyntaxError::ExpectedType));
+                }
+                let declarator = self
+                    .declarator(true)?
+                    .map(|decl| decl.data.parse_declarator())
+                    .unwrap_or(Declarator {
+                        decl: ast::DeclaratorType::End,
+                        id: None,
+                    });
+                params.push(TypeName {
+                    specifiers,
+                    declarator,
+                });
+            }
             if self.match_next(&Token::Comma).is_none() {
                 let right_paren = self.expect(Token::RightParen)?.location;
                 let location = left_paren.merge(right_paren);

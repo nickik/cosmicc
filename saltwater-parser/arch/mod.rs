@@ -16,13 +16,11 @@ use Type::*;
 /// http://port70.net/~nsz/c/c11/n1570.html#6.5.3.5
 const CHAR_SIZE: u16 = 1;
 
-/// The target triple emitted by Cosmic C.
-///
-/// A "target triple" is used to represent information about a compiler target.
-/// Traditionaly, the target triple uses this format: `<architecture>-<vendor>-<operating system>`
-/// The target triple is represented as a struct and contains additional
-/// information like ABI and endianness.
 lazy_static::lazy_static! {
+    /// The target triple emitted by Cosmic C.
+    ///
+    /// A target triple identifies the architecture, vendor, operating system,
+    /// environment, ABI, and endianness used by the compiler target.
     pub static ref TARGET: Triple = "sia32-unknown-none"
         .parse()
         .expect("the built-in SIA32 target triple must parse");
@@ -184,7 +182,6 @@ mod tests {
             BOOL_SIZE => Type::Bool,
             SHORT_SIZE => Type::Short(true),
             INT_SIZE => Type::Int(true),
-            LONG_SIZE => Type::Long(true),
             _ => struct_for_types(vec![Type::Char(true); size as usize]),
         }
     }
@@ -266,7 +263,7 @@ mod tests {
             Pointer(Box::new(Int(true)), Qualifiers::default()),
             Int(true),
         ]);
-        assert_eq!(ty.alignof(), Ok(8));
+        assert_eq!(ty.alignof(), Ok(4));
     }
 
     proptest! {

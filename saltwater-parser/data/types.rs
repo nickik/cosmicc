@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(non_local_definitions))]
+
 use super::hir::{Symbol, Variable};
 use crate::intern::InternedStr;
 #[cfg(test)]

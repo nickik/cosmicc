@@ -7,7 +7,7 @@ use crate::{
     error::CppError, CompileError, CompileResult, InternedStr, LiteralToken, Locatable, Location,
     Token,
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 use arcstr::Substr;
 
@@ -45,6 +45,12 @@ impl<T> Peekable for std::iter::Empty<T> {
 }
 
 impl<I: Peekable + ?Sized> Peekable for &mut I {
+    fn peek(&mut self) -> Option<&Self::Item> {
+        (**self).peek()
+    }
+}
+
+impl<I: Peekable + ?Sized> Peekable for Box<I> {
     fn peek(&mut self) -> Option<&Self::Item> {
         (**self).peek()
     }
@@ -154,63 +160,94 @@ impl<I: Iterator<Item = CompileResult<Locatable<Token>>>> Iterator for Replace<'
 ///
 /// `location` is used only for errors; in all other cases it is ignored.
 #[must_use = "does not change internal state"]
-pub fn replace(
+pub fn replace<I>(
     definitions: &Definitions,
     token: Token,
-    mut inner: impl Iterator<Item = CppResult<Token>> + Peekable,
+    inner: I,
     location: Location,
-) -> Vec<CompileResult<Locatable<Token>>> {
-    // The ids seen while replacing the current token.
-    //
-    // This allows cycle detection. It should be reset after every replacement list
-    // - _not_ after every token, since otherwise that won't catch some mutual recursion
-    // See https://github.com/jyn514/rcc/issues/427 for examples.
-    let mut ids_seen = HashSet::new();
-    let mut replacements = Vec::new();
-    let mut pending = VecDeque::new();
-    pending.push_back(Ok(location.with(token)));
+) -> Vec<CompileResult<Locatable<Token>>>
+where
+    I: Iterator<Item = CppResult<Token>> + Peekable,
+{
+    let disabled = Vec::new();
+    replace_boxed(definitions, token, Box::new(inner), location, &disabled)
+}
 
-    // outer loop: replace all tokens in the replacement list
-    while let Some(token) = pending.pop_front() {
-        // first step: perform (recursive) substitution on the ID
+fn replace_boxed<'a>(
+    definitions: &Definitions,
+    token: Token,
+    mut inner: Box<dyn Peekable<Item = CppResult<Token>> + 'a>,
+    location: Location,
+    disabled: &[InternedStr],
+) -> Vec<CompileResult<Locatable<Token>>> {
+    let mut replacements = Vec::new();
+    let mut pending: VecDeque<(CompileResult<Locatable<Token>>, Vec<InternedStr>)> =
+        VecDeque::new();
+    pending.push_back((Ok(location.with(token)), disabled.to_vec()));
+
+    while let Some((token, disabled_here)) = pending.pop_front() {
         if let Ok(Locatable {
             data: Token::Id(id),
             ..
         }) = token
         {
-            if !ids_seen.contains(&id) {
+            if !disabled_here.contains(&id) {
                 match definitions.get(&id) {
                     Some(Definition::Object(replacement_list)) => {
-                        ids_seen.insert(id);
-                        // prepend the new tokens to the pending tokens
-                        // They need to go before, not after. For instance:
-                        // ```c
-                        // #define a b c d
-                        // #define b 1 + 2
-                        // a
-                        // ```
-                        // should replace to `1 + 2 c d`, not `c d 1 + 2`
+                        let mut nested_disabled = disabled_here.clone();
+                        nested_disabled.push(id);
                         let mut new_pending = VecDeque::new();
-                        // we need a `clone()` because `self.definitions` needs to keep its copy of the definition
                         new_pending.extend(
                             replacement_list
                                 .iter()
                                 .cloned()
-                                .map(|t| Ok(location.with(t))),
+                                .map(|t| (Ok(location.with(t)), nested_disabled.clone())),
                         );
                         new_pending.append(&mut pending);
                         pending = new_pending;
                         continue;
                     }
-                    // TODO: so many allocations :(
                     Some(Definition::Function { .. }) => {
-                        ids_seen.insert(id);
-                        let func_replacements =
-                            replace_function(definitions, id, location, &mut pending, &mut inner);
+                        // replace_function predates scoped hide sets and consumes a
+                        // plain token queue. Temporarily project the pending queue,
+                        // then restore the per-token hide sets for anything it leaves.
+                        let mut plain_pending: VecDeque<_> =
+                            pending.drain(..).map(|(token, _)| token).collect();
+                        let func_replacements = replace_function(
+                            definitions,
+                            id,
+                            location,
+                            &mut plain_pending,
+                            &mut inner,
+                        );
+                        pending.extend(
+                            plain_pending
+                                .into_iter()
+                                .map(|token| (token, disabled_here.clone())),
+                        );
                         let mut func_replacements: VecDeque<_> =
                             func_replacements.into_iter().collect();
-                        func_replacements.append(&mut pending);
-                        pending = func_replacements;
+
+                        if matches!(
+                            func_replacements.front(),
+                            Some(Ok(Locatable {
+                                data: Token::Id(returned),
+                                ..
+                            })) if *returned == id
+                        ) {
+                            replacements.push(func_replacements.pop_front().unwrap());
+                            replacements.extend(func_replacements);
+                            continue;
+                        }
+
+                        let mut nested_disabled = disabled_here.clone();
+                        nested_disabled.push(id);
+                        let mut queued: VecDeque<_> = func_replacements
+                            .into_iter()
+                            .map(|t| (t, nested_disabled.clone()))
+                            .collect();
+                        queued.append(&mut pending);
+                        pending = queued;
                         continue;
                     }
                     None => {}
@@ -361,6 +398,17 @@ fn replace_function(
         _ => unreachable!("checked above"),
     };
 
+    let macro_name = id.resolve_and_clone();
+    let macro_body = body
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let hash_error = || CppError::HashMissingParameterContext {
+        macro_name: macro_name.clone(),
+        body: macro_body.clone(),
+    };
+
     let mut replacements = Vec::new();
     if args.len() != params.len() {
         // There is no way to distinguish between a macro-function taking one empty argument
@@ -373,48 +421,176 @@ fn replace_function(
         }
     }
 
-    let mut pending_hash = false; // Seen a hash?
-    for token in body {
-        match *token {
-            Token::Id(id) => {
-                // #define f(a) { a + 1 } \n f(b) => b + 1
-                if let Some(index) = params.iter().position(|&param| param == id) {
-                    let replacement = args[index].clone();
-                    if !pending_hash {
-                        replacements.extend(replacement);
-                    } else {
-                        // #define str(a) #a
-                        replacements.push(stringify(replacement));
+    let mut i = 0;
+    while i < body.len() {
+        if matches!(body[i], Token::Hash) {
+            let mut second = i + 1;
+            while second < body.len() && matches!(body[second], Token::Whitespace(_)) {
+                second += 1;
+            }
+            if second < body.len() && matches!(body[second], Token::Hash) {
+                while matches!(replacements.last(), Some(Token::Whitespace(_))) {
+                    replacements.pop();
+                }
+                let mut right = second + 1;
+                while right < body.len() && matches!(body[right], Token::Whitespace(_)) {
+                    right += 1;
+                }
+                if right >= body.len() {
+                    return vec![Err(location.with(hash_error().into()))];
+                }
+                let right_tokens = match body[right].clone() {
+                    Token::Id(id) => {
+                        if let Some(index) = params.iter().position(|&param| param == id) {
+                            args[index].clone()
+                        } else {
+                            vec![Token::Id(id)]
+                        }
                     }
-                } else if pending_hash {
-                    return vec![Err(location.with(CppError::HashMissingParameter.into()))];
+                    token => vec![token],
+                };
+                if right_tokens.is_empty() {
+                    i = right + 1;
+                    continue;
+                }
+                let mut pasted = match replacements.pop() {
+                    Some(token) => token,
+                    None => return vec![Err(location.with(hash_error().into()))],
+                };
+                // Macro arguments are preprocessing-token sequences. In particular,
+                // e2fsprogs passes 64BIT as a ## operand, which this lexer represents
+                // as more than one C token. All tokens in that operand participate in
+                // the paste before the result is rescanned.
+                for token in right_tokens {
+                    pasted = match paste_identifier_tokens(pasted, token) {
+                        Some(token) => token,
+                        None => return vec![Err(location.with(hash_error().into()))],
+                    };
+                }
+                replacements.push(pasted);
+
+                // A paste result can itself be the left operand of another ##,
+                // as in EXT##ver##_FEATURE_COMPAT_##flagname. Leave the cursor
+                // on the just-consumed right operand so the following iteration
+                // can detect and continue that chain.
+                let mut next_hash = right + 1;
+                while next_hash < body.len() && matches!(body[next_hash], Token::Whitespace(_)) {
+                    next_hash += 1;
+                }
+                if next_hash < body.len() && matches!(body[next_hash], Token::Hash) {
+                    i = next_hash;
                 } else {
-                    replacements.push(Token::Id(id));
+                    i = right + 1;
                 }
-                pending_hash = false;
+                continue;
             }
-            Token::Hash => {
-                pending_hash = true;
+
+            let mut parameter = i + 1;
+            while parameter < body.len() && matches!(body[parameter], Token::Whitespace(_)) {
+                parameter += 1;
             }
-            Token::Whitespace(_) => {
-                if !pending_hash {
-                    replacements.push(Token::Whitespace(String::from(" ")));
+            match body.get(parameter) {
+                Some(Token::Id(id)) => {
+                    if let Some(index) = params.iter().position(|&param| param == *id) {
+                        replacements.push(stringify(args[index].clone()));
+                        i = parameter + 1;
+                        continue;
+                    }
                 }
+                _ => {}
             }
-            _ => {
-                if pending_hash {
-                    return vec![Err(location.with(CppError::HashMissingParameter.into()))];
-                } else {
-                    replacements.push(token.clone());
-                }
-            }
+            return vec![Err(location.with(hash_error().into()))];
         }
+
+        match body[i].clone() {
+            Token::Id(id) => {
+                let left_tokens = if let Some(index) = params.iter().position(|&param| param == id)
+                {
+                    args[index].clone()
+                } else {
+                    vec![Token::Id(id)]
+                };
+
+                let mut hash = i + 1;
+                while hash < body.len() && matches!(body[hash], Token::Whitespace(_)) {
+                    hash += 1;
+                }
+                let mut second_hash = hash + 1;
+                while second_hash < body.len() && matches!(body[second_hash], Token::Whitespace(_))
+                {
+                    second_hash += 1;
+                }
+
+                if hash < body.len()
+                    && matches!(body[hash], Token::Hash)
+                    && second_hash < body.len()
+                    && matches!(body[second_hash], Token::Hash)
+                {
+                    replacements.extend(left_tokens);
+                    while matches!(replacements.last(), Some(Token::Whitespace(_))) {
+                        replacements.pop();
+                    }
+                    i = hash;
+                    continue;
+                }
+
+                replacements.extend(left_tokens);
+            }
+            Token::Whitespace(_) => replacements.push(Token::Whitespace(String::from(" "))),
+            token => replacements.push(token),
+        }
+        i += 1;
     }
-    // TODO: this collect is useless
+    // Return the substituted replacement list to the outer replacement engine.
+    // It already performs rescanning with a single ids_seen set, which is required
+    // for correct self- and mutually-recursive macro suppression. Recursing through
+    // replace() here resets that set and causes cycles such as A -> B -> A to overflow.
     errors
         .into_iter()
-        .chain(replacements.into_iter().map(|t| Ok(location.with(t))))
+        .chain(
+            replacements
+                .into_iter()
+                .map(|token| Ok(location.with(token))),
+        )
         .collect()
+}
+
+fn paste_identifier_tokens(left: Token, right: Token) -> Option<Token> {
+    fn spelling(token: Token) -> Option<String> {
+        match token {
+            Token::Id(id) => Some(id.resolve_and_clone()),
+            Token::Keyword(keyword) => Some(keyword.to_string()),
+            Token::Literal(literal) => Some(literal.to_string()),
+            _ => None,
+        }
+    }
+
+    let pasted = format!("{}{}", spelling(left)?, spelling(right)?);
+
+    // The result of ## is a preprocessing token, not necessarily an identifier.
+    // Avoid feeding decimal text through the lexer here: a leading zero would
+    // deliberately select C octal syntax, while a pasted decimal digit sequence
+    // such as 1 ## 1 must simply become the decimal token 11.
+    if pasted.chars().all(|ch| ch.is_ascii_digit()) {
+        return Some(Token::Literal(crate::data::lex::LiteralToken::Int(
+            pasted.into(),
+        )));
+    }
+
+    let mut files = crate::Files::new();
+    let file = files.add(
+        "<token-paste>",
+        crate::Source {
+            code: arcstr::ArcStr::from(pasted.as_str()),
+            path: std::path::PathBuf::from("<token-paste>"),
+        },
+    );
+    let mut lexer = crate::lex::Lexer::new(file, pasted.as_str(), false);
+    let first = lexer.next()?.ok()?.data;
+    if lexer.next().is_some() {
+        return None;
+    }
+    Some(first)
 }
 
 fn stringify(args: Vec<Token>) -> Token {

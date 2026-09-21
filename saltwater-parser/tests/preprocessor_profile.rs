@@ -97,3 +97,142 @@ fn preprocessing_errors_keep_a_stable_source_location() {
     );
     assert_eq!(first.location.span.start, 3);
 }
+
+#[test]
+fn explicit_include_paths_preserve_precedence() {
+    let root =
+        std::env::temp_dir().join(format!("cosmicc-include-precedence-{}", std::process::id()));
+    let first = root.join("first");
+    let second = root.join("second");
+    std::fs::create_dir_all(&first).expect("create first include directory");
+    std::fs::create_dir_all(&second).expect("create second include directory");
+    std::fs::write(first.join("precedence.h"), "#define INCLUDE_VALUE 11\n")
+        .expect("write first header");
+    std::fs::write(second.join("precedence.h"), "#define INCLUDE_VALUE 22\n")
+        .expect("write second header");
+
+    let mut opt = Opt::default();
+    opt.search_path.push(first);
+    opt.search_path.push(second);
+    let rendered = tokens(
+        "#include <precedence.h>\nint answer = INCLUDE_VALUE;\n",
+        opt,
+    )
+    .join("");
+
+    assert!(rendered.contains("11"));
+    assert!(!rendered.contains("22"));
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn nested_builtin_header_keeps_its_full_path() {
+    let rendered = tokens(
+        "#include <sys/types.h>\nssize_t answer = 0;\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("typedef"));
+    assert!(rendered.contains("ssize_t"));
+    assert!(rendered.contains("answer"));
+}
+
+#[test]
+fn identifier_token_pasting_supports_feature_macros() {
+    let rendered = tokens(
+        "#define HAS_FEATURE(name) ext2fs_has_feature_##name\nint (*probe)(void) = HAS_FEATURE(metadata_csum);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
+    assert!(!rendered.contains("#"));
+}
+
+#[test]
+fn identifier_token_pasting_allows_whitespace_around_hashes() {
+    let rendered = tokens(
+        "#define HAS_FEATURE(name) ext2fs_has_feature_ ## name\nint (*probe)(void) = HAS_FEATURE(metadata_csum);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
+    assert!(!rendered.contains("#"));
+}
+
+#[test]
+fn identifier_token_pasting_allows_whitespace_between_hashes() {
+    let rendered = tokens(
+        "#define HAS_FEATURE(name) ext2fs_has_feature_ # # name\nint (*probe)(void) = HAS_FEATURE(metadata_csum);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
+    assert!(!rendered.contains("#"));
+}
+
+#[test]
+fn ext4_style_chained_token_pasting_expands_all_identifiers() {
+    let rendered = tokens(
+        "#define FEATURE(ver, name, flagname) ext2fs_has_feature_##name EXT##ver##_FEATURE_COMPAT_##flagname\nFEATURE(4, metadata_csum, METADATA_CSUM)\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("ext2fs_has_feature_metadata_csum"));
+    assert!(rendered.contains("EXT4_FEATURE_COMPAT_METADATA_CSUM"));
+    assert!(!rendered.contains("#"));
+}
+
+#[test]
+fn token_pasting_relexes_numeric_result() {
+    let rendered = tokens(
+        "#define CAT(a, b) a##b\nint answer = CAT(1, 1);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("11"));
+}
+
+#[test]
+fn pasted_output_rescans_function_like_macro_with_arguments() {
+    let rendered = tokens(
+        "#define WRAP(x) (x)\n#define MAKE(name) WR##AP(name)\nint answer = MAKE(7);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("(7)"));
+    assert!(!rendered.contains("WRAP"));
+}
+
+#[test]
+fn ordinary_function_macro_output_is_rescanned_in_outer_engine() {
+    let rendered = tokens(
+        "#define INNER(x) (x)\n#define OUTER(x) INNER(x)\nint answer = OUTER(9);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("(9)"));
+    assert!(!rendered.contains("INNER"));
+}
+
+#[test]
+fn object_macro_inside_function_macro_output_is_rescanned() {
+    let rendered = tokens(
+        "#define FLAG 32\n#define FEATURE(x) (x & FLAG)\nint answer = FEATURE(7);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert!(rendered.contains("32"));
+    assert!(!rendered.contains("FLAG"));
+}
+
+#[test]
+fn same_macro_expands_at_each_independent_occurrence() {
+    let rendered = tokens(
+        "#define FLAG 32\n#define ID(x) (x)\nint a = FLAG; int b = FLAG; int c = ID(1); int d = ID(2);\n",
+        Opt::default(),
+    )
+    .join("");
+    assert_eq!(rendered.matches("32").count(), 2);
+    assert!(!rendered.contains("FLAG"));
+    assert!(!rendered.contains("ID"));
+}

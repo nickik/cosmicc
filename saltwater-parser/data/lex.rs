@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(non_local_definitions))]
+
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 
@@ -490,12 +492,12 @@ pub(crate) mod test {
     use crate::*;
 
     /// Create a new preprocessor with `s` as the input
-    pub(crate) fn cpp(s: &str) -> PreProcessor {
+    pub(crate) fn cpp(s: &str) -> PreProcessor<'_> {
         let newline = format!("{}\n", s).into_boxed_str();
         cpp_no_newline(Box::leak(newline))
     }
     /// Create a new preprocessor with `s` as the input, but without a trailing newline
-    pub(crate) fn cpp_no_newline(s: &str) -> PreProcessor {
+    pub(crate) fn cpp_no_newline(s: &str) -> PreProcessor<'_> {
         PreProcessorBuilder::new(s).build()
     }
 

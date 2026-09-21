@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(non_local_definitions))]
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::convert::TryFrom;

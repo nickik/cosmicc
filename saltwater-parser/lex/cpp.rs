@@ -321,12 +321,7 @@ impl<'a> PreProcessor<'a> {
         user_search_path: I,
         user_definitions: HashMap<InternedStr, Definition>,
     ) -> Self {
-        let system_path = format!(
-            "{}-{}-{}",
-            TARGET.architecture, TARGET.operating_system, TARGET.environment
-        );
-
-        let now = time::OffsetDateTime::now_local();
+        let now = time::OffsetDateTime::now_utc();
 
         #[allow(clippy::inconsistent_digit_grouping)]
         let mut definitions = map! {
@@ -343,13 +338,46 @@ impl<'a> PreProcessor<'a> {
             "__TIME__".into() => str_def(&now.format("%H:%M:%S")),
         };
         definitions.extend(user_definitions);
-        let mut search_path = vec![
-            PathBuf::from(format!("/usr/local/include/{}", system_path)).into(),
-            Path::new("/usr/local/include").into(),
-            PathBuf::from(format!("/usr/include/{}", system_path)).into(),
-            Path::new("/usr/include").into(),
-        ];
-        search_path.extend(user_search_path.into_iter());
+        // Common GNU compatibility annotations used by portable system headers.
+        // They carry no semantic effect in the initial SIA32 ABI model.
+        definitions
+            .entry("__attribute__".into())
+            .or_insert_with(|| Definition::Function {
+                params: vec!["__cosmic_attribute".into()],
+                body: Vec::new(),
+            });
+        definitions
+            .entry("__extension__".into())
+            .or_insert_with(|| Definition::Object(Vec::new()));
+        definitions.entry("__inline__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Inline)])
+        });
+        definitions.entry("__inline".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Inline)])
+        });
+        definitions.entry("__restrict".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Restrict)])
+        });
+        definitions.entry("__signed__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Signed)])
+        });
+        definitions.entry("__signed".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Signed)])
+        });
+        definitions.entry("__const__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Const)])
+        });
+        definitions.entry("__const".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Const)])
+        });
+        definitions.entry("__volatile__".into()).or_insert_with(|| {
+            Definition::Object(vec![Token::Keyword(crate::data::lex::Keyword::Volatile)])
+        });
+        // Cosmic C targets the freestanding sia32-unknown-none environment.
+        // Never fall through to host libc headers: their ABI and GNU extensions
+        // do not describe the target. Explicit -I paths are searched first and
+        // target-owned built-in headers are used as the standard-library fallback.
+        let search_path: Vec<Cow<'a, Path>> = user_search_path.into_iter().collect();
 
         let file_processor = FileProcessor::new(chars, filename, debug);
 
@@ -611,7 +639,7 @@ impl<'a> PreProcessor<'a> {
             Start,
             SawParen,
             SawId(InternedStr),
-        };
+        }
         use State::*;
         let mut state = Start;
         loop {
@@ -1090,14 +1118,14 @@ impl<'a> PreProcessor<'a> {
                 (path, src)
             }
             Err(not_found) => {
-                let filename = match filename.file_name().and_then(|f| f.to_str()) {
+                let header_name = match filename.to_str() {
                     None => return Err(not_found),
-                    Some(f) => f,
+                    Some(name) => name,
                 };
-                match get_builtin_header(filename) {
+                match get_builtin_header(header_name) {
                     Some(file) => {
                         let mut path = PathBuf::from("<builtin>");
-                        path.push(filename);
+                        path.push(&filename);
                         (path, ArcStr::from(file))
                     }
                     None => return Err(not_found),
@@ -1187,9 +1215,19 @@ macro_rules! built_in_headers {
 // [(filename, contents)]
 // TODO: this could probably use a perfect-hashmap,
 // but it's so small that it's not worth it
-const PRECOMPILED_HEADERS: [(&str, &str); 2] = built_in_headers! {
+const PRECOMPILED_HEADERS: [(&str, &str); 12] = built_in_headers! {
+    "errno.h",
+    "inttypes.h",
     "stdarg.h",
     "stddef.h",
+    "stdint.h",
+    "stdio.h",
+    "stdlib.h",
+    "string.h",
+    "sys/stat.h",
+    "sys/types.h",
+    "time.h",
+    "unistd.h",
 };
 
 fn get_builtin_header(expected: impl AsRef<str>) -> Option<&'static str> {

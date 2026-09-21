@@ -489,8 +489,9 @@ fn shift_right(
             data: err.to_string(),
             location: *location,
         })?;
-        // Rust panics if the shift is greater than the size of the type
-        if shift >= sizeof {
+        let bit_width = u64::from(CHAR_BIT) * sizeof;
+        // Rust panics if the shift is greater than or equal to the bit width.
+        if shift >= bit_width {
             return Ok(ExprType::Literal(if ctype.is_signed() {
                 Int(0)
             } else {
@@ -714,7 +715,7 @@ mod tests {
                 is_left: true,
                 current: 65,
                 ctype: Type::Long(true),
-                maximum: 64
+                maximum: 32
             }
             .into()
         );

@@ -156,7 +156,7 @@ pub enum SemanticError {
     IllegalReturnType(Type),
 
     // TODO: print params in the error message
-    #[error("arrays cannot contain functions (got '{0}'). help: try storing array of pointer to function: (*{}[])(...)")]
+    #[error("arrays cannot contain functions (got '{0}'). help: try storing array of pointer to function: (*{{}}[])(...)")]
     ArrayStoringFunction(Type),
 
     #[error("void must be the first and only parameter if specified")]
@@ -503,9 +503,9 @@ pub enum CppError {
     #[error("redefinition of '{0}' does not match original definition")]
     IncompatibleRedefinition(InternedStr),
 
-    /// '#' in a function macro not followed by function parameter
-    #[error("'#' is not followed by a macro parameter")]
-    HashMissingParameter,
+    /// Same error with enough context to diagnose real-world macro expansion.
+    #[error("'#' in macro '{macro_name}' is not followed by a macro parameter; replacement tokens: {body}")]
+    HashMissingParameterContext { macro_name: String, body: String },
 }
 
 /// Lex errors are non-exhaustive and may have new variants added at any time

@@ -74,6 +74,7 @@ pub mod arch;
 pub mod data;
 mod fold;
 pub mod intern;
+#[allow(hidden_glob_reexports)]
 mod lex;
 mod parse;
 

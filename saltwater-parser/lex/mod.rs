@@ -50,6 +50,7 @@ pub struct Lexer {
     error_handler: ErrorHandler<LexError>,
     /// Whether or not to display each token as it is processed
     debug: bool,
+    #[allow(dead_code)]
     given_newline_error: bool,
 }
 
@@ -250,7 +251,14 @@ impl Lexer {
             // if we see 'e' or 'E', it's the end of the int, don't treat it as an error
             // we only get this far if it's not a valid digit for the radix, i.e. radix != 16
             Some(14) => Ok(None),
-            Some(digit) => Err(LexError::InvalidDigit { digit, radix }),
+            // For octal literals, 8/9 are invalid digits. Alphabetic
+            // characters are not digits at all and terminate the pp-number;
+            // treating their hexadecimal value (e.g. 'b' => 11) as an octal
+            // digit produced misleading "invalid digit 11" diagnostics.
+            Some(digit) if (c as char).is_ascii_digit() => {
+                Err(LexError::InvalidDigit { digit, radix })
+            }
+            Some(_) => Ok(None),
         };
         let mut saw_digit = false;
         while let Some(c) = self.peek() {
@@ -587,6 +595,7 @@ pub(crate) trait LiteralParser {
     fn err(&mut self, err: Locatable<LexError>);
     fn warn(&mut self, err: Locatable<Warning>);
 
+    #[allow(dead_code)]
     fn err_loc<E: Into<LexError>>(&mut self, err: E, location: Location) {
         self.err(location.with(err.into()));
     }
