@@ -533,10 +533,6 @@ fn compile_function(
                     other => ir_type(other, location)?,
                 };
                 let variable = lowerer.builder.declare_var(parameter_ty);
-                let variable = lowerer.builder.declare_var(match &parameter.get().ctype {
-                    Type::Function(_) => types::I32,
-                    other => ir_type(other, location)?,
-                });
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
                 lowerer.variable_types.insert(*parameter, parameter_ty);
@@ -1397,10 +1393,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         // Void only occurs here for expressions such as a void function call.
         // Such calls are handled explicitly below; all value-producing
         // expressions still require a concrete CLIF integer type.
-        let ty = if matches!(expression.ctype, Type::Void) {
-            types::I32
-        } else {
-            ir_type(&expression.ctype, expression.location)?
+        let ty = match &expression.ctype {
+            Type::Void | Type::Function(_) => types::I32,
+            other => ir_type(other, expression.location)?,
         };
         match &expression.expr {
             ExprType::Id(symbol) => {
