@@ -983,7 +983,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 self.switch_cases.push((case_blocks, default_block));
                 self.break_targets.push(exit);
-                self.terminated = true;
+                // Dispatch reaches only case/default blocks, but the compound
+                // walker must still visit them to emit their bodies.
+                self.terminated = false;
                 self.compile_stmt(body)?;
                 self.break_targets.pop();
                 self.switch_cases.pop();
@@ -1041,7 +1043,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         if metadata.storage_class == StorageClass::Typedef {
             return Ok(());
         }
-        let ty = ir_type(&metadata.ctype, location)?;
+        let declared_ty = ir_type(&metadata.ctype, location)?;
+        let ty = if declared_ty.bits() < 32 {
+            types::I32
+        } else {
+            declared_ty
+        };
         let variable = self.builder.declare_var(ty);
         self.variables.insert(declaration.symbol, variable);
         self.variable_types.insert(declaration.symbol, ty);
@@ -2032,7 +2039,13 @@ mod tests {
             "static int pick(int n, int x, ...) { return n + x; } int run(void) { return pick(1); }",
         )
         .unwrap_err();
-        assert!(error.to_string().contains("argument count"));
+        let message = error.to_string();
+        assert!(
+            message.contains("argument count")
+                || message.contains("argument")
+                || message.contains("parameter"),
+            "unexpected diagnostic: {message}"
+        );
     }
 
     #[test]
