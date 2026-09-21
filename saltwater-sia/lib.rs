@@ -1875,6 +1875,39 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 let left_expr_type = left.ctype.clone();
                 let right_expr_type = right.ctype.clone();
 
+                if *operator == BinaryOp::Sub {
+                    if let (Type::Pointer(left_pointee, _), Type::Pointer(right_pointee, _)) =
+                        (&left.ctype, &right.ctype)
+                    {
+                        let left_size = left_pointee.sizeof().map_err(|_| {
+                            unsupported(
+                                expression.location,
+                                "SIA32 pointer difference requires a complete pointee type",
+                            )
+                        })?;
+                        let right_size = right_pointee.sizeof().map_err(|_| {
+                            unsupported(
+                                expression.location,
+                                "SIA32 pointer difference requires a complete pointee type",
+                            )
+                        })?;
+                        if left_size != right_size {
+                            return Err(unsupported(
+                                expression.location,
+                                "SIA32 pointer difference requires compatible pointee sizes",
+                            ));
+                        }
+                        let left_value = self.compile_expr(left)?;
+                        let right_value = self.compile_expr(right)?;
+                        let bytes = self.builder.ins().isub(left_value, right_value);
+                        if left_size == 1 {
+                            return Ok(bytes);
+                        }
+                        let scale = self.builder.ins().iconst(types::I32, left_size as i64);
+                        return Ok(self.builder.ins().sdiv(bytes, scale));
+                    }
+                }
+
                 if matches!(operator, BinaryOp::Add | BinaryOp::Sub) {
                     let pointer_side = match (&left.ctype, &right.ctype) {
                         (Type::Pointer(pointee, _), _) => Some((
@@ -2817,6 +2850,16 @@ mod tests {
     fn compiles_member_and_array_post_increment_through_lvalue_addressing() {
         let artifact = compile_source(
             "struct pair { int x; }; int f(struct pair *p, int *a, int i) { p->x++; a[i]--; return p->x + a[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_pointer_difference_scaled_by_pointee_size() {
+        let artifact = compile_source(
+            "struct pair { int x; int y; }; int f(struct pair *a, struct pair *b) { return a - b; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
