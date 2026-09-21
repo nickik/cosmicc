@@ -2252,7 +2252,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
