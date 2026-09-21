@@ -1522,8 +1522,27 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
 
                 let left_expr_type = left.ctype.clone();
+                let right_expr_type = right.ctype.clone();
                 let left = self.compile_expr(left)?;
                 let right = self.compile_expr(right)?;
+
+                // The analyzer records C's usual arithmetic-conversion result
+                // on the binary expression. Normalize both operands to that
+                // width before emitting CLIF. This avoids type-mismatch IR for
+                // combinations such as char + int and short < long.
+                let operation_ty = match operator {
+                    BinaryOp::Shl | BinaryOp::Shr => {
+                        self.builder.func.dfg.value_type(left)
+                    }
+                    BinaryOp::Compare(_) => {
+                        let left_ty = self.builder.func.dfg.value_type(left);
+                        let right_ty = self.builder.func.dfg.value_type(right);
+                        if left_ty.bits() >= right_ty.bits() { left_ty } else { right_ty }
+                    }
+                    _ => ir_type(&expression.ctype, expression.location)?,
+                };
+                let left = self.coerce_integer_value(left, operation_ty, &left_expr_type);
+                let right = self.coerce_integer_value(right, operation_ty, &right_expr_type);
                 let value = match operator {
                     BinaryOp::Mul => self.builder.ins().imul(left, right),
                     BinaryOp::Div => {
@@ -1929,6 +1948,26 @@ mod tests {
     fn compiles_scalar_post_increment_and_decrement() {
         let artifact = compile_source(
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_mixed_width_integer_binary_operations() {
+        let artifact = compile_source(
+            "int mixed(char c, unsigned char u, short s, int x) { return (c + x) * (s - u) + (c < x) + (u << 2); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_mixed_width_bitwise_and_division_operations() {
+        let artifact = compile_source(
+            "unsigned int mixed(unsigned char c, unsigned short s, unsigned int x) { return ((c | s) ^ x) / (c + 1) + (x % (s + 1)); }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
