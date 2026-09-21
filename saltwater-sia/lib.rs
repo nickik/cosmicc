@@ -15,7 +15,7 @@ use cranelift_codegen::ir::{
     UserExternalName, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
-use cranelift_codegen::machinst::RelocTarget;
+use cranelift_codegen::RelocTarget;
 use cranelift_codegen::settings::{self, Configurable, Flags};
 use cranelift_codegen::Context;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
