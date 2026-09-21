@@ -1,0 +1,46 @@
+name: Lowering workbench
+
+on:
+  push:
+    branches: [lowering-completeness]
+    paths: [.github/workflows/lowering-workbench.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.98.1
+        with:
+          components: rustfmt
+      - name: Resolve the locked SIA32 compiler dependencies
+        run: cargo fetch --locked
+      - name: Capture source and public build tools for offline validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/lowering-workbench"
+          mkdir -p "$root/source" "$root/cargo" "$root/rustup/toolchains"
+          git ls-files -z | tar --null -T - -cf - | tar -xf - -C "$root/source"
+          git rev-parse HEAD > "$root/SOURCE_SHA"
+          cp -a "$HOME/.cargo/bin" "$root/cargo/bin"
+          cp -a "$HOME/.cargo/git" "$root/cargo/git"
+          cp -a "$HOME/.cargo/registry" "$root/cargo/registry"
+          toolchain="$(rustup show active-toolchain | cut -d ' ' -f 1)"
+          cp -a "$HOME/.rustup/toolchains/$toolchain" "$root/rustup/toolchains/"
+          cp "$HOME/.rustup/settings.toml" "$root/rustup/settings.toml"
+          # Never copy Cargo credentials, Git configuration, checkout tokens,
+          # runner environment variables, or any user repository other than this one.
+          tar --zstd -cf "$RUNNER_TEMP/lowering-workbench.tar.zst" -C "$root" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lowering-workbench-${{ github.sha }}
+          path: ${{ runner.temp }}/lowering-workbench.tar.zst
+          retention-days: 1
+          compression-level: 0
