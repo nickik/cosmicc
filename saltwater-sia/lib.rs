@@ -1668,7 +1668,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     // conversions. Strip those before classifying the
                     // assignment destination.
                     let mut assignment_left = left;
-                    while let ExprType::Noop(inner) | ExprType::Cast(inner) = &assignment_left.expr {
+                    while let ExprType::Noop(inner) | ExprType::Cast(inner) = &assignment_left.expr
+                    {
                         assignment_left = inner;
                     }
 
@@ -1709,11 +1710,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     if matches!(
                         assignment_left.expr,
                         ExprType::Member(_, _)
-                            | ExprType::Binary(
-                                saltwater_parser::data::hir::BinaryOp::Add,
-                                _,
-                                _
-                            )
+                            | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _)
                     ) {
                         let address = self.compile_lvalue_address(assignment_left)?;
                         let target_ty = ir_type(&assignment_left.ctype, left.location)?;
