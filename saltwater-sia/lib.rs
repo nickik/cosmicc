@@ -589,8 +589,100 @@ fn scalar_initializer_bytes(
     Ok(bytes)
 }
 
+fn translation_unit_symbol_name(
+    index: usize,
+    declaration: &Declaration,
+) -> String {
+    let metadata = declaration.symbol.get();
+    let raw_name = metadata.id.resolve_and_clone();
+    if !matches!(metadata.ctype, Type::Function(_))
+        && metadata.storage_class == StorageClass::Static
+    {
+        format!("__cosmic_static_global_{index}_{raw_name}")
+    } else {
+        raw_name
+    }
+}
+
+fn aggregate_member_offset(
+    ctype: &Type,
+    member: saltwater_parser::intern::InternedStr,
+    location: Location,
+) -> Result<u64, Error> {
+    match ctype {
+        Type::Union(_) => Ok(0),
+        Type::Struct(struct_type) => {
+            let mut offset = 0u64;
+            for field in struct_type.members().iter() {
+                let align = field
+                    .ctype
+                    .alignof()
+                    .map_err(|error| unsupported(location, error.to_string()))?;
+                if align > 1 {
+                    let rem = offset % align;
+                    if rem != 0 {
+                        offset += align - rem;
+                    }
+                }
+                if field.id == member {
+                    return Ok(offset);
+                }
+                offset = offset
+                    .checked_add(field.ctype.sizeof().map_err(|error| {
+                        unsupported(location, error.to_string())
+                    })?)
+                    .ok_or_else(|| Error::Codegen("member offset overflows".into()))?;
+            }
+            Err(unsupported(location, "unknown aggregate member"))
+        }
+        _ => Err(unsupported(
+            location,
+            "member offset requested for non-aggregate type",
+        )),
+    }
+}
+
+fn static_address_target(
+    expression: &Expr,
+    symbols: &HashMap<Symbol, String>,
+) -> Result<Option<(String, i64)>, Error> {
+    fn resolve(
+        expression: &Expr,
+        symbols: &HashMap<Symbol, String>,
+    ) -> Result<Option<(String, i64)>, Error> {
+        match &expression.expr {
+            ExprType::Noop(inner) | ExprType::Cast(inner) => resolve(inner, symbols),
+            ExprType::StaticRef(inner) => match &inner.expr {
+                ExprType::Id(symbol) => Ok(symbols.get(symbol).cloned().map(|name| (name, 0))),
+                ExprType::Member(base, member) => {
+                    if let ExprType::Id(symbol) = &base.expr {
+                        let Some(name) = symbols.get(symbol).cloned() else {
+                            return Ok(None);
+                        };
+                        let offset = aggregate_member_offset(&base.ctype, *member, base.location)?;
+                        let addend = i64::try_from(offset)
+                            .map_err(|_| Error::Codegen("member relocation addend overflows".into()))?;
+                        Ok(Some((name, addend)))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                _ => Ok(None),
+            },
+            // Function designators can appear directly in pointer initializers.
+            ExprType::Id(symbol) if matches!(symbol.get().ctype, Type::Function(_)) => {
+                Ok(symbols.get(symbol).cloned().map(|name| (name, 0)))
+            }
+            _ => Ok(None),
+        }
+    }
+    resolve(expression, symbols)
+}
+
 fn write_global_initializer(
     bytes: &mut [u8],
+    relocations: &mut Vec<RelocationArtifact>,
+    symbols: &HashMap<Symbol, String>,
     base_offset: usize,
     ctype: &Type,
     initializer: &Initializer,
@@ -598,6 +690,26 @@ fn write_global_initializer(
 ) -> Result<(), Error> {
     match initializer {
         Initializer::Scalar(expression) if ctype.is_scalar() => {
+            if matches!(ctype, Type::Pointer(_, _) | Type::Function(_)) {
+                if let Some((target, addend)) = static_address_target(expression, symbols)? {
+                    let offset = u32::try_from(base_offset)
+                        .map_err(|_| Error::Codegen("data relocation offset overflows".into()))?;
+                    let end = base_offset
+                        .checked_add(4)
+                        .ok_or_else(|| Error::Codegen("data relocation offset overflows".into()))?;
+                    if end > bytes.len() {
+                        return Err(Error::Codegen(
+                            "data relocation exceeds global object".into(),
+                        ));
+                    }
+                    relocations.push(RelocationArtifact {
+                        offset,
+                        target,
+                        addend,
+                    });
+                    return Ok(());
+                }
+            }
             let value = scalar_initializer_bytes(expression, ctype, location)?;
             let end = base_offset
                 .checked_add(value.len())
@@ -615,7 +727,7 @@ fn write_global_initializer(
                     "scalar global initializer list must contain exactly one element",
                 ));
             }
-            write_global_initializer(bytes, base_offset, ctype, &items[0], location)
+            write_global_initializer(bytes, relocations, symbols, base_offset, ctype, &items[0], location)
         }
         Initializer::InitializerList(items) => match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
@@ -637,7 +749,7 @@ fn write_global_initializer(
                         .ok_or_else(|| {
                             Error::Codegen("global array initializer offset overflows".into())
                         })?;
-                    write_global_initializer(bytes, offset, element, item, location)?;
+                    write_global_initializer(bytes, relocations, symbols, offset, element, item, location)?;
                 }
                 Ok(())
             }
@@ -659,6 +771,8 @@ fn write_global_initializer(
                         .ok_or_else(|| Error::Codegen("global struct offset overflows".into()))?;
                     write_global_initializer(
                         bytes,
+                        relocations,
+                        symbols,
                         field_offset,
                         &field.ctype,
                         item,
@@ -679,7 +793,15 @@ fn write_global_initializer(
                     let first = members.first().ok_or_else(|| {
                         unsupported(location, "union has no initializable member")
                     })?;
-                    write_global_initializer(bytes, base_offset, &first.ctype, item, location)?;
+                    write_global_initializer(
+                        bytes,
+                        relocations,
+                        symbols,
+                        base_offset,
+                        &first.ctype,
+                        item,
+                        location,
+                    )?;
                 }
                 Ok(())
             }
@@ -722,6 +844,17 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 .then_some((declaration.data.symbol, index as u32))
         })
         .collect();
+    let symbol_names: HashMap<Symbol, String> = declarations
+        .iter()
+        .enumerate()
+        .filter(|(_, declaration)| declaration.data.symbol.get().storage_class != StorageClass::Typedef)
+        .map(|(index, declaration)| {
+            (
+                declaration.data.symbol,
+                translation_unit_symbol_name(index, &declaration.data),
+            )
+        })
+        .collect();
     let mut functions = Vec::new();
     let mut data = Vec::new();
     for (index, declaration) in declarations.iter().enumerate() {
@@ -757,27 +890,28 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                     )
                 })?;
                 let mut bytes = vec![0; size];
+                let mut relocations = Vec::new();
                 if let Some(initializer) = &declaration.data.init {
                     write_global_initializer(
                         &mut bytes,
+                        &mut relocations,
+                        &symbol_names,
                         0,
                         object_type,
                         initializer,
                         declaration.location,
                     )?;
                 }
-                let raw_name = metadata.id.resolve_and_clone();
-                let name = if metadata.storage_class == StorageClass::Static {
-                    format!("__cosmic_static_global_{index}_{raw_name}")
-                } else {
-                    raw_name
-                };
+                let name = symbol_names
+                    .get(&declaration.data.symbol)
+                    .cloned()
+                    .expect("every global definition has a symbol name");
                 data.push(DataArtifact {
                     name,
                     bytes,
                     align: align.max(1),
                     read_only: metadata.qualifiers.c_const,
-                    relocations: Vec::new(),
+                    relocations,
                 });
                 continue;
             }
@@ -2700,6 +2834,20 @@ mod tests {
 
     fn compile_source(source: &str) -> Result<Artifact, Error> {
         compile(source, Opt::default())
+    }
+
+    #[test]
+    fn emits_data_relocations_for_global_and_function_addresses() {
+        let artifact = compile_source(
+            "struct pair { int x; int y; }; int target(void) { return 1; } int global; int *p = &global; int (*fp)(void) = target; struct pair pair; int *member = &pair.y;",
+        )
+        .unwrap();
+        assert_eq!(artifact.data.len(), 4);
+        assert_eq!(artifact.data[1].relocations[0].target, "global");
+        assert_eq!(artifact.data[1].relocations[0].addend, 0);
+        assert_eq!(artifact.data[2].relocations[0].target, "target");
+        assert_eq!(artifact.data[3].relocations[0].target, "pair");
+        assert_eq!(artifact.data[3].relocations[0].addend, 4);
     }
 
     #[test]
