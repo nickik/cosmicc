@@ -1749,9 +1749,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             if let Some(variable_ty) = self.variable_types.get(symbol).copied() {
                                 let value =
                                     self.coerce_integer_value(value, variable_ty, &right.ctype);
-                                self.builder
-                                    .ins()
-                                    .stack_store(types::I32, value, slot, 0);
+                                self.builder.ins().stack_store(types::I32, value, slot, 0);
                                 return Ok(value);
                             }
                         }
@@ -2384,10 +2382,8 @@ mod tests {
 
     #[test]
     fn compiles_assignment_to_address_taken_local_hir_deref() {
-        let artifact = compile_source(
-            "int f(void) { int x = 1; int *p = &x; x = 5; return *p; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int f(void) { int x = 1; int *p = &x; x = 5; return *p; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
