@@ -2857,9 +2857,9 @@ mod tests {
     }
 
     #[test]
-    fn compiles_pointer_difference_scaled_by_pointee_size() {
+    fn compiles_struct_pointer_subtraction_by_integer() {
         let artifact = compile_source(
-            "struct pair { int x; int y; }; int f(struct pair *a, struct pair *b) { return a - b; }",
+            "struct pair { int x; int y; }; struct pair *f(struct pair *a, int n) { return a - n; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
