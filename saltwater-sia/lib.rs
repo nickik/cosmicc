@@ -1140,19 +1140,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let value = self.compile_expr(expression)?;
                     let value_ty = ir_type(element, location)?;
                     let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
-                    let offset = i32::try_from((index as u64) * element_size)
-                        .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
-                    self.builder.ins().stack_store(types::I32, value, slot, offset);
+                    let offset = i32::try_from((index as u64) * element_size).map_err(|_| {
+                        unsupported(location, "aggregate initializer offset is too large")
+                    })?;
+                    self.builder
+                        .ins()
+                        .stack_store(types::I32, value, slot, offset);
                 }
                 Ok(())
             }
             Type::Struct(struct_type) => {
                 let mut offset = 0u64;
                 for (field, item) in struct_type.members().iter().zip(items.iter()) {
-                    let align = field
-                        .ctype
-                        .alignof()
-                        .map_err(|_| unsupported(location, "struct field has unsupported alignment"))?;
+                    let align = field.ctype.alignof().map_err(|_| {
+                        unsupported(location, "struct field has unsupported alignment")
+                    })?;
                     let rem = offset % align;
                     if rem != 0 {
                         offset += align - rem;
@@ -1166,9 +1168,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let value = self.compile_expr(expression)?;
                     let value_ty = ir_type(&field.ctype, location)?;
                     let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
-                    let field_offset = i32::try_from(offset)
-                        .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
-                    self.builder.ins().stack_store(types::I32, value, slot, field_offset);
+                    let field_offset = i32::try_from(offset).map_err(|_| {
+                        unsupported(location, "aggregate initializer offset is too large")
+                    })?;
+                    self.builder
+                        .ins()
+                        .stack_store(types::I32, value, slot, field_offset);
                     offset += field
                         .ctype
                         .sizeof()
@@ -2251,10 +2256,8 @@ mod tests {
 
     #[test]
     fn compiles_pointer_arithmetic_lvalue_assignment() {
-        let artifact = compile_source(
-            "int store(int *p, int i, int x) { p[i] = x; return p[i]; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int store(int *p, int i, int x) { p[i] = x; return p[i]; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
