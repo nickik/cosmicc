@@ -754,23 +754,22 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
         let ty = ir_type(&metadata.ctype, location)?;
         let variable = self.builder.declare_var(ty);
-        let initial = match &declaration.init {
-            Some(Initializer::Scalar(expression)) => self.compile_expr(expression)?,
+        self.variables.insert(declaration.symbol, variable);
+
+        match &declaration.init {
+            Some(Initializer::Scalar(expression)) => {
+                let initial = self.compile_expr(expression)?;
+                self.builder.def_var(variable, initial);
+            }
             Some(_) => {
                 return Err(unsupported(
                     location,
                     "aggregate local initialization is not supported for SIA32 yet",
-                ))
+                ));
             }
-            None => {
-                return Err(unsupported(
-                    location,
-                    "uninitialized local variables are not supported for SIA32 yet",
-                ))
-            }
-        };
-        self.builder.def_var(variable, initial);
-        self.variables.insert(declaration.symbol, variable);
+            None => {}
+        }
+
         Ok(())
     }
 
