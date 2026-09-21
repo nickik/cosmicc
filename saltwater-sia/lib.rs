@@ -683,7 +683,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             return self.compile_stmt(inner);
         }
 
-        if self.terminated {
+        if self.terminated
+            && !matches!(
+                statement.data,
+                StmtType::Compound(_) | StmtType::Case(_, _) | StmtType::Default(_)
+            )
+        {
             return Ok(());
         }
         match &statement.data {
