@@ -11,8 +11,8 @@ use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Block, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData, Signature,
-    UserExternalName, UserFuncName, Value,
+    types, AbiParam, Block, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData,
+    Signature, UserExternalName, UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -952,13 +952,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 let mut case_blocks = HashMap::new();
                 for value in values {
-                    case_blocks.entry(value).or_insert_with(|| self.builder.create_block());
+                    case_blocks
+                        .entry(value)
+                        .or_insert_with(|| self.builder.create_block());
                 }
                 let default_block = has_default.then(|| self.builder.create_block());
                 let exit = self.builder.create_block();
 
-                let cases = case_blocks.iter().map(|(value, block)| (*value, *block)).collect::<Vec<_>>();
-                let mut dispatch = self.builder.current_block().expect("switch must have a current block");
+                let cases = case_blocks
+                    .iter()
+                    .map(|(value, block)| (*value, *block))
+                    .collect::<Vec<_>>();
+                let mut dispatch = self
+                    .builder
+                    .current_block()
+                    .expect("switch must have a current block");
                 for (index, (value, target)) in cases.iter().enumerate() {
                     if index != 0 {
                         self.builder.switch_to_block(dispatch);
@@ -970,9 +978,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     dispatch = next;
                 }
                 self.builder.switch_to_block(dispatch);
-                self.builder
-                    .ins()
-                    .jump(default_block.unwrap_or(exit), &[]);
+                self.builder.ins().jump(default_block.unwrap_or(exit), &[]);
 
                 self.switch_cases.push((case_blocks, default_block));
                 self.break_targets.push(exit);
@@ -993,7 +999,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     .switch_cases
                     .last()
                     .and_then(|(cases, _)| cases.get(value).copied())
-                    .ok_or_else(|| unsupported(statement.location, "case outside a SIA32 switch"))?;
+                    .ok_or_else(|| {
+                        unsupported(statement.location, "case outside a SIA32 switch")
+                    })?;
                 if !self.terminated {
                     self.builder.ins().jump(target, &[]);
                 }
@@ -1006,7 +1014,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     .switch_cases
                     .last()
                     .and_then(|(_, default)| *default)
-                    .ok_or_else(|| unsupported(statement.location, "default outside a SIA32 switch"))?;
+                    .ok_or_else(|| {
+                        unsupported(statement.location, "default outside a SIA32 switch")
+                    })?;
                 if !self.terminated {
                     self.builder.ins().jump(target, &[]);
                 }
@@ -1394,12 +1404,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     // Both denote the same SSA local in this backend.
                     if let ExprType::Id(symbol) = &assignment_left.expr {
                         if let Some(variable) = self.variables.get(symbol).copied() {
-                            let variable_ty = *self.variable_types.get(symbol).ok_or_else(|| {
-                                unsupported(
-                                    expression.location,
-                                    "SIA32 local variable type metadata is missing",
-                                )
-                            })?;
+                            let variable_ty =
+                                *self.variable_types.get(symbol).ok_or_else(|| {
+                                    unsupported(
+                                        expression.location,
+                                        "SIA32 local variable type metadata is missing",
+                                    )
+                                })?;
                             let value = self.coerce_integer_value(value, variable_ty, &right.ctype);
                             self.builder.def_var(variable, value);
                             return Ok(value);
@@ -1438,8 +1449,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                         "SIA32 local variable type metadata is missing",
                                     )
                                 })?;
-                            let value =
-                                self.coerce_integer_value(value, variable_ty, &right.ctype);
+                            let value = self.coerce_integer_value(value, variable_ty, &right.ctype);
 
                             self.builder.def_var(variable, value);
                             return Ok(value);
@@ -1921,10 +1931,9 @@ mod tests {
 
     #[test]
     fn compiles_narrow_local_assignment_conversions() {
-        let artifact = compile_source(
-            "int narrow(int x) { char c; short s; c = x; s = x; c = s; return c; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int narrow(int x) { char c; short s; c = x; s = x; c = s; return c; }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
@@ -1946,7 +1955,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -1956,7 +1968,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().any(|function| !function.relocations.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .any(|function| !function.relocations.is_empty()));
     }
 
     #[test]
@@ -1976,7 +1991,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
