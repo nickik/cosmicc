@@ -1159,27 +1159,38 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 _ => None,
             }
         }
-        let pointer = member_base_pointer(base).ok_or_else(|| {
-            unsupported(
-                location,
-                "SIA32 member access requires an addressable aggregate",
-            )
-        })?;
-        let address = match &pointer.expr {
-            ExprType::Id(symbol) => {
-                if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                    self.builder.ins().stack_addr(types::I32, slot, 0)
-                } else {
-                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            location,
-                            "global aggregate addresses are not supported for SIA32 yet",
-                        )
-                    })?;
-                    self.builder.use_var(variable)
+        let address = if let ExprType::Id(symbol) = &base.expr {
+            // Direct local aggregate member access, e.g. local.field.
+            let slot = self.stack_locals.get(symbol).copied().ok_or_else(|| {
+                unsupported(
+                    location,
+                    "direct aggregate member base has no SIA32 stack storage",
+                )
+            })?;
+            self.builder.ins().stack_addr(types::I32, slot, 0)
+        } else {
+            let pointer = member_base_pointer(base).ok_or_else(|| {
+                unsupported(
+                    location,
+                    "SIA32 member access requires an addressable aggregate",
+                )
+            })?;
+            match &pointer.expr {
+                ExprType::Id(symbol) => {
+                    if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                        self.builder.ins().stack_addr(types::I32, slot, 0)
+                    } else {
+                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
+                            unsupported(
+                                location,
+                                "global aggregate addresses are not supported for SIA32 yet",
+                            )
+                        })?;
+                        self.builder.use_var(variable)
+                    }
                 }
+                _ => self.compile_expr(pointer)?,
             }
-            _ => self.compile_expr(pointer)?,
         };
         Ok(if offset == 0 {
             address
