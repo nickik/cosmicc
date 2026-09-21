@@ -1532,20 +1532,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         Ok(self.builder.use_var(variable))
                     }
                 }
-                ExprType::Member(base, member) => {
-                    let address =
-                        self.compile_member_address(base, *member, expression.location)?;
+                ExprType::Member(_, _) | ExprType::Noop(_) | ExprType::Cast(_) => {
+                    let address = self.compile_lvalue_address(pointer)?;
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
-                }
-                ExprType::Noop(inner) => {
-                    if let ExprType::Member(base, member) = &inner.expr {
-                        let address =
-                            self.compile_member_address(base, *member, expression.location)?;
-                        Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
-                    } else {
-                        let address = self.compile_expr(pointer)?;
-                        Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
-                    }
                 }
                 _ => {
                     let address = self.compile_expr(pointer)?;
@@ -2499,6 +2488,16 @@ mod tests {
     fn compiles_wrapped_and_nested_aggregate_member_addresses() {
         let artifact = compile_source(
             "struct inner { int x; }; struct outer { struct inner i; }; int f(struct outer *p) { p->i.x = 7; return p->i.x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_wrapped_member_pointer_dereference_reads() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(struct pair *p) { int *q = &p->x; return *q; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
