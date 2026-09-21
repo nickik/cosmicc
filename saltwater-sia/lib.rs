@@ -1531,13 +1531,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // width before emitting CLIF. This avoids type-mismatch IR for
                 // combinations such as char + int and short < long.
                 let operation_ty = match operator {
-                    BinaryOp::Shl | BinaryOp::Shr => {
-                        self.builder.func.dfg.value_type(left)
-                    }
+                    BinaryOp::Shl | BinaryOp::Shr => self.builder.func.dfg.value_type(left),
                     BinaryOp::Compare(_) => {
                         let left_ty = self.builder.func.dfg.value_type(left);
                         let right_ty = self.builder.func.dfg.value_type(right);
-                        if left_ty.bits() >= right_ty.bits() { left_ty } else { right_ty }
+                        if left_ty.bits() >= right_ty.bits() {
+                            left_ty
+                        } else {
+                            right_ty
+                        }
                     }
                     _ => ir_type(&expression.ctype, expression.location)?,
                 };
@@ -1981,7 +1983,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
