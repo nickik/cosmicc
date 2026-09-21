@@ -1281,10 +1281,25 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     return Ok(self.builder.block_params(merge_block)[0]);
                 }
 
+                let left_expr_type = left.ctype.clone();
                 let left = self.compile_expr(left)?;
                 let right = self.compile_expr(right)?;
                 let value = match operator {
                     BinaryOp::Mul => self.builder.ins().imul(left, right),
+                    BinaryOp::Div => {
+                        if is_signed_integer_type(&left_expr_type) {
+                            self.builder.ins().sdiv(left, right)
+                        } else {
+                            self.builder.ins().udiv(left, right)
+                        }
+                    }
+                    BinaryOp::Mod => {
+                        if is_signed_integer_type(&left_expr_type) {
+                            self.builder.ins().srem(left, right)
+                        } else {
+                            self.builder.ins().urem(left, right)
+                        }
+                    }
                     BinaryOp::Add => self.builder.ins().iadd(left, right),
                     BinaryOp::Sub => self.builder.ins().isub(left, right),
                     BinaryOp::BitwiseAnd => self.builder.ins().band(left, right),
@@ -1397,6 +1412,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             )),
         }
     }
+}
+
+fn is_signed_integer_type(ctype: &Type) -> bool {
+    matches!(
+        ctype,
+        Type::Char(true)
+            | Type::Short(true)
+            | Type::Int(true)
+            | Type::Long(true)
+            | Type::Enum(_, _)
+    )
 }
 
 fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
@@ -1565,6 +1591,16 @@ mod tests {
             &artifact.functions[0].code[artifact.functions[0].code.len() - 2..],
             &[0xe0, 0xc0]
         );
+    }
+
+    #[test]
+    fn compiles_signed_and_unsigned_integer_division_and_remainder() {
+        let artifact = compile_source(
+            "int signed_ops(int a, int b) { return (a / b) + (a % b); } unsigned int unsigned_ops(unsigned int a, unsigned int b) { return (a / b) + (a % b); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
     }
 
     #[test]
