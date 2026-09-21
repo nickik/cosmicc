@@ -1114,7 +1114,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             return Ok(self.builder.ins().stack_addr(types::I32, slot, 0));
         }
         let variable = self.variables.get(&symbol).copied().ok_or_else(|| {
-            unsupported(location, "SIA32 local address has no local variable mapping")
+            unsupported(
+                location,
+                "SIA32 local address has no local variable mapping",
+            )
         })?;
         let value = self.builder.use_var(variable);
         let value_ty = self.builder.func.dfg.value_type(value);
@@ -1387,9 +1390,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     // Address-taken scalar locals require stack-slot lowering; do not
                     // silently manufacture an address for an SSA variable.
-                    ExprType::Id(symbol) => {
-                        self.address_of_local(*symbol, expression.location)
-                    }
+                    ExprType::Id(symbol) => self.address_of_local(*symbol, expression.location),
                     _ => Err(unsupported(
                         expression.location,
                         format!("SIA32 address-of lowering is not implemented for {lvalue:?}"),
@@ -2248,7 +2249,8 @@ mod tests {
             message.contains("argument count")
                 || message.contains("argument")
                 || message.contains("parameter"),
-            "unexpected diagnostic: {}", message
+            "unexpected diagnostic: {}",
+            message
         );
     }
 
@@ -2287,10 +2289,9 @@ mod tests {
 
     #[test]
     fn compiles_address_taken_scalar_local_with_stack_storage() {
-        let artifact = compile_source(
-            "int local(void) { int x = 3; int *p = &x; *p = 7; return x; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int local(void) { int x = 3; int *p = &x; *p = 7; return x; }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
