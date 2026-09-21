@@ -1644,11 +1644,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else {
                     self.builder.ins().isub(old, step)
                 };
+                let storage_ty = ir_type(&lvalue.ctype, expression.location)?;
+                let stored = self.coerce_integer_value(updated, storage_ty, &lvalue.ctype);
 
                 match &lvalue.expr {
                     ExprType::Id(symbol) => {
                         if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                            self.builder.ins().stack_store(types::I32, updated, slot, 0);
+                            self.builder.ins().stack_store(types::I32, stored, slot, 0);
                         } else {
                             let variable =
                                 self.variables.get(symbol).copied().ok_or_else(|| {
@@ -1666,7 +1668,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         let address = self.compile_lvalue_address(lvalue)?;
                         self.builder
                             .ins()
-                            .store(MemFlagsData::new(), updated, address, 0);
+                            .store(MemFlagsData::new(), stored, address, 0);
                     }
                     _ => {
                         return Err(unsupported(
@@ -2469,6 +2471,16 @@ mod tests {
     fn compiles_do_while_with_loop_carried_local() {
         let artifact = compile_source(
             "int countdown(int n) { int i = n; do { i = i - 1; } while (i > 0); return i; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_narrow_post_increment_stores_at_declared_width() {
+        let artifact = compile_source(
+            "int f(unsigned char *p, unsigned short *q) { (*p)++; (*q)--; return *p + *q; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
