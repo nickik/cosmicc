@@ -666,6 +666,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
     }
 
+    fn compile_condition(&mut self, expression: &Expr) -> Result<Value, Error> {
+        let value = self.compile_expr(expression)?;
+        let value_ty = self.builder.func.dfg.value_type(value);
+        let zero = self.builder.ins().iconst(value_ty, 0);
+        Ok(self.builder.ins().icmp(IntCC::NotEqual, value, zero))
+    }
+
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
         // A label starts a new reachable basic block even when the preceding
         // statement terminated (for example with goto or return).
@@ -746,10 +753,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::If(condition, then_stmt, else_stmt) => {
-                let condition = self.compile_expr(condition)?;
-                let condition_ty = self.builder.func.dfg.value_type(condition);
-                let zero = self.builder.ins().iconst(condition_ty, 0);
-                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                let condition = self.compile_condition(condition)?;
 
                 let then_block = self.builder.create_block();
                 let else_block = self.builder.create_block();
@@ -813,10 +817,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
 
                 self.builder.switch_to_block(condition_block);
-                let condition = self.compile_expr(condition)?;
-                let condition_ty = self.builder.func.dfg.value_type(condition);
-                let zero = self.builder.ins().iconst(condition_ty, 0);
-                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                let condition = self.compile_condition(condition)?;
                 self.builder
                     .ins()
                     .brif(condition, body_block, &[], exit, &[]);
@@ -842,10 +843,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.ins().jump(header, &[]);
                 self.builder.switch_to_block(header);
                 if let Some(condition) = condition {
-                    let condition = self.compile_expr(condition)?;
-                    let condition_ty = self.builder.func.dfg.value_type(condition);
-                    let zero = self.builder.ins().iconst(condition_ty, 0);
-                    let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                    let condition = self.compile_condition(condition)?;
                     self.builder
                         .ins()
                         .brif(condition, body_block, &[], exit, &[]);
@@ -886,10 +884,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
                 self.builder.ins().jump(header, &[]);
                 self.builder.switch_to_block(header);
-                let condition = self.compile_expr(condition)?;
-                let condition_ty = self.builder.func.dfg.value_type(condition);
-                let zero = self.builder.ins().iconst(condition_ty, 0);
-                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                let condition = self.compile_condition(condition)?;
                 self.builder
                     .ins()
                     .brif(condition, body_block, &[], exit, &[]);
@@ -1683,10 +1678,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(old)
             }
             ExprType::Ternary(condition, yes, no) => {
-                let condition = self.compile_expr(condition)?;
-                let condition_ty = self.builder.func.dfg.value_type(condition);
-                let zero = self.builder.ins().iconst(condition_ty, 0);
-                let condition = self.builder.ins().icmp(IntCC::NotEqual, condition, zero);
+                let condition = self.compile_condition(condition)?;
 
                 let yes_block = self.builder.create_block();
                 let no_block = self.builder.create_block();
@@ -2380,6 +2372,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_pointer_and_narrow_integer_conditions() {
+        let artifact = compile_source(
+            "int f(int *p, unsigned char x) { if (p) { while (x) { x--; if (!x) break; } } return x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
