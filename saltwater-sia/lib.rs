@@ -1054,6 +1054,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         if metadata.storage_class == StorageClass::Typedef {
             return Ok(());
         }
+<<<<<<< HEAD
         if matches!(metadata.ctype, Type::Struct(_) | Type::Union(_) | Type::Array(_, _)) {
             let size = u32::try_from(
                 metadata
@@ -1072,6 +1073,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 StackSlotKind::ExplicitSlot,
                 size,
                 align_shift,
+=======
+        if matches!(
+            metadata.ctype,
+            Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+        ) {
+            return Err(unsupported(
+                location,
+                "aggregate locals require SIA32 stack-slot lowering",
+>>>>>>> a0a4c6b (lib)
             ));
             self.stack_locals.insert(declaration.symbol, slot);
             if declaration.init.is_some() {
