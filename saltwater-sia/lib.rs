@@ -694,11 +694,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         match &statement.data {
             StmtType::Compound(statements) => {
                 for statement in statements {
-                    if self.terminated
-                        && !matches!(statement.data, StmtType::Case(_, _) | StmtType::Default(_))
-                    {
-                        continue;
-                    }
+                    // Do not prune here: labels, including case/default labels,
+                    // can restore reachability after a terminating statement.
+                    // compile_stmt itself ignores unreachable ordinary statements.
                     self.compile_stmt(statement)?;
                 }
                 Ok(())
@@ -2207,6 +2205,16 @@ mod tests {
             .functions
             .iter()
             .any(|function| !function.relocations.is_empty()));
+    }
+
+    #[test]
+    fn compiles_switch_after_terminated_dispatch_through_compound() {
+        let artifact = compile_source(
+            "int f(int x) { int y = 0; switch (x) { y = 7; case 1: y = 1; break; default: y = 2; } return y; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
