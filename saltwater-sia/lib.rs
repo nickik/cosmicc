@@ -1379,18 +1379,34 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         let signed = is_signed_integer_type(&left_expr_type);
                         let condition = match compare {
                             ComparisonToken::Less => {
-                                if signed { IntCC::SignedLessThan } else { IntCC::UnsignedLessThan }
+                                if signed {
+                                    IntCC::SignedLessThan
+                                } else {
+                                    IntCC::UnsignedLessThan
+                                }
                             }
                             ComparisonToken::Greater => {
-                                if signed { IntCC::SignedGreaterThan } else { IntCC::UnsignedGreaterThan }
+                                if signed {
+                                    IntCC::SignedGreaterThan
+                                } else {
+                                    IntCC::UnsignedGreaterThan
+                                }
                             }
                             ComparisonToken::EqualEqual => IntCC::Equal,
                             ComparisonToken::NotEqual => IntCC::NotEqual,
                             ComparisonToken::LessEqual => {
-                                if signed { IntCC::SignedLessThanOrEqual } else { IntCC::UnsignedLessThanOrEqual }
+                                if signed {
+                                    IntCC::SignedLessThanOrEqual
+                                } else {
+                                    IntCC::UnsignedLessThanOrEqual
+                                }
                             }
                             ComparisonToken::GreaterEqual => {
-                                if signed { IntCC::SignedGreaterThanOrEqual } else { IntCC::UnsignedGreaterThanOrEqual }
+                                if signed {
+                                    IntCC::SignedGreaterThanOrEqual
+                                } else {
+                                    IntCC::UnsignedGreaterThanOrEqual
+                                }
                             }
                         };
                         // CLIF icmp produces I8, but a C comparison expression
