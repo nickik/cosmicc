@@ -1647,6 +1647,42 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         Ok(self.builder.ins().symbol_value(types::I32, global))
     }
 
+    fn copy_aggregate_value(
+        &mut self,
+        destination: Value,
+        source: Value,
+        ctype: &Type,
+        location: Location,
+    ) -> Result<(), Error> {
+        let size = i32::try_from(
+            ctype
+                .sizeof()
+                .map_err(|error| unsupported(location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(location, "aggregate copy is too large for SIA32"))?;
+        let mut offset = 0i32;
+        while offset < size {
+            let remaining = size - offset;
+            let ty = if remaining >= 4 {
+                types::I32
+            } else if remaining >= 2 {
+                types::I16
+            } else {
+                types::I8
+            };
+            let width = i32::from(ty.bytes());
+            let value = self
+                .builder
+                .ins()
+                .load(ty, MemFlagsData::new(), source, offset);
+            self.builder
+                .ins()
+                .store(MemFlagsData::new(), value, destination, offset);
+            offset += width;
+        }
+        Ok(())
+    }
+
     fn compile_condition(&mut self, expression: &Expr) -> Result<Value, Error> {
         let value = self.compile_expr(expression)?;
         let value_ty = self.builder.func.dfg.value_type(value);
@@ -2731,6 +2767,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     while let ExprType::Noop(inner) | ExprType::Cast(inner) = &assignment_left.expr
                     {
                         assignment_left = inner;
+                    }
+
+                    if matches!(
+                        assignment_left.ctype,
+                        Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+                    ) {
+                        let destination = self.compile_lvalue_address(assignment_left)?;
+                        let source = self.compile_expr(right)?;
+                        self.copy_aggregate_value(
+                            destination,
+                            source,
+                            &assignment_left.ctype,
+                            expression.location,
+                        )?;
+                        return Ok(destination);
                     }
 
                     let value = self.compile_expr(right)?;
@@ -3821,6 +3872,16 @@ mod tests {
     fn compiles_cast_wrapped_member_and_array_lvalue_assignments() {
         let artifact = compile_source(
             "struct pair { int x; }; int f(struct pair *p, int *a, int i) { p->x = 3; a[i] = p->x; return a[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_whole_struct_and_union_assignments() {
+        let artifact = compile_source(
+            "struct pair { int a; short b; }; union value { int i; short s; }; int f(void) { struct pair a = {1, 2}; struct pair b; union value u = {3}; union value v; b = a; v = u; return b.a + b.b + v.i; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
