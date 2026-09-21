@@ -1109,6 +1109,26 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         Ok(())
     }
 
+    fn address_of_local(&mut self, symbol: Symbol, location: Location) -> Result<Value, Error> {
+        if let Some(slot) = self.stack_locals.get(&symbol).copied() {
+            return Ok(self.builder.ins().stack_addr(types::I32, slot, 0));
+        }
+        let variable = self.variables.get(&symbol).copied().ok_or_else(|| {
+            unsupported(location, "SIA32 local address has no local variable mapping")
+        })?;
+        let value = self.builder.use_var(variable);
+        let value_ty = self.builder.func.dfg.value_type(value);
+        let size = u32::from(value_ty.bytes());
+        let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            size,
+            u8::try_from(size.trailing_zeros()).unwrap_or(0),
+        ));
+        self.builder.ins().stack_store(types::I32, value, slot, 0);
+        self.stack_locals.insert(symbol, slot);
+        Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
+    }
+
     fn initialize_stack_aggregate(
         &mut self,
         slot: StackSlot,
@@ -1338,10 +1358,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         };
         match &expression.expr {
             ExprType::Id(symbol) => {
-                if let Some(variable) = self.variables.get(symbol).copied() {
+                if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                    if let Some(value_ty) = self.variable_types.get(symbol).copied() {
+                        Ok(self.builder.ins().stack_load(value_ty, types::I32, slot, 0))
+                    } else {
+                        Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
+                    }
+                } else if let Some(variable) = self.variables.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
-                } else if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                    Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                 } else {
                     Err(unsupported(
                         expression.location,
@@ -1363,10 +1387,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     // Address-taken scalar locals require stack-slot lowering; do not
                     // silently manufacture an address for an SSA variable.
-                    ExprType::Id(_) => Err(unsupported(
-                        expression.location,
-                        "taking the address of an SSA local requires SIA32 stack-local support",
-                    )),
+                    ExprType::Id(symbol) => {
+                        self.address_of_local(*symbol, expression.location)
+                    }
                     _ => Err(unsupported(
                         expression.location,
                         format!("SIA32 address-of lowering is not implemented for {lvalue:?}"),
@@ -1601,6 +1624,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     // either directly as Id(symbol) or as Deref(Id(symbol)).
                     // Both denote the same SSA local in this backend.
                     if let ExprType::Id(symbol) = &assignment_left.expr {
+                        if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                            if let Some(target_ty) = self.variable_types.get(symbol).copied() {
+                                let value =
+                                    self.coerce_integer_value(value, target_ty, &right.ctype);
+                                self.builder.ins().stack_store(types::I32, value, slot, 0);
+                                return Ok(value);
+                            }
+                        }
                         if let Some(variable) = self.variables.get(symbol).copied() {
                             let variable_ty =
                                 *self.variable_types.get(symbol).ok_or_else(|| {
@@ -2252,6 +2283,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_address_taken_scalar_local_with_stack_storage() {
+        let artifact = compile_source(
+            "int local(void) { int x = 3; int *p = &x; *p = 7; return x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
