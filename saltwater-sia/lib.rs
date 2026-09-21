@@ -714,20 +714,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Return(value) => {
-                if let Some(value) = value {
-                    let mut value = self.compile_expr(value)?;
+                if let Some(expression) = value {
+                    let signed = matches!(
+                        &expression.ctype,
+                        Type::Char(true)
+                            | Type::Short(true)
+                            | Type::Int(true)
+                            | Type::Long(true)
+                            | Type::Enum(_, _)
+                    );
+                    let mut value = self.compile_expr(expression)?;
                     if let Some(return_type) = self.return_type {
                         let value_type = self.builder.func.dfg.value_type(value);
                         if value_type != return_type {
                             if value_type.bits() < return_type.bits() {
-                                let signed = matches!(
-                                    &value.ctype,
-                                    Type::Char(true)
-                                        | Type::Short(true)
-                                        | Type::Int(true)
-                                        | Type::Long(true)
-                                        | Type::Enum(_, _)
-                                );
                                 value = if signed {
                                     self.builder.ins().sextend(return_type, value)
                                 } else {
