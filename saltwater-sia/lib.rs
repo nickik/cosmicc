@@ -637,6 +637,8 @@ struct FunctionLowerer<'a, 'b, 'c> {
     function_indices: &'c HashMap<Symbol, u32>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block)>,
+    break_targets: Vec<Block>,
+    switch_cases: Vec<(HashMap<u64, Block>, Option<Block>)>,
     labels: HashMap<saltwater_parser::intern::InternedStr, Block>,
     terminated: bool,
 }
@@ -659,6 +661,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             function_indices,
             return_type,
             loop_targets: Vec::new(),
+            break_targets: Vec::new(),
+            switch_cases: Vec::new(),
             labels: HashMap::new(),
             terminated: false,
         }
@@ -775,7 +779,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // cannot be sealed until that predecessor has been emitted.
                 self.terminated = false;
                 self.loop_targets.push((condition_block, exit));
+                self.break_targets.push(exit);
                 self.compile_stmt(body)?;
+                self.break_targets.pop();
                 self.loop_targets.pop();
                 if !self.terminated {
                     self.builder.ins().jump(condition_block, &[]);
@@ -826,7 +832,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.seal_block(body_block);
                 self.terminated = false;
                 self.loop_targets.push((step_block, exit));
+                self.break_targets.push(exit);
                 self.compile_stmt(body)?;
+                self.break_targets.pop();
                 self.loop_targets.pop();
                 if !self.terminated {
                     self.builder.ins().jump(step_block, &[]);
@@ -865,7 +873,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.seal_block(body_block);
                 self.terminated = false;
                 self.loop_targets.push((header, exit));
+                self.break_targets.push(exit);
                 self.compile_stmt(body)?;
+                self.break_targets.pop();
                 self.loop_targets.pop();
                 if !self.terminated {
                     self.builder.ins().jump(header, &[]);
@@ -878,10 +888,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Break => {
-                let (_, exit) =
-                    self.loop_targets.last().copied().ok_or_else(|| {
-                        unsupported(statement.location, "break outside a SIA32 loop")
-                    })?;
+                let exit = self.break_targets.last().copied().ok_or_else(|| {
+                    unsupported(statement.location, "break outside a SIA32 loop or switch")
+                })?;
                 self.builder.ins().jump(exit, &[]);
                 self.terminated = true;
                 Ok(())
@@ -902,6 +911,108 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.ins().jump(header, &[]);
                 self.terminated = true;
                 Ok(())
+            }
+            StmtType::Switch(expression, body) => {
+                fn collect_labels(stmt: &Stmt, cases: &mut Vec<u64>, has_default: &mut bool) {
+                    match &stmt.data {
+                        StmtType::Case(value, inner) => {
+                            cases.push(*value);
+                            collect_labels(inner, cases, has_default);
+                        }
+                        StmtType::Default(inner) => {
+                            *has_default = true;
+                            collect_labels(inner, cases, has_default);
+                        }
+                        StmtType::Compound(statements) => {
+                            for statement in statements {
+                                collect_labels(statement, cases, has_default);
+                            }
+                        }
+                        // Labels inside a nested switch belong to that switch.
+                        StmtType::Switch(_, _) => {}
+                        StmtType::If(_, yes, no) => {
+                            collect_labels(yes, cases, has_default);
+                            if let Some(no) = no {
+                                collect_labels(no, cases, has_default);
+                            }
+                        }
+                        StmtType::While(_, inner)
+                        | StmtType::Do(inner, _)
+                        | StmtType::Label(_, inner) => collect_labels(inner, cases, has_default),
+                        StmtType::For(_, _, _, inner) => collect_labels(inner, cases, has_default),
+                        _ => {}
+                    }
+                }
+
+                let selector = self.compile_expr(expression)?;
+                let selector_ty = self.builder.func.dfg.value_type(selector);
+                let mut values = Vec::new();
+                let mut has_default = false;
+                collect_labels(body, &mut values, &mut has_default);
+
+                let mut case_blocks = HashMap::new();
+                for value in values {
+                    case_blocks.entry(value).or_insert_with(|| self.builder.create_block());
+                }
+                let default_block = has_default.then(|| self.builder.create_block());
+                let exit = self.builder.create_block();
+
+                let cases = case_blocks.iter().map(|(value, block)| (*value, *block)).collect::<Vec<_>>();
+                let mut dispatch = self.builder.current_block().expect("switch must have a current block");
+                for (index, (value, target)) in cases.iter().enumerate() {
+                    if index != 0 {
+                        self.builder.switch_to_block(dispatch);
+                    }
+                    let next = self.builder.create_block();
+                    let constant = self.builder.ins().iconst(selector_ty, *value as i64);
+                    let matches = self.builder.ins().icmp(IntCC::Equal, selector, constant);
+                    self.builder.ins().brif(matches, *target, &[], next, &[]);
+                    dispatch = next;
+                }
+                self.builder.switch_to_block(dispatch);
+                self.builder
+                    .ins()
+                    .jump(default_block.unwrap_or(exit), &[]);
+
+                self.switch_cases.push((case_blocks, default_block));
+                self.break_targets.push(exit);
+                self.terminated = true;
+                self.compile_stmt(body)?;
+                self.break_targets.pop();
+                self.switch_cases.pop();
+
+                if !self.terminated {
+                    self.builder.ins().jump(exit, &[]);
+                }
+                self.builder.switch_to_block(exit);
+                self.terminated = false;
+                Ok(())
+            }
+            StmtType::Case(value, inner) => {
+                let target = self
+                    .switch_cases
+                    .last()
+                    .and_then(|(cases, _)| cases.get(value).copied())
+                    .ok_or_else(|| unsupported(statement.location, "case outside a SIA32 switch"))?;
+                if !self.terminated {
+                    self.builder.ins().jump(target, &[]);
+                }
+                self.builder.switch_to_block(target);
+                self.terminated = false;
+                self.compile_stmt(inner)
+            }
+            StmtType::Default(inner) => {
+                let target = self
+                    .switch_cases
+                    .last()
+                    .and_then(|(_, default)| *default)
+                    .ok_or_else(|| unsupported(statement.location, "default outside a SIA32 switch"))?;
+                if !self.terminated {
+                    self.builder.ins().jump(target, &[]);
+                }
+                self.builder.switch_to_block(target);
+                self.terminated = false;
+                self.compile_stmt(inner)
             }
             _ => Err(unsupported(
                 statement.location,
@@ -1778,6 +1889,16 @@ mod tests {
     fn compiles_scalar_post_increment_and_decrement() {
         let artifact = compile_source(
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_switch_case_default_break_and_fallthrough() {
+        let artifact = compile_source(
+            "int choose(int x) { int y = 0; switch (x) { case 1: y = 10; break; case 2: y = 20; case 3: y = y + 1; break; default: y = 99; } return y; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
