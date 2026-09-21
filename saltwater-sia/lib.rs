@@ -1565,9 +1565,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             // `Deref(Id(symbol))`: `Id` creates the lvalue address and Deref
             // loads it. This backend keeps non-address-taken locals in SSA,
             // so this pair becomes a direct `use_var` instead of a memory load.
-            ExprType::Deref(pointer)
-                if is_address_valued_type(&expression.ctype) =>
-            {
+            ExprType::Deref(pointer) if is_address_valued_type(&expression.ctype) => {
                 self.compile_expr(pointer)
             }
             ExprType::Deref(pointer) => match &pointer.expr {
@@ -2446,7 +2444,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
