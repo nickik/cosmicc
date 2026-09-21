@@ -33,7 +33,7 @@ use target_lexicon::Triple;
 pub const TARGET: &str = "sia32-unknown-none";
 
 const BUNDLE_MAGIC: &[u8] = b"COSMIC-SIA\0";
-const BUNDLE_VERSION: u16 = 2;
+const BUNDLE_VERSION: u16 = 3;
 const SIA_REGISTER_COUNT: usize = 16;
 const SIA_ARGUMENT_REGISTER: usize = 1;
 const SIA_LINK_REGISTER: usize = 14;
@@ -58,6 +58,21 @@ pub struct RelocationArtifact {
     pub addend: i64,
 }
 
+/// One relocatable data object emitted by Cosmic C.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataArtifact {
+    /// Linkage name used by code/data relocations.
+    pub name: String,
+    /// Initial contents. Uninitialized objects are emitted as zero-filled bytes.
+    pub bytes: Vec<u8>,
+    /// Required power-of-two byte alignment.
+    pub align: u32,
+    /// Whether the object should be mapped read-only by the eventual linker/loader.
+    pub read_only: bool,
+    /// Link-time relocations embedded in this data object.
+    pub relocations: Vec<RelocationArtifact>,
+}
+
 /// A relocatable-in-spirit SIA code bundle.
 ///
 /// The bundle is intentionally small while the Cosmic object/image writer is
@@ -69,6 +84,8 @@ pub struct Artifact {
     pub target: &'static str,
     /// Compiled function bodies.
     pub functions: Vec<FunctionArtifact>,
+    /// Relocatable global/static/string data objects.
+    pub data: Vec<DataArtifact>,
 }
 
 /// A concrete SIA32 call prepared for an external Lighting execution harness.
@@ -137,6 +154,34 @@ impl Artifact {
                 .map_err(|_| Error::Codegen("too many relocations for a SIA function".into()))?;
             bytes.extend_from_slice(&reloc_count.to_le_bytes());
             for relocation in &function.relocations {
+                let target = relocation.target.as_bytes();
+                let target_len = u16::try_from(target.len())
+                    .map_err(|_| Error::Codegen("relocation target name is too long".into()))?;
+                bytes.extend_from_slice(&relocation.offset.to_le_bytes());
+                bytes.extend_from_slice(&relocation.addend.to_le_bytes());
+                bytes.extend_from_slice(&target_len.to_le_bytes());
+                bytes.extend_from_slice(target);
+            }
+        }
+        let data_count = u16::try_from(self.data.len())
+            .map_err(|_| Error::Codegen("too many data objects for a SIA bundle".into()))?;
+        bytes.extend_from_slice(&data_count.to_le_bytes());
+        for object in &self.data {
+            let name = object.name.as_bytes();
+            let name_len = u16::try_from(name.len())
+                .map_err(|_| Error::Codegen("data object name is too long".into()))?;
+            let data_len = u32::try_from(object.bytes.len())
+                .map_err(|_| Error::Codegen("data object is too large".into()))?;
+            bytes.extend_from_slice(&name_len.to_le_bytes());
+            bytes.extend_from_slice(name);
+            bytes.extend_from_slice(&object.align.to_le_bytes());
+            bytes.push(u8::from(object.read_only));
+            bytes.extend_from_slice(&data_len.to_le_bytes());
+            bytes.extend_from_slice(&object.bytes);
+            let reloc_count = u16::try_from(object.relocations.len())
+                .map_err(|_| Error::Codegen("too many relocations for a SIA data object".into()))?;
+            bytes.extend_from_slice(&reloc_count.to_le_bytes());
+            for relocation in &object.relocations {
                 let target = relocation.target.as_bytes();
                 let target_len = u16::try_from(target.len())
                     .map_err(|_| Error::Codegen("relocation target name is too long".into()))?;
@@ -232,6 +277,80 @@ impl Artifact {
                 relocations,
             });
         }
+        let data_count =
+            u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "data count")?));
+        let mut data = Vec::with_capacity(usize::from(data_count));
+        for _ in 0..data_count {
+            let name_len = usize::from(u16::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                2,
+                "data name length",
+            )?)));
+            let name = std::str::from_utf8(take(bytes, &mut cursor, name_len, "data name")?)
+                .map_err(|_| Error::Codegen("COSMIC-SIA data name is not UTF-8".into()))?
+                .to_owned();
+            let align =
+                u32::from_le_bytes(read_array(take(bytes, &mut cursor, 4, "data alignment")?));
+            let read_only = take(bytes, &mut cursor, 1, "data read-only flag")?[0] != 0;
+            let data_len = usize::try_from(u32::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                4,
+                "data length",
+            )?)))
+            .expect("a u32 always fits in usize on supported Cosmic C hosts");
+            let object_bytes = take(bytes, &mut cursor, data_len, "data bytes")?.to_vec();
+            let reloc_count = usize::from(u16::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                2,
+                "data relocation count",
+            )?)));
+            let mut relocations = Vec::with_capacity(reloc_count);
+            for _ in 0..reloc_count {
+                let offset = u32::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    4,
+                    "data relocation offset",
+                )?));
+                let addend = i64::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    8,
+                    "data relocation addend",
+                )?));
+                let target_len = usize::from(u16::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    2,
+                    "data relocation target length",
+                )?)));
+                let target = std::str::from_utf8(take(
+                    bytes,
+                    &mut cursor,
+                    target_len,
+                    "data relocation target",
+                )?)
+                .map_err(|_| {
+                    Error::Codegen("COSMIC-SIA data relocation target is not UTF-8".into())
+                })?
+                .to_owned();
+                relocations.push(RelocationArtifact {
+                    offset,
+                    target,
+                    addend,
+                });
+            }
+            data.push(DataArtifact {
+                name,
+                bytes: object_bytes,
+                align,
+                read_only,
+                relocations,
+            });
+        }
         if cursor != bytes.len() {
             return Err(Error::Codegen(
                 "COSMIC-SIA bundle has trailing bytes".into(),
@@ -240,6 +359,7 @@ impl Artifact {
         let artifact = Self {
             target: TARGET,
             functions,
+            data,
         };
         artifact.validate()?;
         Ok(artifact)
@@ -305,9 +425,9 @@ impl Artifact {
                 "COSMIC-SIA bundle target must be `{TARGET}`"
             )));
         }
-        if self.functions.is_empty() {
+        if self.functions.is_empty() && self.data.is_empty() {
             return Err(Error::Codegen(
-                "COSMIC-SIA bundle contains no functions".into(),
+                "COSMIC-SIA bundle contains neither functions nor data".into(),
             ));
         }
         let mut names = HashSet::new();
@@ -319,7 +439,7 @@ impl Artifact {
             }
             if !names.insert(&function.name) {
                 return Err(Error::Codegen(format!(
-                    "COSMIC-SIA bundle contains duplicate function `{}`",
+                    "COSMIC-SIA bundle contains duplicate symbol `{}`",
                     function.name
                 )));
             }
@@ -328,6 +448,37 @@ impl Artifact {
                     "COSMIC-SIA function `{}` does not contain whole SIA instruction words",
                     function.name
                 )));
+            }
+        }
+        for object in &self.data {
+            if object.name.is_empty() {
+                return Err(Error::Codegen(
+                    "COSMIC-SIA data object name must not be empty".into(),
+                ));
+            }
+            if !names.insert(&object.name) {
+                return Err(Error::Codegen(format!(
+                    "COSMIC-SIA bundle contains duplicate symbol `{}`",
+                    object.name
+                )));
+            }
+            if object.align == 0 || !object.align.is_power_of_two() {
+                return Err(Error::Codegen(format!(
+                    "COSMIC-SIA data object `{}` has invalid alignment {}",
+                    object.name, object.align
+                )));
+            }
+            for relocation in &object.relocations {
+                let end = usize::try_from(relocation.offset)
+                    .ok()
+                    .and_then(|offset| offset.checked_add(4))
+                    .ok_or_else(|| Error::Codegen("data relocation offset overflows".into()))?;
+                if end > object.bytes.len() {
+                    return Err(Error::Codegen(format!(
+                        "COSMIC-SIA data relocation in `{}` lies outside the object",
+                        object.name
+                    )));
+                }
             }
         }
         Ok(())
@@ -465,6 +616,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     Ok(Artifact {
         target: TARGET,
         functions,
+        data: Vec::new(),
     })
 }
 
@@ -2943,6 +3095,27 @@ mod tests {
                 .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn cosmic_sia_bundle_round_trips_data_objects() {
+        let artifact = Artifact {
+            target: TARGET,
+            functions: Vec::new(),
+            data: vec![DataArtifact {
+                name: "global".into(),
+                bytes: vec![1, 2, 3, 4],
+                align: 4,
+                read_only: false,
+                relocations: vec![RelocationArtifact {
+                    offset: 0,
+                    target: "other".into(),
+                    addend: 8,
+                }],
+            }],
+        };
+        let encoded = artifact.to_bytes().unwrap();
+        assert_eq!(Artifact::from_bytes(&encoded).unwrap(), artifact);
     }
 
     #[test]
