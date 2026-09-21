@@ -1455,7 +1455,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         // Such calls are handled explicitly below; all value-producing
         // expressions still require a concrete CLIF integer type.
         let ty = match &expression.ctype {
-            Type::Void | Type::Function(_) => types::I32,
+            Type::Void
+            | Type::Function(_)
+            | Type::Struct(_)
+            | Type::Union(_)
+            | Type::Array(_, _) => types::I32,
             other => ir_type(other, expression.location)?,
         };
         match &expression.expr {
@@ -2564,6 +2568,16 @@ mod tests {
     fn compiles_uninitialized_aggregate_local_stack_storage() {
         let artifact = compile_source(
             "struct pair { int a; int b; }; int local(void) { struct pair p; p.a = 3; p.b = 4; return p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn aggregate_address_expressions_do_not_require_scalar_ir_types() {
+        let artifact = compile_source(
+            "struct pair { int x; int y; }; int f(struct pair *p, int i) { return p[i].x; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
