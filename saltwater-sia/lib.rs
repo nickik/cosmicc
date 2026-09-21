@@ -1465,7 +1465,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         match &expression.expr {
             ExprType::Id(symbol) => {
                 if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                    if let Some(value_ty) = self.variable_types.get(symbol).copied() {
+                    if matches!(
+                        expression.ctype,
+                        Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+                    ) {
+                        Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
+                    } else if let Some(value_ty) = self.variable_types.get(symbol).copied() {
                         Ok(self.builder.ins().stack_load(value_ty, types::I32, slot, 0))
                     } else {
                         Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
@@ -1510,6 +1515,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::Noop(value) => self.compile_expr(value),
             ExprType::Cast(value) => {
                 let value_clif = self.compile_expr(value)?;
+                if matches!(
+                    value.ctype,
+                    Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+                ) && matches!(expression.ctype, Type::Pointer(_, _))
+                {
+                    return Ok(value_clif);
+                }
                 let source_ty = self.builder.func.dfg.value_type(value_clif);
                 let dest_ty = ty;
 
@@ -2570,6 +2582,16 @@ mod tests {
     fn compiles_uninitialized_aggregate_local_stack_storage() {
         let artifact = compile_source(
             "struct pair { int a; int b; }; int local(void) { struct pair p; p.a = 3; p.b = 4; return p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn local_aggregate_ids_lower_as_addresses() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(void) { struct pair p; p.x = 4; return p.x; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
