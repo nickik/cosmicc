@@ -892,6 +892,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         let ty = ir_type(&metadata.ctype, location)?;
         let variable = self.builder.declare_var(ty);
         self.variables.insert(declaration.symbol, variable);
+        self.variable_types.insert(declaration.symbol, ty);
 
         match &declaration.init {
             Some(Initializer::Scalar(expression)) => {
@@ -1590,6 +1591,24 @@ mod tests {
     fn compiles_scalar_post_increment_and_decrement() {
         let artifact = compile_source(
             "int update(int n) { int i = 0; int old = i++; int prior = i--; return old + prior + i + n; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_uninitialized_local_assigned_before_read() {
+        let artifact =
+            compile_source("int f(int n) { int value; value = n + 1; return value; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_narrow_uninitialized_local_assigned_before_read() {
+        let artifact = compile_source(
+            "int f(int n) { unsigned char value; value = n; return value; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
