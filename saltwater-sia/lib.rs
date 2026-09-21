@@ -672,10 +672,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         // A label starts a new reachable basic block even when the preceding
         // statement terminated (for example with goto or return).
         if let StmtType::Label(label, inner) = &statement.data {
-            let block = *self
-                .labels
-                .entry(*label)
-                .or_insert_with(|| self.builder.create_block());
+            let block = if let Some(block) = self.labels.get(label).copied() {
+                    block
+                } else {
+                    let block = self.builder.create_block();
+                    self.labels.insert(*label, block);
+                    block
+                };
             if !self.terminated {
                 self.builder.ins().jump(block, &[]);
             }
@@ -896,10 +899,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Goto(label) => {
-                let block = *self
-                    .labels
-                    .entry(*label)
-                    .or_insert_with(|| self.builder.create_block());
+                let block = if let Some(block) = self.labels.get(label).copied() {
+                    block
+                } else {
+                    let block = self.builder.create_block();
+                    self.labels.insert(*label, block);
+                    block
+                };
                 self.builder.ins().jump(block, &[]);
                 self.terminated = true;
                 Ok(())
@@ -1719,10 +1725,6 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 Ok(self.builder.func.dfg.first_result(call))
             }
-            other => Err(unsupported(
-                expression.location,
-                format!("SIA32 expression lowering is not implemented for {other:?}"),
-            )),
         }
     }
 }
