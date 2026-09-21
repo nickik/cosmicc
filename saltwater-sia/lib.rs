@@ -1679,7 +1679,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     // conversions. Strip those before classifying the
                     // assignment destination.
                     let mut assignment_left = left;
-                    while let ExprType::Noop(inner) = &assignment_left.expr {
+                    while let ExprType::Noop(inner) | ExprType::Cast(inner) = &assignment_left.expr {
                         assignment_left = inner;
                     }
 
@@ -1717,19 +1717,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         ));
                     }
 
-                    if let ExprType::Member(base, member) = &assignment_left.expr {
-                        let address = self.compile_member_address(base, *member, left.location)?;
-                        let target_ty = ir_type(&assignment_left.ctype, left.location)?;
-                        let value = self.coerce_integer_value(value, target_ty, &right.ctype);
-                        self.builder
-                            .ins()
-                            .store(MemFlagsData::new(), value, address, 0);
-                        return Ok(value);
-                    }
-
                     if matches!(
                         assignment_left.expr,
-                        ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _)
+                        ExprType::Member(_, _)
+                            | ExprType::Binary(
+                                saltwater_parser::data::hir::BinaryOp::Add,
+                                _,
+                                _
+                            )
                     ) {
                         let address = self.compile_lvalue_address(assignment_left)?;
                         let target_ty = ir_type(&assignment_left.ctype, left.location)?;
@@ -2446,6 +2441,16 @@ mod tests {
         let artifact =
             compile_source("int f(void) { int x = 3; int *p = &x; *p = 9; return x + 1; }")
                 .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_cast_wrapped_member_and_array_lvalue_assignments() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(struct pair *p, int *a, int i) { p->x = 3; a[i] = p->x; return a[i]; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
