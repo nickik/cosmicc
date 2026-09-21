@@ -2384,10 +2384,7 @@ mod tests {
 
     #[test]
     fn compiles_comma_expression_integer_conversion() {
-        let artifact = compile_source(
-            "int f(unsigned char x) { return (x++, x); }",
-        )
-        .unwrap();
+        let artifact = compile_source("int f(unsigned char x) { return (x++, x); }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
