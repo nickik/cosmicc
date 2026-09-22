@@ -328,12 +328,11 @@ mod test {
     }
     #[test]
     fn nested_designated_initializers_analyze() {
-        let result = crate::analyze::test::analyze(
+        let results = crate::analyze::test::decls(
             "struct inner { int x; int y; }; struct outer { struct inner a[2]; }; struct outer o = { .a[1].y = 7 };",
-            crate::parse::Parser::translation_unit,
-            PureAnalyzer::translation_unit,
         );
-        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(results.len(), 3);
+        assert!(results.into_iter().all(|result| result.is_ok()));
     }
 
 }
