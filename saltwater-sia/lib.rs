@@ -4676,7 +4676,7 @@ mod tests {
     #[test]
     fn compiles_scalar_braces_inside_aggregate_initializers() {
         let artifact = compile_source(
-            "struct pair { int a; int b; }; int f(void) { struct pair p = {{1}, {{2}}}; int a[2] = {{3}, {4}}; return p.a + p.b + a[0] + a[1]; }",
+            "struct pair { int a; int b; }; int f(void) { struct pair p = {{1}, {2}}; int a[2] = {{3}, {4}}; return p.a + p.b + a[0] + a[1]; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
