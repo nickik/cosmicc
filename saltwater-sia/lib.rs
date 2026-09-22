@@ -1051,10 +1051,6 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.terminated = false;
                 self.compile_stmt(inner)
             }
-            _ => Err(unsupported(
-                statement.location,
-                format!("SIA32 control-flow lowering is not implemented for {statement:?}"),
-            )),
         }
     }
 
