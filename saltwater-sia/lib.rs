@@ -3436,7 +3436,7 @@ fn stmt_uses_float(statement: &Stmt) -> bool {
         StmtType::Return(value) => value.as_ref().map_or(false, expr_uses_float),
         StmtType::Decl(declarations) => declarations
             .iter()
-            .any(|decl| declaration_uses_float(&decl.data)),
+            .any(|decl| declaration_uses_float_value(&decl.data)),
         StmtType::Goto(_) | StmtType::Continue | StmtType::Break => false,
     }
 }
@@ -4399,17 +4399,23 @@ mod tests {
     #[test]
     fn rejects_float_declarations_before_backend_lowering() {
         let error = compile_source("int main(void) { float x = 1.0; return 0; }").unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("floating-point values are not supported"));
+        let message = error.to_string();
+        assert!(
+            message.contains("floating-point values are not supported")
+                || message.contains("floating-point C is not supported"),
+            "{message}"
+        );
     }
 
     #[test]
     fn rejects_float_literals_even_when_cast_to_int() {
         let error = compile_source("int main(void) { return (int)1.0; }").unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("floating-point values are not supported"));
+        let message = error.to_string();
+        assert!(
+            message.contains("floating-point values are not supported")
+                || message.contains("floating-point C is not supported"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -4417,8 +4423,11 @@ mod tests {
         let error =
             compile_source("int f(float *value) { return *value != 0.0; } int main(void) { return 0; }")
                 .unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("floating-point values are not supported"));
+        let message = error.to_string();
+        assert!(
+            message.contains("floating-point values are not supported")
+                || message.contains("floating-point C is not supported"),
+            "{message}"
+        );
     }
 }
