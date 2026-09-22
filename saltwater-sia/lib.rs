@@ -2207,8 +2207,25 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             } else {
                 self.builder.ins().uextend(types::I32, bound)
             };
-            let element_size = self.builder.ins().iconst(types::I32, element_size as i64);
-            let bytes = self.builder.ins().imul(bound, element_size);
+            let element_size_value =
+                self.builder.ins().iconst(types::I32, element_size as i64);
+            let bytes = self.builder.ins().imul(bound, element_size_value);
+            let alignment = element
+                .alignof()
+                .map_err(|_| unsupported(location, "VLA element type has unsupported alignment"))?;
+            let alignment = u32::try_from(alignment)
+                .map_err(|_| unsupported(location, "VLA alignment is too large for SIA32"))?;
+            let bytes = if alignment > 1 {
+                let mask = self.builder.ins().iconst(types::I32, i64::from(alignment - 1));
+                let rounded = self.builder.ins().iadd(bytes, mask);
+                let clear_mask = self
+                    .builder
+                    .ins()
+                    .iconst(types::I32, i64::from(!(alignment - 1)));
+                self.builder.ins().band(rounded, clear_mask)
+            } else {
+                bytes
+            };
             let base = self.builder.ins().stack_alloc_dynamic(types::I32, bytes);
             let base_variable = self.builder.declare_var(types::I32);
             self.builder.def_var(base_variable, base);
@@ -4894,6 +4911,14 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_identifier_bound_vla_to_dynamic_stack_allocation() {
+        let artifact =
+            compile_source("int f(int n) { int a[n]; a[2] = 7; return a[2]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_local_designated_initializers_to_sia32() {
         let artifact = compile_source(
