@@ -1379,7 +1379,7 @@ fn compile_function(
         )?));
     }
     if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
-        signature.returns.push(AbiParam::new(ir_type(
+        signature.returns.push(AbiParam::new(abi_scalar_type(
             &function_type.return_type,
             location,
         )?));
@@ -1537,13 +1537,24 @@ fn is_by_value_aggregate(ctype: &Type) -> bool {
     matches!(ctype, Type::Struct(_) | Type::Union(_))
 }
 
+fn abi_scalar_type(
+    ctype: &Type,
+    location: Location,
+) -> Result<cranelift_codegen::ir::Type, Error> {
+    match ctype {
+        Type::Float => Ok(types::F32),
+        Type::Double => Ok(types::F64),
+        other => ir_type(other, location),
+    }
+}
+
 fn abi_parameter_type(
     ctype: &Type,
     location: Location,
 ) -> Result<cranelift_codegen::ir::Type, Error> {
     match ctype {
         Type::Function(_) | Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => Ok(types::I32),
-        other => ir_type(other, location),
+        other => abi_scalar_type(other, location),
     }
 }
 
@@ -3325,7 +3336,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                 }
                 if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
-                    signature.returns.push(AbiParam::new(ir_type(
+                    signature.returns.push(AbiParam::new(abi_scalar_type(
                         &function_type.return_type,
                         expression.location,
                     )?));
@@ -4530,6 +4541,39 @@ mod tests {
         let message = error.to_string();
         assert!(message.contains("SSA value type f64"), "{message}");
         assert!(message.contains("fcmp le"), "{message}");
+    }
+
+    #[test]
+    fn lowers_fp_parameter_and_return_abi_to_clif() {
+        for (source, ty) in [
+            ("float id(float x) { return x; }", "f32"),
+            ("double id(double x) { return x; }", "f64"),
+        ] {
+            let error = compile_source(source).unwrap_err();
+            let message = error.to_string();
+            assert!(message.contains(&format!("({ty}) -> {ty}")), "{message}");
+            assert!(message.contains(&format!("SSA value type {ty}")), "{message}");
+        }
+    }
+
+    #[test]
+    fn lowers_direct_fp_call_abi_to_clif() {
+        let error = compile_source(
+            "float callee(float x) { return x; } float caller(float x) { return callee(x); }",
+        )
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("(f32) -> f32"), "{message}");
+    }
+
+    #[test]
+    fn lowers_indirect_fp_call_abi_to_clif() {
+        let error = compile_source(
+            "float caller(float (*fn)(float), float x) { return fn(x); }",
+        )
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("(f32) -> f32"), "{message}");
     }
 
 }
