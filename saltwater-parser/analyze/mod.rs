@@ -882,24 +882,12 @@ impl PureAnalyzer {
                     let analyzed = self.expr(*expr).rval();
                     match Self::const_uint(analyzed.clone()) {
                         Ok(size) => ArrayType::Fixed(size),
+                        Err(error) if analyzed.ctype.is_integral() => {
+                            ArrayType::Variable(Box::new(analyzed))
+                        }
                         Err(error) => {
-                            let variable_symbol = match &analyzed.expr {
-                                ExprType::Id(symbol) => Some(*symbol),
-                                ExprType::Deref(inner) => match &inner.expr {
-                                    ExprType::Id(symbol) => Some(*symbol),
-                                    _ => None,
-                                },
-                                _ => None,
-                            };
-                            match variable_symbol {
-                                Some(symbol) if analyzed.ctype.is_integral() => {
-                                    ArrayType::Variable(symbol)
-                                }
-                                _ => {
-                                    self.error_handler.push_back(error);
-                                    ArrayType::Fixed(1)
-                                }
-                            }
+                            self.error_handler.push_back(error);
+                            ArrayType::Fixed(1)
                         }
                     }
                 } else {
