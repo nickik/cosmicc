@@ -35,7 +35,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 ## Complete partial lowering families
 
 - [x] **L22 — Cast completion:** audited frontend `ExprType::Cast`; lower integer width/signedness, pointer/integer and function-designator address casts, aggregate-address decay shapes, FP conversions, and cast-to-void while preserving operand side effects. Invalid non-scalar/float-pointer/void-source casts remain frontend diagnostics.
-- [ ] **L23 — Assignment completion:** audit every assignable HIR lvalue; implement remaining unusual lvalue shapes and integrate aggregate-by-value assignment.
+- [x] **L23 — Assignment completion:** audited assignable HIR shapes; direct locals/globals retain optimized handling, aggregate-by-value assignment uses object-copy lowering, and all remaining scalar dereference/member/index/wrapped lvalues lower through the common `compile_lvalue_address` path with assignment values preserved for chaining.
 - [ ] **L24 — Increment/decrement completion:** audit all legal scalar lvalue forms for `++`/`--`, including wrapped/address-taken forms and correct width/pointer scaling.
 - [ ] **L25 — Address-of completion:** lower addresses of globals/statics/functions and every legal frontend lvalue shape; retain `&*p == p`.
 - [ ] **L26 — Aggregate initializer completion:** audit array/struct/union nesting, brace elision, zero-fill, excess-element diagnostics, unions and designated forms.
