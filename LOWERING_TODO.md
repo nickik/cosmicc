@@ -28,7 +28,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 - [x] **L16 — Aggregate value copy:** lower whole struct/union assignment such as `a = b`; copy the complete object representation byte-wise so padding, odd sizes, and conservative alignment are handled without scalar-width assumptions.
 - [x] **L17 — Aggregate returns:** lower struct/union returns by value through the SIA32 hidden return-address ABI, including local, nested-call, union, and odd-sized aggregate results.
 - [x] **L18 — Aggregate arguments:** lower structs/unions passed by value through caller-owned ABI copy slots and callee-local copies, preserving C by-value isolation for struct/union parameters including odd-sized objects.
-- [x] **L19 — Aggregate scalar/brace-elided initialization:** audited the frontend-normalized recursive initializer path and cover brace-elided nested struct/array forms, scalar sub-braces, partial nested initialization, and zero-fill behavior.
+- [x] **L19 — Aggregate scalar/brace-elided initialization:** audited the frontend-normalized recursive initializer path and cover brace-elided nested struct/array forms, recursively lower scalar sub-braces inside aggregate elements, and cover partial nested initialization and zero-fill behavior.
 - [ ] **L20 — Designated aggregate initialization:** support designated array/member initializers if/when represented by the frontend HIR.
 - [ ] **L21 — Non-fixed arrays:** lower supported variable-length stack arrays; diagnose genuinely incomplete object types separately.
 
