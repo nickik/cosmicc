@@ -689,11 +689,40 @@ impl<I: Lexer> Parser<I> {
         let _guard = self.recursion_check();
         let mut elems = vec![];
         while self.match_next(&Token::RightBrace).is_none() {
+            let mut designators = Vec::new();
+            loop {
+                if self.match_next(&Token::Dot).is_some() {
+                    let token = self.next_token();
+                    let id = match token {
+                        Some(token) => match token.data {
+                            Token::Id(id) => id,
+                            other => {
+                                return Err(token.location.with(SyntaxError::ExpectedId(Some(other))))
+                            }
+                        },
+                        None => return Err(Location::default().with(SyntaxError::ExpectedId(None))),
+                    };
+                    designators.push(ast::Designator::Member(id));
+                } else if self.match_next(&Token::LeftBracket).is_some() {
+                    let index = self.assignment_expr()?;
+                    self.expect(Token::RightBracket)?;
+                    designators.push(ast::Designator::Index(Box::new(index)));
+                } else {
+                    break;
+                }
+            }
+            if !designators.is_empty() {
+                self.expect(Token::Assignment(crate::data::lex::AssignmentToken::Equal))?;
+            }
             let next = if self.match_next(&Token::LeftBrace).is_some() {
                 self.aggregate_initializer()?
             } else {
-                // scalar
                 self.initializer()?
+            };
+            let next = if designators.is_empty() {
+                next
+            } else {
+                Initializer::Designated(designators, Box::new(next))
             };
             elems.push(next);
             // NOTE: this allows trailing commas

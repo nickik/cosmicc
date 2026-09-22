@@ -135,6 +135,13 @@ pub struct InitDeclarator {
 pub enum Initializer {
     Scalar(Box<Expr>),
     Aggregate(Vec<Initializer>),
+    Designated(Vec<Designator>, Box<Initializer>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Designator {
+    Member(InternedStr),
+    Index(Box<Expr>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -348,6 +355,15 @@ impl Display for Initializer {
                 write!(f, "{{ ")?;
                 write!(f, "{}", joined(items, ", "))?;
                 write!(f, " }}")
+            }
+            Initializer::Designated(designators, initializer) => {
+                for designator in designators {
+                    match designator {
+                        Designator::Member(member) => write!(f, ".{}", member)?,
+                        Designator::Index(index) => write!(f, "[{}]", index)?,
+                    }
+                }
+                write!(f, " = {}", initializer)
             }
         }
     }
