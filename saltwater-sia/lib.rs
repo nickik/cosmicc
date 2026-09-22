@@ -2839,10 +2839,34 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
             }
             ExprType::Sizeof(sized) => {
-                let bytes = sized.sizeof().map_err(|_| {
-                    unsupported(expression.location, "sizeof requires a complete SIA32 type")
-                })?;
-                Ok(self.builder.ins().iconst(ty, bytes as i64))
+                if let Type::Array(
+                    element,
+                    saltwater_parser::data::types::ArrayType::Variable(bound_expression),
+                ) = sized
+                {
+                    let element_size = element.sizeof().map_err(|_| {
+                        unsupported(
+                            expression.location,
+                            "sizeof VLA element type must be complete",
+                        )
+                    })?;
+                    let bound = self.compile_expr(bound_expression)?;
+                    let bound_ty = self.builder.func.dfg.value_type(bound);
+                    let bound = if bound_ty == ty {
+                        bound
+                    } else if bound_ty.bits() < ty.bits() {
+                        self.builder.ins().uextend(ty, bound)
+                    } else {
+                        self.builder.ins().ireduce(ty, bound)
+                    };
+                    let element_size = self.builder.ins().iconst(ty, element_size as i64);
+                    Ok(self.builder.ins().imul(bound, element_size))
+                } else {
+                    let bytes = sized.sizeof().map_err(|_| {
+                        unsupported(expression.location, "sizeof requires a complete SIA32 type")
+                    })?;
+                    Ok(self.builder.ins().iconst(ty, bytes as i64))
+                }
             }
             ExprType::Comma(left, right) => {
                 let _ = self.compile_expr(left)?;
@@ -4915,6 +4939,14 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_sizeof_vla_to_runtime_size() {
+        let artifact =
+            compile_source("unsigned f(int n) { int a[n + 2]; return sizeof(a); }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_general_runtime_vla_bound_expression() {
         let artifact =
