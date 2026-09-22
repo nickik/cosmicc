@@ -55,6 +55,7 @@ pub struct Declaration {
 pub enum Initializer {
     Scalar(Box<Expr>),                 // int i = 5;
     InitializerList(Vec<Initializer>), // int a[] = { 1, 2, 3 };
+    Zero,                              // omitted/sparse aggregate subobject
     FunctionBody(Vec<Stmt>),           // int f() { return 0; }
 }
 
