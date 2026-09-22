@@ -55,6 +55,7 @@ pub struct Declaration {
 pub enum Initializer {
     Scalar(Box<Expr>),                 // int i = 5;
     InitializerList(Vec<Initializer>), // int a[] = { 1, 2, 3 };
+    Zero,                              // omitted/sparse aggregate subobject
     FunctionBody(Vec<Stmt>),           // int f() { return 0; }
 }
 
@@ -401,6 +402,7 @@ impl Display for Initializer {
                 write!(f, "{}", joined(list, ", "),)?;
                 write!(f, " }}")
             }
+            Initializer::Zero => write!(f, "0"),
             Initializer::FunctionBody(body) => {
                 writeln!(f, "{{")?;
                 for stmt in body {
@@ -516,6 +518,7 @@ impl Display for Declaration {
                 }
                 write!(f, "}};")
             }
+            Some(Initializer::Zero) => write!(f, " = 0;"),
             None => write!(f, ";"),
         }
     }

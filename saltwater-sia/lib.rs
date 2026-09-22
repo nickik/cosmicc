@@ -659,6 +659,7 @@ fn collect_string_literals_initializer(
                 collect_string_literals_initializer(item, strings);
             }
         }
+        Initializer::Zero => {}
         Initializer::FunctionBody(statements) => {
             for statement in statements {
                 collect_string_literals_stmt(statement, strings);
@@ -912,6 +913,9 @@ fn write_global_initializer(
     location: Location,
 ) -> Result<(), Error> {
     match initializer {
+        // Global object storage is allocated zero-filled before explicit
+        // initializer writes, so a sparse designated gap requires no write.
+        Initializer::Zero => Ok(()),
         Initializer::Scalar(expression) if ctype.is_scalar() => {
             if matches!(ctype, Type::Pointer(_, _) | Type::Function(_)) {
                 let mut string_expression = expression;
@@ -2323,6 +2327,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 location,
                 "scalar aggregate initializer must contain exactly one element",
             )),
+            Initializer::Zero => Ok(()),
             Initializer::FunctionBody(_) => Err(unsupported(
                 location,
                 "function body cannot initialize an aggregate scalar element",
@@ -2369,6 +2374,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 slot, element, item, offset, location,
                             )?;
                         }
+                        Initializer::Zero => {}
                         _ => {
                             return Err(unsupported(
                                 location,
@@ -2413,6 +2419,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 location,
                             )?;
                         }
+                        Initializer::Zero => {}
                         _ => {
                             return Err(unsupported(
                                 location,
@@ -2468,6 +2475,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 location,
                             )?;
                         }
+                        Initializer::Zero => {}
                         _ => {
                             return Err(unsupported(
                                 location,
