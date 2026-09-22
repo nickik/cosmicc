@@ -2665,6 +2665,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::Noop(value) => self.compile_expr(value),
             ExprType::Cast(value) => {
+                if matches!(expression.ctype, Type::Void) {
+                    let _ = self.compile_expr(value)?;
+                    return Ok(self.builder.ins().iconst(types::I32, 0));
+                }
                 let value_clif = self.compile_expr(value)?;
                 if matches!(
                     value.ctype,
@@ -4625,4 +4629,34 @@ mod tests {
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
+    #[test]
+    fn compiles_cast_to_void_while_preserving_side_effects() {
+        let artifact = compile_source(
+            "int f(int *p) { (void)(*p = 7); return *p; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_integer_pointer_and_function_designator_casts() {
+        let artifact = compile_source(
+            "int target(int x) { return x + 1; } int f(int *p) { unsigned u = (unsigned)(char)-1; int *q = (int *)(unsigned)p; int (*fn)(int) = (int (*)(int))target; return (int)(unsigned)q + fn((int)u); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_equal_width_signedness_and_pointer_casts_without_reencoding() {
+        let artifact = compile_source(
+            "unsigned f(int x, int *p) { unsigned a = (unsigned)x; unsigned b = (unsigned)p; return a + b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
 }
