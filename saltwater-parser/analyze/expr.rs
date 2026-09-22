@@ -482,8 +482,7 @@ impl PureAnalyzer {
             }
         };
         let size_literal = literal(LiteralValue::UnsignedInt(size), offset.location);
-        let size_cast = size_literal
-            .implicit_cast(&offset.ctype, &mut self.error_handler);
+        let size_cast = size_literal.implicit_cast(&offset.ctype, &mut self.error_handler);
         let offset = Expr {
             lval: false,
             location: offset.location,
