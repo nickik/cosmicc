@@ -355,4 +355,13 @@ mod test {
         assert!(results.into_iter().all(|result| result.is_ok()));
     }
 
+    #[test]
+    fn designated_initializers_override_and_reset_continuation() {
+        let results = crate::analyze::test::decls(
+            "int a[5] = { [2] = 7, [2] = 8, 9, [0] = 1, 2 }; struct s { int a; int b; int c; }; struct s v = { .b = 3, .b = 4, 5 };",
+        );
+        assert_eq!(results.len(), 2);
+        assert!(results.into_iter().all(|result| result.is_ok()));
+    }
+
 }
