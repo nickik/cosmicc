@@ -1580,12 +1580,6 @@ fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
     }
 }
 
-fn runtime_vla_element_static_size(ctype: &Type, location: Location) -> Result<u64, Error> {
-    ctype
-        .sizeof()
-        .map_err(|_| unsupported(location, "nested VLA element requires runtime stride"))
-}
-
 struct FunctionLowerer<'a, 'b, 'c> {
     builder: &'a mut FunctionBuilder<'b>,
     variables: HashMap<Symbol, Variable>,
