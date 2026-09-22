@@ -25,7 +25,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 
 ## Aggregate values and arrays
 
-- [ ] **L16 — Aggregate value copy:** lower whole struct/union assignment such as `a = b`, including overlap-safe semantics where required.
+- [x] **L16 — Aggregate value copy:** lower whole struct/union assignment such as `a = b`; copy the complete object representation byte-wise so padding, odd sizes, and conservative alignment are handled without scalar-width assumptions.
 - [ ] **L17 — Aggregate returns:** lower functions returning structs/unions by value according to the SIA32 ABI.
 - [ ] **L18 — Aggregate arguments:** lower structs/unions passed by value according to the SIA32 ABI.
 - [ ] **L19 — Aggregate scalar/brace-elided initialization:** support remaining legal aggregate initializer shapes not handled by the current recursive initializer-list path.
