@@ -5107,6 +5107,31 @@ mod tests {
         }
     }
     #[test]
+    fn rejects_goto_into_active_vla_scope() {
+        let error = compile_source(
+            "int f(int n) { goto inside; { int a[n]; inside: a[0] = 3; return a[0]; } }",
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("goto into a scope with active variable-length arrays"),
+            "{}",
+            error
+        );
+    }
+
+    #[test]
+    fn preserves_vla_for_goto_within_same_dynamic_scope() {
+        let artifact = compile_source(
+            "int f(int n) { int a[n]; a[0] = 1; again: a[0]++; if (a[0] < 3) goto again; return a[0]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
     fn lowers_goto_out_of_vla_scope_with_stack_cleanup() {
         let artifact =
             compile_source("int f(int n) { int r = 1; { int a[n]; a[0] = 7; r = a[0]; goto done; } done: return r; }")
