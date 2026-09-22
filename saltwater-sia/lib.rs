@@ -4772,7 +4772,7 @@ mod tests {
     #[test]
     fn compiles_pointer_binary_operator_matrix() {
         let artifact = compile_source(
-            "int f(int *p, int *q, int i) { int *a = p + i; int *b = i + p; int *c = a - i; int d = a - q; return *b + *c + d + (p == q) + (p != q) + (p < q) + (p <= q) + (p > q) + (p >= q); }",
+            "int f(int *p, int *q, int i) { int *a = p + i; int *b = i + p; int *c = a - i; long d = a - q; return *b + *c + (int)d + (p == q) + (p != q) + (p < q) + (p <= q) + (p > q) + (p >= q); }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
