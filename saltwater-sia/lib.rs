@@ -2551,7 +2551,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
         match &lvalue.expr {
             ExprType::Id(symbol) => {
-                if self.variables.contains_key(symbol) || self.stack_locals.contains_key(symbol) {
+                if self.variables.contains_key(symbol)
+                    || self.stack_locals.contains_key(symbol)
+                    || self.vla_bases.contains_key(symbol)
+                {
                     self.address_of_local(*symbol, lvalue.location)
                 } else {
                     self.symbol_address(*symbol, 0, lvalue.location)
