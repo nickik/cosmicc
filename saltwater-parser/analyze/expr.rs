@@ -471,23 +471,58 @@ impl PureAnalyzer {
         // integer index to the pointer type before multiplying by sizeof(T),
         // which later forced an invalid pointer-to-integer implicit cast.
         let offset = index.rval();
-        let size = match pointee.sizeof() {
-            Ok(s) => s,
-            Err(_) => {
-                self.err(
-                    SemanticError::PointerAddUnknownSize(base.ctype.clone()),
-                    location,
-                );
-                1
+        let size_expr = match pointee {
+            Type::Array(
+                element,
+                crate::data::types::ArrayType::Variable(bound_expression),
+            ) => {
+                let element_size = match element.sizeof() {
+                    Ok(size) => size,
+                    Err(_) => {
+                        self.err(
+                            SemanticError::PointerAddUnknownSize(base.ctype.clone()),
+                            location,
+                        );
+                        1
+                    }
+                };
+                let element_size =
+                    literal(LiteralValue::UnsignedInt(element_size), offset.location)
+                        .implicit_cast(&offset.ctype, &mut self.error_handler);
+                let bound = (**bound_expression)
+                    .clone()
+                    .implicit_cast(&offset.ctype, &mut self.error_handler);
+                Expr {
+                    lval: false,
+                    location: offset.location,
+                    ctype: offset.ctype.clone(),
+                    expr: ExprType::Binary(
+                        BinaryOp::Mul,
+                        Box::new(element_size),
+                        Box::new(bound),
+                    ),
+                }
+            }
+            _ => {
+                let size = match pointee.sizeof() {
+                    Ok(size) => size,
+                    Err(_) => {
+                        self.err(
+                            SemanticError::PointerAddUnknownSize(base.ctype.clone()),
+                            location,
+                        );
+                        1
+                    }
+                };
+                literal(LiteralValue::UnsignedInt(size), offset.location)
+                    .implicit_cast(&offset.ctype, &mut self.error_handler)
             }
         };
-        let size_literal = literal(LiteralValue::UnsignedInt(size), offset.location);
-        let size_cast = size_literal.implicit_cast(&offset.ctype, &mut self.error_handler);
         let offset = Expr {
             lval: false,
             location: offset.location,
             ctype: offset.ctype.clone(),
-            expr: ExprType::Binary(BinaryOp::Mul, Box::new(size_cast), Box::new(offset)),
+            expr: ExprType::Binary(BinaryOp::Mul, Box::new(size_expr), Box::new(offset)),
         };
         Expr {
             lval: false,
