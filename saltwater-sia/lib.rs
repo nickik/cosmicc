@@ -1737,7 +1737,28 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         Ok(self.builder.ins().icmp(IntCC::NotEqual, value, zero))
     }
 
+    fn statement_kind(statement: &Stmt) -> &'static str {
+        match &statement.data {
+            StmtType::Compound(_) => "compound",
+            StmtType::If(_, _, _) => "if",
+            StmtType::Do(_, _) => "do",
+            StmtType::While(_, _) => "while",
+            StmtType::For(_, _, _, _) => "for",
+            StmtType::Switch(_, _) => "switch",
+            StmtType::Label(_, _) => "label",
+            StmtType::Case(_, _) => "case",
+            StmtType::Default(_) => "default",
+            StmtType::Expr(_) => "expr",
+            StmtType::Goto(_) => "goto",
+            StmtType::Continue => "continue",
+            StmtType::Break => "break",
+            StmtType::Return(_) => "return",
+            StmtType::Decl(_) => "decl",
+        }
+    }
+
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
+        let _statement_kind = Self::statement_kind(statement);
         // A label starts a new reachable basic block even when the preceding
         // statement terminated (for example with goto or return).
         if let StmtType::Label(label, inner) = &statement.data {
@@ -4712,6 +4733,26 @@ mod tests {
     fn compiles_deeply_nested_partial_aggregate_initializers() {
         let artifact = compile_source(
             "struct leaf { short x; short y; }; struct node { struct leaf leaves[2]; int tail; }; int f(void) { struct node n = {{{1}, {2, 3}}}; return n.leaves[0].x + n.leaves[0].y + n.leaves[1].y + n.tail; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_nested_control_flow_statement_matrix() {
+        let artifact = compile_source(
+            "int f(int x) { int r = 0; start: if (x < 0) return r; for (int i = 0; i < 4; i++) { if (i == 1) continue; while (x > 0) { x--; if (x == 2) break; } do { r++; } while (0); switch (i) { case 0: r += 2; break; case 2: r += 3; default: r += 4; } } if (r == 99) goto start; return r; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_labels_after_terminators_and_switch_fallthrough() {
+        let artifact = compile_source(
+            "int f(int x) { if (x) goto done; x = 1; done: switch (x) { case 0: x += 2; case 1: x += 3; default: x += 4; } return x; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
