@@ -30,7 +30,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 - [x] **L18 — Aggregate arguments:** lower structs/unions passed by value through caller-owned ABI copy slots and callee-local copies, preserving C by-value isolation for struct/union parameters including odd-sized objects.
 - [x] **L19 — Aggregate scalar/brace-elided initialization:** audited the frontend-normalized recursive initializer path and cover brace-elided nested struct/array forms, recursively lower scalar sub-braces inside aggregate elements, and cover partial nested initialization and zero-fill behavior.
 - [ ] **L20 — Designated aggregate initialization:** BLOCKED in lowering: the Saltwater AST/HIR initializer model contains only scalar/list forms and the parser does not parse `.member =` or `[index] =` designators. Frontend parser/HIR support is required before SIA32 lowering can preserve designators.
-- [ ] **L21 — Non-fixed arrays:** lower supported variable-length stack arrays; diagnose genuinely incomplete object types separately.
+- [ ] **L21 — Non-fixed arrays:** BLOCKED for true VLAs: the Saltwater frontend currently constant-folds every array bound and substitutes `Fixed(1)` after a non-constant-bound diagnostic; HIR `ArrayType` has only `Fixed`/`Unbounded`, so runtime VLA bounds do not reach SIA32 lowering. Incomplete `T a[]` objects are already completed from initializers or diagnosed separately.
 
 ## Complete partial lowering families
 
