@@ -2,8 +2,6 @@
 
 use super::hir::{Symbol, Variable};
 use crate::intern::InternedStr;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 use std::fmt::{self, Formatter};
 pub use struct_ref::{StructRef, StructType};
 
@@ -324,6 +322,7 @@ pub(super) fn print_type(
                 prefixes.push(String::new());
                 postfixes.push(match array_type {
                     ArrayType::Fixed(length) => format!("[{}]", length),
+                    ArrayType::Variable(symbol) => format!("[{}]", symbol.get().id),
                     ArrayType::Unbounded => "[]".to_string(),
                 });
             }
