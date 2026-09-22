@@ -1708,25 +1708,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 .map_err(|error| unsupported(location, error.to_string()))?,
         )
         .map_err(|_| unsupported(location, "aggregate copy is too large for SIA32"))?;
-        let mut offset = 0i32;
-        while offset < size {
-            let remaining = size - offset;
-            let ty = if remaining >= 4 {
-                types::I32
-            } else if remaining >= 2 {
-                types::I16
-            } else {
-                types::I8
-            };
-            let width = i32::try_from(ty.bytes()).expect("SIA32 scalar width fits in i32");
+        // C struct/union assignment copies the complete object representation,
+        // including padding. Byte-wise copies avoid imposing stronger alignment
+        // than the aggregate itself guarantees and cover odd-sized objects.
+        for offset in 0..size {
             let value = self
                 .builder
                 .ins()
-                .load(ty, MemFlagsData::new(), source, offset);
+                .load(types::I8, MemFlagsData::new(), source, offset);
             self.builder
                 .ins()
                 .store(MemFlagsData::new(), value, destination, offset);
-            offset += width;
         }
         Ok(())
     }
@@ -4574,6 +4566,26 @@ mod tests {
         .unwrap_err();
         let message = error.to_string();
         assert!(message.contains("(f32) -> f32"), "{message}");
+    }
+
+    #[test]
+    fn copies_complete_odd_sized_struct_representations() {
+        let artifact = compile_source(
+            "struct bytes { char a; char b; char c; }; int f(void) { struct bytes a = {1, 2, 3}; struct bytes b; b = a; return b.a + b.b + b.c; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn copies_nested_struct_and_union_values() {
+        let artifact = compile_source(
+            "union word { int i; unsigned char b[4]; }; struct outer { char tag; union word value; }; int f(void) { struct outer a = {1, {7}}; struct outer b; b = a; return b.tag + b.value.i; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
 }
