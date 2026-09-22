@@ -4759,4 +4759,55 @@ mod tests {
         assert!(!artifact.functions[0].code.is_empty());
     }
 
+    #[test]
+    fn compiles_complete_integer_binary_operator_matrix() {
+        let artifact = compile_source(
+            "int f(int a, unsigned b, short s) { int r = a * s + a / 3 + a % 3 - s; r = r & a | (int)b ^ s; r = r + (a << 2) + ((int)b >> 1) + (a >> 1); return r + (a < s) + (a > s) + (a == s) + (a != s) + (a <= s) + (a >= s) + (a && b) + (a || b); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_pointer_binary_operator_matrix() {
+        let artifact = compile_source(
+            "int f(int *p, int *q, int i) { int *a = p + i; int *b = i + p; int *c = a - i; return *b + *c + (p == q) + (p != q) + (p < q) + (p <= q) + (p > q) + (p >= q); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn binary_operator_enum_is_exhaustively_audited() {
+        fn kind(operator: saltwater_parser::data::hir::BinaryOp) -> &'static str {
+            use saltwater_parser::data::hir::BinaryOp;
+            match operator {
+                BinaryOp::LogicalOr => "logical-or",
+                BinaryOp::BitwiseOr => "bitwise-or",
+                BinaryOp::LogicalAnd => "logical-and",
+                BinaryOp::BitwiseAnd => "bitwise-and",
+                BinaryOp::Xor => "xor",
+                BinaryOp::Mul => "mul",
+                BinaryOp::Div => "div",
+                BinaryOp::Mod => "mod",
+                BinaryOp::Add => "add",
+                BinaryOp::Sub => "sub",
+                BinaryOp::Shl => "shl",
+                BinaryOp::Shr => "shr",
+                BinaryOp::Compare(_) => "compare",
+                BinaryOp::Assign => "assign",
+            }
+        }
+        assert_eq!(kind(saltwater_parser::data::hir::BinaryOp::Add), "add");
+    }
+
+    #[test]
+    fn compiles_pointer_difference_as_function_result() {
+        let artifact = compile_source("long f(int *p, int *q) { return p - q; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
 }

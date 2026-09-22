@@ -396,8 +396,10 @@ impl PureAnalyzer {
         // `p1 + p2` for pointers p1 and p2 is not valid
         } else if !is_add && left.ctype.is_pointer_to_complete_object() && left.ctype == right.ctype
         {
-            // not sure what type to use here, C11 standard doesn't mention it
-            (left.ctype.clone(), true)
+            // C11 6.5.6: subtracting two compatible object pointers yields
+            // ptrdiff_t. SIA32 uses a 32-bit signed long for this frontend
+            // representation; importantly, the result is not pointer-typed.
+            (Type::Long(true), false)
         } else {
             // check if already type error
             if left.ctype != Type::Error && right.ctype != Type::Error {
@@ -465,13 +467,10 @@ impl PureAnalyzer {
         location: Location,
     ) -> Expr {
         // the idea is to desugar to `base + sizeof(base)*index`
-        let offset = Expr {
-            lval: false,
-            location: index.location,
-            expr: ExprType::Cast(Box::new(index)),
-            ctype: base.ctype.clone(),
-        }
-        .rval();
+        // Keep the index in its integer domain. Older lowering cast the
+        // integer index to the pointer type before multiplying by sizeof(T),
+        // which later forced an invalid pointer-to-integer implicit cast.
+        let offset = index.rval();
         let size = match pointee.sizeof() {
             Ok(s) => s,
             Err(_) => {
@@ -483,12 +482,8 @@ impl PureAnalyzer {
             }
         };
         let size_literal = literal(LiteralValue::UnsignedInt(size), offset.location);
-        let size_cast = Expr {
-            lval: false,
-            location: offset.location,
-            ctype: offset.ctype.clone(),
-            expr: ExprType::Cast(Box::new(size_literal)),
-        };
+        let size_cast = size_literal
+            .implicit_cast(&offset.ctype, &mut self.error_handler);
         let offset = Expr {
             lval: false,
             location: offset.location,
