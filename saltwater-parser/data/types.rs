@@ -163,6 +163,8 @@ pub enum Type {
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum ArrayType {
     Fixed(u64),
+    /// Runtime bound preserved from a simple local identifier expression.
+    Variable(Symbol),
     Unbounded,
 }
 
