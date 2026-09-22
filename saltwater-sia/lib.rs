@@ -597,7 +597,7 @@ fn scalar_initializer_bytes(
         _ => {
             return Err(unsupported(
                 location,
-                "global scalar initializer is not a link-time constant",
+                format!("global scalar initializer is not a link-time constant: {folded:?}"),
             ))
         }
     }
