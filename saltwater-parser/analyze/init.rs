@@ -346,4 +346,13 @@ mod test {
         assert_eq!(results.len(), 1);
         assert!(results.into_iter().all(|result| result.is_ok()));
     }
+    #[test]
+    fn designated_initializer_continues_at_following_subobject() {
+        let results = crate::analyze::test::decls(
+            "int a[5] = { [2] = 7, 8, 9 }; struct s { int a; int b; int c; }; struct s v = { .b = 4, 5 };",
+        );
+        assert_eq!(results.len(), 2);
+        assert!(results.into_iter().all(|result| result.is_ok()));
+    }
+
 }
