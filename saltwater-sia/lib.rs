@@ -786,7 +786,7 @@ fn completed_object_type(
                         "unbounded array requires an initializer that determines its size",
                     ))
                 }
-            }
+            },
             _ => {
                 return Err(unsupported(
                     location,
@@ -2652,7 +2652,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else {
                     Ok(self.builder.ins().f64const(*value))
                 }
-            },
+            }
             ExprType::Literal(LiteralValue::Str(bytes)) => {
                 self.string_address(bytes, expression.location)
             }
@@ -3489,7 +3489,6 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
     };
     Ok(ty)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -4372,18 +4371,17 @@ mod tests {
 
     #[test]
     fn accepts_pointer_to_float_when_no_float_value_is_lowered() {
-        let artifact =
-            compile_source("int f(float *value) { return value != 0; } int main(void) { return 0; }")
-                .unwrap();
+        let artifact = compile_source(
+            "int f(float *value) { return value != 0; } int main(void) { return 0; }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 2);
     }
 
     #[test]
     fn lowers_f32_arithmetic_to_clif_before_backend_boundary() {
-        let error = compile_source(
-            "float f(float a, float b) { return -(a + b) * (a - b) / b; }",
-        )
-        .unwrap_err();
+        let error = compile_source("float f(float a, float b) { return -(a + b) * (a - b) / b; }")
+            .unwrap_err();
         let message = error.to_string();
         assert!(message.contains("SSA value type f32"), "{}", message);
         for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
@@ -4393,10 +4391,9 @@ mod tests {
 
     #[test]
     fn lowers_f64_arithmetic_to_clif_before_backend_boundary() {
-        let error = compile_source(
-            "double f(double a, double b) { return -(a + b) * (a - b) / b; }",
-        )
-        .unwrap_err();
+        let error =
+            compile_source("double f(double a, double b) { return -(a + b) * (a - b) / b; }")
+                .unwrap_err();
         let message = error.to_string();
         assert!(message.contains("SSA value type f64"), "{}", message);
         for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
@@ -4410,7 +4407,10 @@ mod tests {
             ("float f(int x) { return (float)x; }", "fcvt_from_sint"),
             ("float f(unsigned x) { return (float)x; }", "fcvt_from_uint"),
             ("int f(float x) { return (int)x; }", "fcvt_to_sint_sat"),
-            ("unsigned f(float x) { return (unsigned)x; }", "fcvt_to_uint_sat"),
+            (
+                "unsigned f(float x) { return (unsigned)x; }",
+                "fcvt_to_uint_sat",
+            ),
         ] {
             let error = compile_source(source).unwrap_err();
             let message = error.to_string();
@@ -4440,9 +4440,7 @@ mod tests {
             ("<=", "fcmp le"),
             (">=", "fcmp ge"),
         ] {
-            let source = format!(
-                "int f(float a, float b) {{ return a {operator} b; }}"
-            );
+            let source = format!("int f(float a, float b) {{ return a {operator} b; }}");
             let error = compile_source(&source).unwrap_err();
             let message = error.to_string();
             assert!(message.contains("SSA value type f32"), "{}", message);
@@ -4467,7 +4465,11 @@ mod tests {
             let error = compile_source(source).unwrap_err();
             let message = error.to_string();
             assert!(message.contains(&format!("({ty}) -> {ty}")), "{}", message);
-            assert!(message.contains(&format!("SSA value type {ty}")), "{}", message);
+            assert!(
+                message.contains(&format!("SSA value type {ty}")),
+                "{}",
+                message
+            );
         }
     }
 
@@ -4483,10 +4485,8 @@ mod tests {
 
     #[test]
     fn lowers_indirect_fp_call_abi_to_clif() {
-        let error = compile_source(
-            "float caller(float (*fn)(float), float x) { return fn(x); }",
-        )
-        .unwrap_err();
+        let error = compile_source("float caller(float (*fn)(float), float x) { return fn(x); }")
+            .unwrap_err();
         let message = error.to_string();
         assert!(message.contains("(f32) -> f32"), "{}", message);
     }
@@ -4518,7 +4518,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 3);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4528,7 +4531,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4538,7 +4544,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4548,7 +4557,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4558,7 +4570,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4568,7 +4583,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4600,5 +4618,4 @@ mod tests {
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
-
 }
