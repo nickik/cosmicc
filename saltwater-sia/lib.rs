@@ -2638,10 +2638,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 while let ExprType::Noop(inner) | ExprType::Cast(inner) = &lvalue.expr {
                     lvalue = inner;
                 }
-                match &lvalue.expr {
-                    // &*p is exactly p and does not perform a load.
-                    ExprType::Deref(pointer) => self.compile_expr(pointer),
-                    _ => self.compile_lvalue_address(lvalue),
+                // &*p is exactly p and does not perform a load. Every other
+                // legal address-of operand uses the same lvalue-address path
+                // as assignment and ++/--, including locals, globals/statics,
+                // members, array elements, and function designators.
+                if let ExprType::Deref(pointer) = &lvalue.expr {
+                    self.compile_expr(pointer)
+                } else {
+                    self.compile_lvalue_address(lvalue)
                 }
             }
             ExprType::Literal(LiteralValue::Int(value)) => {
@@ -4651,6 +4655,36 @@ mod tests {
     fn compiles_post_increment_through_cast_wrapped_member_and_index_lvalues() {
         let artifact = compile_source(
             "struct pair { short x; }; int f(struct pair *p, short *a, int i) { p->x++; a[i]--; return p->x + a[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_address_of_globals_statics_and_functions() {
+        let artifact = compile_source(
+            "int g; static int s; int target(int x) { return x; } int f(void) { int *pg = &g; int *ps = &s; int (*fn)(int) = &target; return *pg + *ps + fn(3); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_address_of_nested_member_and_array_lvalues() {
+        let artifact = compile_source(
+            "struct inner { int a[3]; }; struct outer { struct inner i; }; int f(struct outer *p, int n) { int *x = &p->i.a[n]; *x = 7; return p->i.a[n]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_address_of_dereference_identity_for_nested_pointers() {
+        let artifact = compile_source(
+            "int f(int **pp) { int **a = &*pp; int *b = &**pp; return *b + (**a); }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
