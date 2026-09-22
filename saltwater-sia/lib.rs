@@ -1,7 +1,7 @@
 //! Cosmic C's initial SIA32 lowering path.
 //!
 //! This crate deliberately emits only SIA32 code.  It does not fall back to a
-//! host ISA, and it rejects floating-point C before creating Cranelift IR.
+//! host ISA. Floating-point objects remain rejected until SIA32 FP machine lowering exists.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{TryFrom, TryInto};
@@ -1116,10 +1116,10 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let declarations = program.result.map_err(Error::Source)?;
 
     for declaration in &declarations {
-        if declaration_uses_float(&declaration.data) {
+        if declaration_uses_float_value(&declaration.data) {
             return Err(unsupported(
                 declaration.location,
-                "floating-point C is not supported for the SIA32 target",
+                "floating-point values are not supported for the SIA32 target yet",
             ));
         }
     }
@@ -3366,12 +3366,8 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         | Type::Enum(_, _)
         | Type::Pointer(_, _)
         | Type::Function(_) => types::I32,
-        Type::Float | Type::Double => {
-            return Err(unsupported(
-                location,
-                "floating-point C is not supported for the SIA32 target",
-            ));
-        }
+        Type::Float => types::F32,
+        Type::Double => types::F64,
         _ => {
             return Err(unsupported(
                 location,
@@ -3380,6 +3376,23 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         }
     };
     Ok(ty)
+}
+
+fn declaration_uses_float_value(declaration: &Declaration) -> bool {
+    match &declaration.symbol.get().ctype {
+        Type::Function(function) => {
+            matches!(*function.return_type, Type::Float | Type::Double)
+                || function
+                    .params
+                    .iter()
+                    .any(|parameter| matches!(parameter.get().ctype, Type::Float | Type::Double))
+        }
+        Type::Float | Type::Double => true,
+        _ => declaration
+            .init
+            .as_ref()
+            .map_or(false, initializer_uses_float),
+    }
 }
 
 fn declaration_uses_float(declaration: &Declaration) -> bool {
@@ -3423,7 +3436,7 @@ fn stmt_uses_float(statement: &Stmt) -> bool {
         StmtType::Return(value) => value.as_ref().map_or(false, expr_uses_float),
         StmtType::Decl(declarations) => declarations
             .iter()
-            .any(|decl| declaration_uses_float(&decl.data)),
+            .any(|decl| declaration_uses_float_value(&decl.data)),
         StmtType::Goto(_) | StmtType::Continue | StmtType::Break => false,
     }
 }
@@ -4369,28 +4382,52 @@ mod tests {
     }
 
     #[test]
+    fn maps_float_and_double_to_cranelift_scalar_types() {
+        let location = Location::default();
+        assert_eq!(ir_type(&Type::Float, location).unwrap(), types::F32);
+        assert_eq!(ir_type(&Type::Double, location).unwrap(), types::F64);
+    }
+
+    #[test]
+    fn accepts_pointer_to_float_when_no_float_value_is_lowered() {
+        let artifact =
+            compile_source("int f(float *value) { return value != 0; } int main(void) { return 0; }")
+                .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+    }
+
+    #[test]
     fn rejects_float_declarations_before_backend_lowering() {
         let error = compile_source("int main(void) { float x = 1.0; return 0; }").unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("floating-point C is not supported"));
+        let message = error.to_string();
+        assert!(
+            message.contains("floating-point values are not supported")
+                || message.contains("floating-point C is not supported"),
+            "{message}"
+        );
     }
 
     #[test]
     fn rejects_float_literals_even_when_cast_to_int() {
         let error = compile_source("int main(void) { return (int)1.0; }").unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("floating-point C is not supported"));
+        let message = error.to_string();
+        assert!(
+            message.contains("floating-point values are not supported")
+                || message.contains("floating-point C is not supported"),
+            "{message}"
+        );
     }
 
     #[test]
-    fn rejects_pointers_to_float_too() {
+    fn rejects_float_values_reached_through_pointer_dereference() {
         let error =
-            compile_source("int f(float *value) { return 0; } int main(void) { return 0; }")
+            compile_source("int f(float *value) { return *value != 0.0; } int main(void) { return 0; }")
                 .unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("floating-point C is not supported"));
+        let message = error.to_string();
+        assert!(
+            message.contains("floating-point values are not supported")
+                || message.contains("floating-point C is not supported"),
+            "{message}"
+        );
     }
 }
