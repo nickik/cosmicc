@@ -1764,11 +1764,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         ));
                     }
 
-                    if matches!(
-                        assignment_left.expr,
-                        ExprType::Member(_, _)
-                            | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _)
-                    ) {
+                    if !matches!(assignment_left.expr, ExprType::Deref(_)) {
                         let address = self.compile_lvalue_address(assignment_left)?;
                         let target_ty = ir_type(&assignment_left.ctype, left.location)?;
                         let value = self.coerce_integer_value(value, target_ty, &right.ctype);
@@ -1779,12 +1775,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
 
                     let ExprType::Deref(pointer) = &assignment_left.expr else {
-                        return Err(unsupported(
-                            left.location,
-                            format!(
-                                "SIA32 assignment lowering is not implemented for lhs {left:?}"
-                            ),
-                        ));
+                        unreachable!("non-deref lvalues returned through compile_lvalue_address")
                     };
 
                     if let ExprType::Id(symbol) = &pointer.expr {
@@ -2675,6 +2666,16 @@ mod tests {
         let artifact =
             compile_source("int f(void) { int x = 3; int *p = &x; *p = 9; return x + 1; }")
                 .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_pointer_subtraction_assignment_lvalue() {
+        let artifact = compile_source(
+            "int f(int *p, int n) { *(p - n) = 5; return *(p - n); }",
+        )
+        .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
