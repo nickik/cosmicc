@@ -21,7 +21,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 - [x] **L12 — FP arithmetic:** lower floating `+`, `-`, `*`, and `/` plus unary negation to CLIF. Frontend/CLIF lowering is complete; native SIA32 emission remains blocked by the Cranelift SIA32 backend rejecting `f32`/`f64` SSA values.
 - [x] **L13 — FP comparisons:** lower floating equality and ordered comparisons to C integer booleans via CLIF `fcmp`. Frontend/CLIF lowering is complete; native SIA32 emission remains blocked by the backend's lack of `f32`/`f64` SSA support.
 - [x] **L14 — FP conversions:** lower signed/unsigned integer ↔ float/double plus float ↔ double conversions to CLIF. Native SIA32 emission remains blocked by the backend's lack of `f32`/`f64` SSA support.
-- [ ] **L15 — FP ABI:** support floating-point parameters, return values, direct calls, and indirect calls according to the SIA32 ABI.
+- [x] **L15 — FP ABI:** lower `float`/`double` parameters, returns, direct-call signatures, and indirect-call signatures to CLIF `f32`/`f64`. Native SIA32 ABI emission remains blocked by the backend's lack of FP SSA/register support.
 
 ## Aggregate values and arrays
 
