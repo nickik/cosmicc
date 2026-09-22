@@ -322,7 +322,7 @@ pub(super) fn print_type(
                 prefixes.push(String::new());
                 postfixes.push(match array_type {
                     ArrayType::Fixed(length) => format!("[{}]", length),
-                    ArrayType::Variable(symbol) => format!("[{}]", symbol.get().id),
+                    ArrayType::Variable(expression) => format!("[{}]", expression),
                     ArrayType::Unbounded => "[]".to_string(),
                 });
             }
