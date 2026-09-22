@@ -659,6 +659,7 @@ fn collect_string_literals_initializer(
                 collect_string_literals_initializer(item, strings);
             }
         }
+        Initializer::Zero => {}
         Initializer::FunctionBody(statements) => {
             for statement in statements {
                 collect_string_literals_stmt(statement, strings);
@@ -2323,6 +2324,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 location,
                 "scalar aggregate initializer must contain exactly one element",
             )),
+            Initializer::Zero => Ok(()),
             Initializer::FunctionBody(_) => Err(unsupported(
                 location,
                 "function body cannot initialize an aggregate scalar element",
@@ -2369,6 +2371,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 slot, element, item, offset, location,
                             )?;
                         }
+                        Initializer::Zero => {}
                         _ => {
                             return Err(unsupported(
                                 location,
@@ -2413,6 +2416,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 location,
                             )?;
                         }
+                        Initializer::Zero => {}
                         _ => {
                             return Err(unsupported(
                                 location,
@@ -2468,6 +2472,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 location,
                             )?;
                         }
+                        Initializer::Zero => {}
                         _ => {
                             return Err(unsupported(
                                 location,
