@@ -1442,6 +1442,7 @@ fn compile_function(
                 lowerer.variables.insert(*parameter, variable);
                 lowerer.variable_types.insert(*parameter, parameter_ty);
             }
+            lowerer.record_label_dynamic_depths(body);
             for statement in body {
                 lowerer.compile_stmt(statement)?;
             }
@@ -1595,6 +1596,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     break_targets: Vec<(Block, usize)>,
     switch_cases: Vec<(HashMap<u64, Block>, Option<Block>)>,
     labels: HashMap<saltwater_parser::intern::InternedStr, Block>,
+    label_dynamic_depths: HashMap<saltwater_parser::intern::InternedStr, usize>,
     terminated: bool,
     dynamic_stack_bytes: Vec<Value>,
 }
@@ -1628,6 +1630,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             break_targets: Vec::new(),
             switch_cases: Vec::new(),
             labels: HashMap::new(),
+            label_dynamic_depths: HashMap::new(),
             terminated: false,
             dynamic_stack_bytes: Vec::new(),
         }
@@ -1780,6 +1783,45 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
     }
 
+    fn record_label_dynamic_depths(&mut self, statements: &[Stmt]) {
+        fn walk(
+            statement: &Stmt,
+            depth: usize,
+            labels: &mut HashMap<saltwater_parser::intern::InternedStr, usize>,
+        ) {
+            match &statement.data {
+                StmtType::Compound(statements) => {
+                    for statement in statements {
+                        walk(statement, depth, labels);
+                    }
+                }
+                StmtType::Label(label, inner) => {
+                    labels.insert(*label, depth);
+                    walk(inner, depth, labels);
+                }
+                StmtType::If(_, yes, no) => {
+                    walk(yes, depth, labels);
+                    if let Some(no) = no {
+                        walk(no, depth, labels);
+                    }
+                }
+                StmtType::While(_, body)
+                | StmtType::Do(body, _)
+                | StmtType::Switch(_, body)
+                | StmtType::Case(_, body)
+                | StmtType::Default(body) => walk(body, depth, labels),
+                StmtType::For(init, _, _, body) => {
+                    walk(init, depth, labels);
+                    walk(body, depth, labels);
+                }
+                _ => {}
+            }
+        }
+        for statement in statements {
+            walk(statement, 0, &mut self.label_dynamic_depths);
+        }
+    }
+
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
         let _statement_kind = Self::statement_kind(statement);
         // A label starts a new reachable basic block even when the preceding
@@ -1792,6 +1834,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.labels.insert(*label, block);
                 block
             };
+            let dynamic_depth = self.dynamic_stack_bytes.len();
+            self.label_dynamic_depths.insert(*label, dynamic_depth);
             if !self.terminated {
                 self.builder.ins().jump(block, &[]);
             }
@@ -2072,6 +2116,19 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     self.labels.insert(*label, block);
                     block
                 };
+                let dynamic_depth = self.label_dynamic_depths.get(label).copied().ok_or_else(|| {
+                    unsupported(
+                        statement.location,
+                        "forward goto requires VLA scope-depth prepass",
+                    )
+                })?;
+                if dynamic_depth > self.dynamic_stack_bytes.len() {
+                    return Err(unsupported(
+                        statement.location,
+                        "goto into a scope with active variable-length arrays is not supported",
+                    ));
+                }
+                self.emit_dynamic_stack_cleanup_to(dynamic_depth);
                 self.builder.ins().jump(block, &[]);
                 self.terminated = true;
                 Ok(())
@@ -5024,6 +5081,15 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_goto_out_of_vla_scope_with_stack_cleanup() {
+        let artifact =
+            compile_source("int f(int n) { int r = 1; { int a[n]; a[0] = 7; r = a[0]; goto done; } done: return r; }")
+                .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_break_and_continue_across_vla_scopes_with_stack_cleanup() {
         let artifact = compile_source(
