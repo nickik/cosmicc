@@ -697,7 +697,9 @@ impl<I: Lexer> Parser<I> {
                         Some(token) => match token.data {
                             Token::Id(id) => id,
                             other => {
-                                return Err(token.location.with(SyntaxError::ExpectedId(Some(other))))
+                                return Err(token
+                                    .location
+                                    .with(SyntaxError::ExpectedId(Some(other))))
                             }
                         },
                         None => return Err(Location::default().with(SyntaxError::ExpectedId(None))),
