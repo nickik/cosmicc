@@ -541,6 +541,16 @@ fn source_error(error: CompileError) -> Error {
     Error::Source(VecDeque::from([error]))
 }
 
+fn scalar_initializer_is_zero(expression: &Expr) -> bool {
+    match &expression.expr {
+        ExprType::Literal(LiteralValue::Int(0))
+        | ExprType::Literal(LiteralValue::UnsignedInt(0))
+        | ExprType::Literal(LiteralValue::Char(0)) => true,
+        ExprType::Cast(inner) | ExprType::Noop(inner) => scalar_initializer_is_zero(inner),
+        _ => false,
+    }
+}
+
 fn scalar_initializer_bytes(
     expression: &Expr,
     target: &Type,
@@ -554,6 +564,9 @@ fn scalar_initializer_bytes(
     )
     .map_err(|_| unsupported(location, "scalar initializer is too large"))?;
     let mut bytes = vec![0; width];
+    if scalar_initializer_is_zero(&folded) {
+        return Ok(bytes);
+    }
     match folded.expr {
         ExprType::Literal(LiteralValue::Int(value)) => {
             let raw = value.to_le_bytes();
