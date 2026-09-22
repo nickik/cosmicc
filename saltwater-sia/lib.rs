@@ -1784,17 +1784,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     }
 
     fn record_label_dynamic_depths(&mut self, statements: &[Stmt]) {
+        fn is_vla_declaration(declaration: &Declaration) -> bool {
+            matches!(
+                declaration.symbol.get().ctype,
+                Type::Array(_, saltwater_parser::data::types::ArrayType::Variable(_))
+            )
+        }
+
         fn walk(
             statement: &Stmt,
             depth: usize,
             labels: &mut HashMap<saltwater_parser::intern::InternedStr, usize>,
         ) {
             match &statement.data {
-                StmtType::Compound(statements) => {
-                    for statement in statements {
-                        walk(statement, depth, labels);
-                    }
-                }
+                StmtType::Compound(statements) => walk_statements(statements, depth, labels),
                 StmtType::Label(label, inner) => {
                     labels.insert(*label, depth);
                     walk(inner, depth, labels);
@@ -1811,15 +1814,37 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 | StmtType::Case(_, body)
                 | StmtType::Default(body) => walk(body, depth, labels),
                 StmtType::For(init, _, _, body) => {
-                    walk(init, depth, labels);
-                    walk(body, depth, labels);
+                    let mut loop_depth = depth;
+                    walk(init, loop_depth, labels);
+                    if let StmtType::Decl(declarations) = &init.data {
+                        loop_depth += declarations
+                            .iter()
+                            .filter(|declaration| is_vla_declaration(&declaration.data))
+                            .count();
+                    }
+                    walk(body, loop_depth, labels);
                 }
                 _ => {}
             }
         }
-        for statement in statements {
-            walk(statement, 0, &mut self.label_dynamic_depths);
+
+        fn walk_statements(
+            statements: &[Stmt],
+            mut depth: usize,
+            labels: &mut HashMap<saltwater_parser::intern::InternedStr, usize>,
+        ) {
+            for statement in statements {
+                walk(statement, depth, labels);
+                if let StmtType::Decl(declarations) = &statement.data {
+                    depth += declarations
+                        .iter()
+                        .filter(|declaration| is_vla_declaration(&declaration.data))
+                        .count();
+                }
+            }
         }
+
+        walk_statements(statements, 0, &mut self.label_dynamic_depths);
     }
 
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
