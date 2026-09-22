@@ -22,7 +22,7 @@ use cranelift_codegen::RelocTarget;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use saltwater_parser::check_semantics;
 pub use saltwater_parser::data::error::LexError;
-use saltwater_parser::data::types::{FunctionType, StructType};
+use saltwater_parser::data::types::FunctionType;
 use saltwater_parser::data::{
     hir::{Declaration, Expr, ExprType, Initializer, LiteralValue, Stmt, StmtType, Symbol},
     CompileError, Location, StorageClass, Type,
@@ -539,6 +539,13 @@ impl std::error::Error for Error {}
 
 fn source_error(error: CompileError) -> Error {
     Error::Source(VecDeque::from([error]))
+}
+
+fn unsupported(location: Location, message: impl Into<String>) -> Error {
+    Error::Unsupported {
+        location,
+        message: message.into(),
+    }
 }
 
 fn scalar_initializer_is_zero(expression: &Expr) -> bool {
