@@ -402,6 +402,7 @@ impl Display for Initializer {
                 write!(f, "{}", joined(list, ", "),)?;
                 write!(f, " }}")
             }
+            Initializer::Zero => write!(f, "0"),
             Initializer::FunctionBody(body) => {
                 writeln!(f, "{{")?;
                 for stmt in body {
@@ -517,6 +518,7 @@ impl Display for Declaration {
                 }
                 write!(f, "}};")
             }
+            Some(Initializer::Zero) => write!(f, " = 0;"),
             None => write!(f, ";"),
         }
     }
