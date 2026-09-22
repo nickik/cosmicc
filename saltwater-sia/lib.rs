@@ -3542,8 +3542,16 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.data.len(), 5);
-        let p = artifact.data.iter().find(|object| object.name == "p").unwrap();
-        let fp = artifact.data.iter().find(|object| object.name == "fp").unwrap();
+        let p = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "p")
+            .unwrap();
+        let fp = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "fp")
+            .unwrap();
         let member = artifact
             .data
             .iter()
