@@ -2264,6 +2264,41 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         self.initialize_stack_aggregate_at(slot, ctype, initializer, 0, location)
     }
 
+    fn initialize_stack_scalar_at(
+        &mut self,
+        slot: StackSlot,
+        ctype: &Type,
+        initializer: &Initializer,
+        offset: u64,
+        location: Location,
+    ) -> Result<(), Error> {
+        match initializer {
+            Initializer::Scalar(expression) => {
+                let value = self.compile_expr(expression)?;
+                let value_ty = ir_type(ctype, location)?;
+                let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
+                let offset = i32::try_from(offset).map_err(|_| {
+                    unsupported(location, "aggregate initializer offset is too large")
+                })?;
+                self.builder
+                    .ins()
+                    .stack_store(types::I32, value, slot, offset);
+                Ok(())
+            }
+            Initializer::InitializerList(items) if items.len() == 1 => {
+                self.initialize_stack_scalar_at(slot, ctype, &items[0], offset, location)
+            }
+            Initializer::InitializerList(_) => Err(unsupported(
+                location,
+                "scalar aggregate initializer must contain exactly one element",
+            )),
+            Initializer::FunctionBody(_) => Err(unsupported(
+                location,
+                "function body cannot initialize an aggregate scalar element",
+            )),
+        }
+    }
+
     fn initialize_stack_aggregate_at(
         &mut self,
         slot: StackSlot,
@@ -2289,17 +2324,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     let offset = base_offset + (index as u64) * element_size;
                     match item {
-                        Initializer::Scalar(expression) => {
-                            let value = self.compile_expr(expression)?;
-                            let value_ty = ir_type(element, location)?;
-                            let value =
-                                self.coerce_integer_value(value, value_ty, &expression.ctype);
-                            let offset = i32::try_from(offset).map_err(|_| {
-                                unsupported(location, "aggregate initializer offset is too large")
-                            })?;
-                            self.builder
-                                .ins()
-                                .stack_store(types::I32, value, slot, offset);
+                        Initializer::Scalar(_) if element.is_scalar() => {
+                            self.initialize_stack_scalar_at(slot, element, item, offset, location)?;
+                        }
+                        Initializer::InitializerList(_) if element.is_scalar() => {
+                            self.initialize_stack_scalar_at(slot, element, item, offset, location)?;
                         }
                         Initializer::InitializerList(_) => {
                             self.initialize_stack_aggregate_at(
@@ -2323,17 +2352,23 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         unsupported(location, "union has no initializable member")
                     })?;
                     match item {
-                        Initializer::Scalar(expression) => {
-                            let value = self.compile_expr(expression)?;
-                            let value_ty = ir_type(&field.ctype, location)?;
-                            let value =
-                                self.coerce_integer_value(value, value_ty, &expression.ctype);
-                            let offset = i32::try_from(base_offset).map_err(|_| {
-                                unsupported(location, "aggregate initializer offset is too large")
-                            })?;
-                            self.builder
-                                .ins()
-                                .stack_store(types::I32, value, slot, offset);
+                        Initializer::Scalar(_) if field.ctype.is_scalar() => {
+                            self.initialize_stack_scalar_at(
+                                slot,
+                                &field.ctype,
+                                item,
+                                base_offset,
+                                location,
+                            )?;
+                        }
+                        Initializer::InitializerList(_) if field.ctype.is_scalar() => {
+                            self.initialize_stack_scalar_at(
+                                slot,
+                                &field.ctype,
+                                item,
+                                base_offset,
+                                location,
+                            )?;
                         }
                         Initializer::InitializerList(_) => {
                             self.initialize_stack_aggregate_at(
@@ -2366,17 +2401,23 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     let field_offset = base_offset + offset;
                     match item {
-                        Initializer::Scalar(expression) => {
-                            let value = self.compile_expr(expression)?;
-                            let value_ty = ir_type(&field.ctype, location)?;
-                            let value =
-                                self.coerce_integer_value(value, value_ty, &expression.ctype);
-                            let field_offset = i32::try_from(field_offset).map_err(|_| {
-                                unsupported(location, "aggregate initializer offset is too large")
-                            })?;
-                            self.builder
-                                .ins()
-                                .stack_store(types::I32, value, slot, field_offset);
+                        Initializer::Scalar(_) if field.ctype.is_scalar() => {
+                            self.initialize_stack_scalar_at(
+                                slot,
+                                &field.ctype,
+                                item,
+                                field_offset,
+                                location,
+                            )?;
+                        }
+                        Initializer::InitializerList(_) if field.ctype.is_scalar() => {
+                            self.initialize_stack_scalar_at(
+                                slot,
+                                &field.ctype,
+                                item,
+                                field_offset,
+                                location,
+                            )?;
                         }
                         Initializer::InitializerList(_) => {
                             self.initialize_stack_aggregate_at(
