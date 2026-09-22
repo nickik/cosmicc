@@ -4940,6 +4940,14 @@ mod tests {
         }
     }
     #[test]
+    fn lowers_vla_with_fixed_inner_dimension() {
+        let artifact =
+            compile_source("int f(int n) { int a[n][3]; a[1][2] = 9; return a[1][2]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
     fn lowers_sizeof_vla_to_runtime_size() {
         let artifact =
             compile_source("unsigned f(int n) { int a[n + 2]; return sizeof(a); }").unwrap();
