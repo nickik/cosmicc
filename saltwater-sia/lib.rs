@@ -4990,6 +4990,16 @@ mod tests {
         }
     }
     #[test]
+    fn lowers_vla_in_nested_scope_before_following_stack_use() {
+        let artifact = compile_source(
+            "int f(int n) { int x = 3; { int a[n]; a[0] = x; } x = 7; return x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
     fn lowers_vla_with_runtime_inner_stride() {
         let artifact =
             compile_source("int f(int n, int m) { int a[n][m]; a[1][2] = 9; return a[1][2]; }")
