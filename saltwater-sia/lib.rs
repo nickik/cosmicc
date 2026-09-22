@@ -2190,14 +2190,49 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             return Ok(());
         }
         if let Type::Array(
-            _,
-            saltwater_parser::data::types::ArrayType::Variable(_),
+            element,
+            saltwater_parser::data::types::ArrayType::Variable(bound_expression),
         ) = &metadata.ctype
         {
-            return Err(unsupported(
-                location,
-                "SIA32 VLA base-address plumbing is ready, but dynamic stack allocation is not implemented yet",
-            ));
+            let element_size = element
+                .sizeof()
+                .map_err(|_| unsupported(location, "VLA element type must be complete"))?;
+            let bound = self.compile_expr(bound_expression)?;
+            let bound_ty = self.builder.func.dfg.value_type(bound);
+            let bound = if bound_ty == types::I32 {
+                bound
+            } else {
+                self.builder.ins().uextend(types::I32, bound)
+            };
+            let element_size_value = self.builder.ins().iconst(types::I32, element_size as i64);
+            let bytes = self.builder.ins().imul(bound, element_size_value);
+            let alignment = element
+                .alignof()
+                .map_err(|_| unsupported(location, "VLA element type has unsupported alignment"))?;
+            let alignment = u32::try_from(alignment)
+                .map_err(|_| unsupported(location, "VLA alignment is too large for SIA32"))?;
+            let bytes = if alignment > 1 {
+                let mask = self
+                    .builder
+                    .ins()
+                    .iconst(types::I32, i64::from(alignment - 1));
+                let rounded = self.builder.ins().iadd(bytes, mask);
+                let clear_mask = self
+                    .builder
+                    .ins()
+                    .iconst(types::I32, i64::from(!(alignment - 1)));
+                self.builder.ins().band(rounded, clear_mask)
+            } else {
+                bytes
+            };
+            let base = self.builder.ins().stack_alloc_dynamic(types::I32, bytes);
+            let base_variable = self.builder.declare_var(types::I32);
+            self.builder.def_var(base_variable, base);
+            self.vla_bases.insert(declaration.symbol, base_variable);
+            if declaration.init.is_some() {
+                return Err(unsupported(location, "VLA initialization is not supported"));
+            }
+            return Ok(());
         }
         if matches!(
             metadata.ctype,
@@ -2683,6 +2718,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                     }
                 } else if let Some(variable) = self.variables.get(symbol).copied() {
+                    Ok(self.builder.use_var(variable))
+                } else if let Some(variable) = self.vla_bases.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
                 } else if self.global_indices.contains_key(symbol)
                     || self.function_indices.contains_key(symbol)
@@ -4878,6 +4915,21 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_general_runtime_vla_bound_expression() {
+        let artifact =
+            compile_source("int f(int n) { int a[n + 3]; a[n] = 11; return a[n]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn lowers_identifier_bound_vla_to_dynamic_stack_allocation() {
+        let artifact = compile_source("int f(int n) { int a[n]; a[2] = 7; return a[2]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_local_designated_initializers_to_sia32() {
         let artifact = compile_source(

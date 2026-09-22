@@ -157,11 +157,11 @@ pub enum Type {
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ArrayType {
     Fixed(u64),
-    /// Runtime bound preserved from a simple local identifier expression.
-    Variable(Symbol),
+    /// Runtime bound expression for a variable length array.
+    Variable(Box<super::hir::Expr>),
     Unbounded,
 }
 
@@ -322,7 +322,7 @@ pub(super) fn print_type(
                 prefixes.push(String::new());
                 postfixes.push(match array_type {
                     ArrayType::Fixed(length) => format!("[{}]", length),
-                    ArrayType::Variable(symbol) => format!("[{}]", symbol.get().id),
+                    ArrayType::Variable(expression) => format!("[{}]", expression),
                     ArrayType::Unbounded => "[]".to_string(),
                 });
             }
