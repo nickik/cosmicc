@@ -2286,11 +2286,23 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
                 "floating-point C is not supported for the SIA32 target",
             ));
         }
-        _ => {
+        Type::Void => {
             return Err(unsupported(
                 location,
-                format!("SIA32 type lowering is not implemented for {ctype:?}"),
-            ))
+                "void has no scalar SIA32 value representation",
+            ));
+        }
+        Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => {
+            return Err(unsupported(
+                location,
+                "aggregate C types are represented by addresses, not scalar SIA32 values",
+            ));
+        }
+        Type::Error => {
+            return Err(unsupported(
+                location,
+                "semantic-error type reached SIA32 lowering",
+            ));
         }
     };
     Ok(ty)
