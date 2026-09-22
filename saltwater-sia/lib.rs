@@ -3450,24 +3450,34 @@ fn is_signed_integer_type(ctype: &Type) -> bool {
 }
 
 fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
-    let ty = match ctype {
-        Type::Bool | Type::Char(_) => types::I8,
-        Type::Short(_) => types::I16,
+    match ctype {
+        Type::Bool | Type::Char(_) => Ok(types::I8),
+        Type::Short(_) => Ok(types::I16),
         Type::Int(_)
         | Type::Long(_)
         | Type::Enum(_, _)
         | Type::Pointer(_, _)
-        | Type::Function(_) => types::I32,
-        Type::Float => types::F32,
-        Type::Double => types::F64,
-        _ => {
-            return Err(unsupported(
-                location,
-                format!("SIA32 type lowering is not implemented for {ctype:?}"),
-            ))
-        }
-    };
-    Ok(ty)
+        | Type::Function(_) => Ok(types::I32),
+        Type::Float => Ok(types::F32),
+        Type::Double => Ok(types::F64),
+        Type::Void => Err(unsupported(location, "void has no SIA32 SSA value representation")),
+        Type::Array(_, _) => Err(unsupported(
+            location,
+            "array values are address-only on SIA32 and must decay or use aggregate storage",
+        )),
+        Type::Struct(_) | Type::Union(_) => Err(unsupported(
+            location,
+            "struct/union values are address-only on SIA32 and use aggregate ABI/storage lowering",
+        )),
+        Type::VaList => Err(unsupported(
+            location,
+            "va_list has no standalone SIA32 scalar representation",
+        )),
+        Type::Error => Err(unsupported(
+            location,
+            "frontend error type cannot reach SIA32 type lowering",
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -4808,6 +4818,26 @@ mod tests {
         let artifact = compile_source("long f(int *p, int *q) { return p - q; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn type_lowering_explicitly_classifies_every_frontend_type_family() {
+        let location = Location::default();
+        assert_eq!(ir_type(&Type::Bool, location).unwrap(), types::I8);
+        assert_eq!(ir_type(&Type::Char(true), location).unwrap(), types::I8);
+        assert_eq!(ir_type(&Type::Short(true), location).unwrap(), types::I16);
+        assert_eq!(ir_type(&Type::Int(true), location).unwrap(), types::I32);
+        assert_eq!(ir_type(&Type::Long(true), location).unwrap(), types::I32);
+        assert_eq!(ir_type(&Type::Float, location).unwrap(), types::F32);
+        assert_eq!(ir_type(&Type::Double, location).unwrap(), types::F64);
+        for ty in [
+            Type::Void,
+            Type::Array(Box::new(Type::Int(true)), saltwater_parser::data::types::ArrayType::Fixed(2)),
+            Type::VaList,
+            Type::Error,
+        ] {
+            assert!(ir_type(&ty, location).is_err(), "{ty:?}");
+        }
     }
 
 }
