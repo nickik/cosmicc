@@ -1115,15 +1115,6 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let program = check_semantics(source, opt);
     let declarations = program.result.map_err(Error::Source)?;
 
-    for declaration in &declarations {
-        if declaration_uses_float_value(&declaration.data) {
-            return Err(unsupported(
-                declaration.location,
-                "floating-point values are not supported for the SIA32 target yet",
-            ));
-        }
-    }
-
     let isa = target_isa()?;
     let mut string_indices = HashMap::new();
     for declaration in &declarations {
@@ -2608,10 +2599,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::Literal(LiteralValue::Char(value)) => {
                 Ok(self.builder.ins().iconst(ty, i64::from(*value)))
             }
-            ExprType::Literal(LiteralValue::Float(_)) => Err(unsupported(
-                expression.location,
-                "floating-point C is not supported for the SIA32 target",
-            )),
+            ExprType::Literal(LiteralValue::Float(value)) => {
+                if ty == types::F32 {
+                    Ok(self.builder.ins().f32const(*value as f32))
+                } else {
+                    Ok(self.builder.ins().f64const(*value))
+                }
+            },
             ExprType::Literal(LiteralValue::Str(bytes)) => {
                 self.string_address(bytes, expression.location)
             }
@@ -2713,6 +2707,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             },
             ExprType::Negate(value) => {
                 let value_clif = self.compile_expr(value)?;
+                if matches!(expression.ctype, Type::Float | Type::Double) {
+                    return Ok(self.builder.ins().fneg(value_clif));
+                }
                 let value_clif = self.coerce_integer_value(value_clif, ty, &value.ctype);
                 let zero = self.builder.ins().iconst(ty, 0);
                 Ok(self.builder.ins().isub(zero, value_clif))
@@ -3115,6 +3112,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     _ => ir_type(&expression.ctype, expression.location)?,
                 };
+                if matches!(expression.ctype, Type::Float | Type::Double) {
+                    let value = match operator {
+                        BinaryOp::Mul => self.builder.ins().fmul(left, right),
+                        BinaryOp::Div => self.builder.ins().fdiv(left, right),
+                        BinaryOp::Add => self.builder.ins().fadd(left, right),
+                        BinaryOp::Sub => self.builder.ins().fsub(left, right),
+                        _ => {
+                            return Err(unsupported(
+                                expression.location,
+                                format!("floating-point operator {operator:?} is not part of L12"),
+                            ))
+                        }
+                    };
+                    return Ok(value);
+                }
                 let left = self.coerce_integer_value(left, operation_ty, &left_expr_type);
                 let right = self.coerce_integer_value(right, operation_ty, &right_expr_type);
                 let value = match operator {
@@ -4397,37 +4409,35 @@ mod tests {
     }
 
     #[test]
-    fn rejects_float_declarations_before_backend_lowering() {
-        let error = compile_source("int main(void) { float x = 1.0; return 0; }").unwrap_err();
-        let message = error.to_string();
-        assert!(
-            message.contains("floating-point values are not supported")
-                || message.contains("floating-point C is not supported"),
-            "{message}"
-        );
+    fn compiles_f32_arithmetic_and_negation_to_clif() {
+        let artifact = compile_source(
+            "float f(float a, float b) { return -(a + b) * (a - b) / b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
-    fn rejects_float_literals_even_when_cast_to_int() {
+    fn compiles_f64_arithmetic_and_negation_to_clif() {
+        let artifact = compile_source(
+            "double f(double a, double b) { return -(a + b) * (a - b) / b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn rejects_float_to_integer_cast_until_l14() {
         let error = compile_source("int main(void) { return (int)1.0; }").unwrap_err();
-        let message = error.to_string();
         assert!(
-            message.contains("floating-point values are not supported")
-                || message.contains("floating-point C is not supported"),
-            "{message}"
+            error.to_string().contains("cast")
+                || error.to_string().contains("floating")
+                || error.to_string().contains("type"),
+            "{}",
+            error
         );
     }
 
-    #[test]
-    fn rejects_float_values_reached_through_pointer_dereference() {
-        let error =
-            compile_source("int f(float *value) { return *value != 0.0; } int main(void) { return 0; }")
-                .unwrap_err();
-        let message = error.to_string();
-        assert!(
-            message.contains("floating-point values are not supported")
-                || message.contains("floating-point C is not supported"),
-            "{message}"
-        );
-    }
 }
