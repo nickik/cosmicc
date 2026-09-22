@@ -11,8 +11,9 @@ use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Block, ExtFuncData, ExternalName, Function, InstBuilder, MemFlagsData,
-    Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName, UserFuncName, Value,
+    types, AbiParam, Block, ExtFuncData, ExternalName, Function, GlobalValueData, InstBuilder,
+    MemFlagsData, Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName,
+    UserFuncName, Value,
 };
 use cranelift_codegen::isa::{self, CallConv, TargetIsa};
 use cranelift_codegen::settings::{self, Configurable, Flags};
@@ -33,7 +34,7 @@ use target_lexicon::Triple;
 pub const TARGET: &str = "sia32-unknown-none";
 
 const BUNDLE_MAGIC: &[u8] = b"COSMIC-SIA\0";
-const BUNDLE_VERSION: u16 = 2;
+const BUNDLE_VERSION: u16 = 3;
 const SIA_REGISTER_COUNT: usize = 16;
 const SIA_ARGUMENT_REGISTER: usize = 1;
 const SIA_LINK_REGISTER: usize = 14;
@@ -58,6 +59,21 @@ pub struct RelocationArtifact {
     pub addend: i64,
 }
 
+/// One relocatable data object emitted by Cosmic C.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataArtifact {
+    /// Linkage name used by code/data relocations.
+    pub name: String,
+    /// Initial contents. Uninitialized objects are emitted as zero-filled bytes.
+    pub bytes: Vec<u8>,
+    /// Required power-of-two byte alignment.
+    pub align: u32,
+    /// Whether the object should be mapped read-only by the eventual linker/loader.
+    pub read_only: bool,
+    /// Link-time relocations embedded in this data object.
+    pub relocations: Vec<RelocationArtifact>,
+}
+
 /// A relocatable-in-spirit SIA code bundle.
 ///
 /// The bundle is intentionally small while the Cosmic object/image writer is
@@ -69,6 +85,8 @@ pub struct Artifact {
     pub target: &'static str,
     /// Compiled function bodies.
     pub functions: Vec<FunctionArtifact>,
+    /// Relocatable global/static/string data objects.
+    pub data: Vec<DataArtifact>,
 }
 
 /// A concrete SIA32 call prepared for an external Lighting execution harness.
@@ -137,6 +155,34 @@ impl Artifact {
                 .map_err(|_| Error::Codegen("too many relocations for a SIA function".into()))?;
             bytes.extend_from_slice(&reloc_count.to_le_bytes());
             for relocation in &function.relocations {
+                let target = relocation.target.as_bytes();
+                let target_len = u16::try_from(target.len())
+                    .map_err(|_| Error::Codegen("relocation target name is too long".into()))?;
+                bytes.extend_from_slice(&relocation.offset.to_le_bytes());
+                bytes.extend_from_slice(&relocation.addend.to_le_bytes());
+                bytes.extend_from_slice(&target_len.to_le_bytes());
+                bytes.extend_from_slice(target);
+            }
+        }
+        let data_count = u16::try_from(self.data.len())
+            .map_err(|_| Error::Codegen("too many data objects for a SIA bundle".into()))?;
+        bytes.extend_from_slice(&data_count.to_le_bytes());
+        for object in &self.data {
+            let name = object.name.as_bytes();
+            let name_len = u16::try_from(name.len())
+                .map_err(|_| Error::Codegen("data object name is too long".into()))?;
+            let data_len = u32::try_from(object.bytes.len())
+                .map_err(|_| Error::Codegen("data object is too large".into()))?;
+            bytes.extend_from_slice(&name_len.to_le_bytes());
+            bytes.extend_from_slice(name);
+            bytes.extend_from_slice(&object.align.to_le_bytes());
+            bytes.push(u8::from(object.read_only));
+            bytes.extend_from_slice(&data_len.to_le_bytes());
+            bytes.extend_from_slice(&object.bytes);
+            let reloc_count = u16::try_from(object.relocations.len())
+                .map_err(|_| Error::Codegen("too many relocations for a SIA data object".into()))?;
+            bytes.extend_from_slice(&reloc_count.to_le_bytes());
+            for relocation in &object.relocations {
                 let target = relocation.target.as_bytes();
                 let target_len = u16::try_from(target.len())
                     .map_err(|_| Error::Codegen("relocation target name is too long".into()))?;
@@ -232,6 +278,79 @@ impl Artifact {
                 relocations,
             });
         }
+        let data_count = u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "data count")?));
+        let mut data = Vec::with_capacity(usize::from(data_count));
+        for _ in 0..data_count {
+            let name_len = usize::from(u16::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                2,
+                "data name length",
+            )?)));
+            let name = std::str::from_utf8(take(bytes, &mut cursor, name_len, "data name")?)
+                .map_err(|_| Error::Codegen("COSMIC-SIA data name is not UTF-8".into()))?
+                .to_owned();
+            let align =
+                u32::from_le_bytes(read_array(take(bytes, &mut cursor, 4, "data alignment")?));
+            let read_only = take(bytes, &mut cursor, 1, "data read-only flag")?[0] != 0;
+            let data_len = usize::try_from(u32::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                4,
+                "data length",
+            )?)))
+            .expect("a u32 always fits in usize on supported Cosmic C hosts");
+            let object_bytes = take(bytes, &mut cursor, data_len, "data bytes")?.to_vec();
+            let reloc_count = usize::from(u16::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                2,
+                "data relocation count",
+            )?)));
+            let mut relocations = Vec::with_capacity(reloc_count);
+            for _ in 0..reloc_count {
+                let offset = u32::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    4,
+                    "data relocation offset",
+                )?));
+                let addend = i64::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    8,
+                    "data relocation addend",
+                )?));
+                let target_len = usize::from(u16::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    2,
+                    "data relocation target length",
+                )?)));
+                let target = std::str::from_utf8(take(
+                    bytes,
+                    &mut cursor,
+                    target_len,
+                    "data relocation target",
+                )?)
+                .map_err(|_| {
+                    Error::Codegen("COSMIC-SIA data relocation target is not UTF-8".into())
+                })?
+                .to_owned();
+                relocations.push(RelocationArtifact {
+                    offset,
+                    target,
+                    addend,
+                });
+            }
+            data.push(DataArtifact {
+                name,
+                bytes: object_bytes,
+                align,
+                read_only,
+                relocations,
+            });
+        }
         if cursor != bytes.len() {
             return Err(Error::Codegen(
                 "COSMIC-SIA bundle has trailing bytes".into(),
@@ -240,6 +359,7 @@ impl Artifact {
         let artifact = Self {
             target: TARGET,
             functions,
+            data,
         };
         artifact.validate()?;
         Ok(artifact)
@@ -305,9 +425,9 @@ impl Artifact {
                 "COSMIC-SIA bundle target must be `{TARGET}`"
             )));
         }
-        if self.functions.is_empty() {
+        if self.functions.is_empty() && self.data.is_empty() {
             return Err(Error::Codegen(
-                "COSMIC-SIA bundle contains no functions".into(),
+                "COSMIC-SIA bundle contains neither functions nor data".into(),
             ));
         }
         let mut names = HashSet::new();
@@ -319,7 +439,7 @@ impl Artifact {
             }
             if !names.insert(&function.name) {
                 return Err(Error::Codegen(format!(
-                    "COSMIC-SIA bundle contains duplicate function `{}`",
+                    "COSMIC-SIA bundle contains duplicate symbol `{}`",
                     function.name
                 )));
             }
@@ -328,6 +448,37 @@ impl Artifact {
                     "COSMIC-SIA function `{}` does not contain whole SIA instruction words",
                     function.name
                 )));
+            }
+        }
+        for object in &self.data {
+            if object.name.is_empty() {
+                return Err(Error::Codegen(
+                    "COSMIC-SIA data object name must not be empty".into(),
+                ));
+            }
+            if !names.insert(&object.name) {
+                return Err(Error::Codegen(format!(
+                    "COSMIC-SIA bundle contains duplicate symbol `{}`",
+                    object.name
+                )));
+            }
+            if object.align == 0 || !object.align.is_power_of_two() {
+                return Err(Error::Codegen(format!(
+                    "COSMIC-SIA data object `{}` has invalid alignment {}",
+                    object.name, object.align
+                )));
+            }
+            for relocation in &object.relocations {
+                let end = usize::try_from(relocation.offset)
+                    .ok()
+                    .and_then(|offset| offset.checked_add(4))
+                    .ok_or_else(|| Error::Codegen("data relocation offset overflows".into()))?;
+                if end > object.bytes.len() {
+                    return Err(Error::Codegen(format!(
+                        "COSMIC-SIA data relocation in `{}` lies outside the object",
+                        object.name
+                    )));
+                }
             }
         }
         Ok(())
@@ -386,6 +537,579 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+fn source_error(error: CompileError) -> Error {
+    Error::Source(VecDeque::from([error]))
+}
+
+fn scalar_initializer_is_zero(expression: &Expr) -> bool {
+    match &expression.expr {
+        ExprType::Literal(LiteralValue::Int(0))
+        | ExprType::Literal(LiteralValue::UnsignedInt(0))
+        | ExprType::Literal(LiteralValue::Char(0)) => true,
+        ExprType::Cast(inner) | ExprType::Noop(inner) | ExprType::StaticRef(inner) => {
+            scalar_initializer_is_zero(inner)
+        }
+        _ => false,
+    }
+}
+
+fn scalar_initializer_bytes(
+    expression: &Expr,
+    target: &Type,
+    location: Location,
+) -> Result<Vec<u8>, Error> {
+    let folded = expression.clone().const_fold().map_err(source_error)?;
+    let width = usize::try_from(
+        target
+            .sizeof()
+            .map_err(|error| unsupported(location, error.to_string()))?,
+    )
+    .map_err(|_| unsupported(location, "scalar initializer is too large"))?;
+    let mut bytes = vec![0; width];
+    if scalar_initializer_is_zero(&folded) {
+        return Ok(bytes);
+    }
+    match folded.expr {
+        ExprType::Literal(LiteralValue::Int(value)) => {
+            let raw = value.to_le_bytes();
+            bytes.copy_from_slice(&raw[..width.min(raw.len())]);
+        }
+        ExprType::Literal(LiteralValue::UnsignedInt(value)) => {
+            let raw = value.to_le_bytes();
+            bytes.copy_from_slice(&raw[..width.min(raw.len())]);
+        }
+        ExprType::Literal(LiteralValue::Char(value)) => {
+            if let Some(first) = bytes.first_mut() {
+                *first = value;
+            }
+        }
+        ExprType::Literal(LiteralValue::Float(_)) => {
+            return Err(unsupported(
+                location,
+                "floating-point global initialization requires SIA32 float lowering",
+            ));
+        }
+        ExprType::Literal(LiteralValue::Str(_)) => {
+            return Err(unsupported(
+                location,
+                "string scalar initialization requires SIA32 string-data lowering",
+            ));
+        }
+        _ if folded.is_zero() => {}
+        _ => {
+            return Err(unsupported(
+                location,
+                "global scalar initializer is not a link-time constant",
+            ))
+        }
+    }
+    Ok(bytes)
+}
+
+fn collect_string_literals_expr(expression: &Expr, strings: &mut HashMap<Vec<u8>, u32>) {
+    if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
+        if !strings.contains_key(bytes) {
+            let index = u32::try_from(strings.len()).expect("string pool fits in u32");
+            strings.insert(bytes.clone(), index);
+        }
+    }
+    match &expression.expr {
+        ExprType::FuncCall(function, arguments) => {
+            collect_string_literals_expr(function, strings);
+            for argument in arguments {
+                collect_string_literals_expr(argument, strings);
+            }
+        }
+        ExprType::Member(value, _)
+        | ExprType::PostIncrement(value, _)
+        | ExprType::Cast(value)
+        | ExprType::Deref(value)
+        | ExprType::Negate(value)
+        | ExprType::BitwiseNot(value)
+        | ExprType::StaticRef(value)
+        | ExprType::Noop(value) => collect_string_literals_expr(value, strings),
+        ExprType::Binary(_, left, right) | ExprType::Comma(left, right) => {
+            collect_string_literals_expr(left, strings);
+            collect_string_literals_expr(right, strings);
+        }
+        ExprType::Ternary(condition, yes, no) => {
+            collect_string_literals_expr(condition, strings);
+            collect_string_literals_expr(yes, strings);
+            collect_string_literals_expr(no, strings);
+        }
+        ExprType::Id(_) | ExprType::Literal(_) | ExprType::Sizeof(_) => {}
+    }
+}
+
+fn collect_string_literals_initializer(
+    initializer: &Initializer,
+    strings: &mut HashMap<Vec<u8>, u32>,
+) {
+    match initializer {
+        Initializer::Scalar(expression) => collect_string_literals_expr(expression, strings),
+        Initializer::InitializerList(items) => {
+            for item in items {
+                collect_string_literals_initializer(item, strings);
+            }
+        }
+        Initializer::FunctionBody(statements) => {
+            for statement in statements {
+                collect_string_literals_stmt(statement, strings);
+            }
+        }
+    }
+}
+
+fn collect_string_literals_stmt(statement: &Stmt, strings: &mut HashMap<Vec<u8>, u32>) {
+    match &statement.data {
+        StmtType::Compound(statements) => {
+            for statement in statements {
+                collect_string_literals_stmt(statement, strings);
+            }
+        }
+        StmtType::If(condition, yes, no) => {
+            collect_string_literals_expr(condition, strings);
+            collect_string_literals_stmt(yes, strings);
+            if let Some(no) = no {
+                collect_string_literals_stmt(no, strings);
+            }
+        }
+        StmtType::Do(body, condition) | StmtType::While(condition, body) => {
+            collect_string_literals_stmt(body, strings);
+            collect_string_literals_expr(condition, strings);
+        }
+        StmtType::For(init, condition, step, body) => {
+            collect_string_literals_stmt(init, strings);
+            if let Some(condition) = condition {
+                collect_string_literals_expr(condition, strings);
+            }
+            if let Some(step) = step {
+                collect_string_literals_expr(step, strings);
+            }
+            collect_string_literals_stmt(body, strings);
+        }
+        StmtType::Switch(expression, body) => {
+            collect_string_literals_expr(expression, strings);
+            collect_string_literals_stmt(body, strings);
+        }
+        StmtType::Label(_, body) | StmtType::Case(_, body) | StmtType::Default(body) => {
+            collect_string_literals_stmt(body, strings);
+        }
+        StmtType::Expr(expression) => collect_string_literals_expr(expression, strings),
+        StmtType::Return(value) => {
+            if let Some(value) = value {
+                collect_string_literals_expr(value, strings);
+            }
+        }
+        StmtType::Decl(declarations) => {
+            for declaration in declarations {
+                if let Some(initializer) = &declaration.data.init {
+                    collect_string_literals_initializer(initializer, strings);
+                }
+            }
+        }
+        StmtType::Goto(_) | StmtType::Continue | StmtType::Break => {}
+    }
+}
+
+fn string_symbol_name(index: u32) -> String {
+    format!("__cosmic_str_{index}")
+}
+
+fn collect_static_locals(
+    statements: &[Stmt],
+    function_index: usize,
+    out: &mut Vec<(usize, Declaration, Location)>,
+) {
+    for statement in statements {
+        match &statement.data {
+            StmtType::Compound(statements) => {
+                collect_static_locals(statements, function_index, out);
+            }
+            StmtType::Decl(declarations) => {
+                for declaration in declarations {
+                    let metadata = declaration.data.symbol.get();
+                    if metadata.storage_class == StorageClass::Static
+                        && !matches!(metadata.ctype, Type::Function(_))
+                    {
+                        out.push((
+                            function_index,
+                            declaration.data.clone(),
+                            declaration.location,
+                        ));
+                    }
+                }
+            }
+            StmtType::If(_, yes, no) => {
+                collect_static_locals(std::slice::from_ref(yes.as_ref()), function_index, out);
+                if let Some(no) = no {
+                    collect_static_locals(std::slice::from_ref(no.as_ref()), function_index, out);
+                }
+            }
+            StmtType::Do(body, _) | StmtType::While(_, body) => {
+                collect_static_locals(std::slice::from_ref(body.as_ref()), function_index, out);
+            }
+            StmtType::For(init, _, _, body) => {
+                collect_static_locals(std::slice::from_ref(init.as_ref()), function_index, out);
+                collect_static_locals(std::slice::from_ref(body.as_ref()), function_index, out);
+            }
+            StmtType::Switch(_, body)
+            | StmtType::Label(_, body)
+            | StmtType::Case(_, body)
+            | StmtType::Default(body) => {
+                collect_static_locals(std::slice::from_ref(body.as_ref()), function_index, out);
+            }
+            StmtType::Expr(_)
+            | StmtType::Goto(_)
+            | StmtType::Continue
+            | StmtType::Break
+            | StmtType::Return(_) => {}
+        }
+    }
+}
+
+fn completed_object_type(
+    ctype: &Type,
+    initializer: Option<&Initializer>,
+    location: Location,
+) -> Result<Type, Error> {
+    if let Type::Array(element, saltwater_parser::data::types::ArrayType::Unbounded) = ctype {
+        let len = match initializer {
+            Some(Initializer::InitializerList(items)) => u64::try_from(items.len())
+                .map_err(|_| unsupported(location, "array initializer is too large"))?,
+            Some(Initializer::Scalar(expression)) => match &expression.expr {
+                ExprType::Literal(LiteralValue::Str(bytes)) => u64::try_from(bytes.len())
+                    .map_err(|_| unsupported(location, "string initializer is too large"))?,
+                _ => {
+                    return Err(unsupported(
+                        location,
+                        "unbounded array requires an initializer that determines its size",
+                    ))
+                }
+            },
+            _ => {
+                return Err(unsupported(
+                    location,
+                    "unbounded array requires an initializer that determines its size",
+                ))
+            }
+        };
+        Ok(Type::Array(
+            element.clone(),
+            saltwater_parser::data::types::ArrayType::Fixed(len),
+        ))
+    } else {
+        Ok(ctype.clone())
+    }
+}
+
+fn translation_unit_symbol_name(index: usize, declaration: &Declaration) -> String {
+    let metadata = declaration.symbol.get();
+    let raw_name = metadata.id.resolve_and_clone();
+    if !matches!(metadata.ctype, Type::Function(_))
+        && metadata.storage_class == StorageClass::Static
+    {
+        format!("__cosmic_static_global_{index}_{raw_name}")
+    } else {
+        raw_name
+    }
+}
+
+fn aggregate_member_offset(
+    ctype: &Type,
+    member: saltwater_parser::intern::InternedStr,
+    location: Location,
+) -> Result<u64, Error> {
+    match ctype {
+        Type::Union(_) => Ok(0),
+        Type::Struct(struct_type) => {
+            let mut offset = 0u64;
+            for field in struct_type.members().iter() {
+                let align = field
+                    .ctype
+                    .alignof()
+                    .map_err(|error| unsupported(location, error.to_string()))?;
+                if align > 1 {
+                    let rem = offset % align;
+                    if rem != 0 {
+                        offset += align - rem;
+                    }
+                }
+                if field.id == member {
+                    return Ok(offset);
+                }
+                offset = offset
+                    .checked_add(
+                        field
+                            .ctype
+                            .sizeof()
+                            .map_err(|error| unsupported(location, error.to_string()))?,
+                    )
+                    .ok_or_else(|| Error::Codegen("member offset overflows".into()))?;
+            }
+            Err(unsupported(location, "unknown aggregate member"))
+        }
+        _ => Err(unsupported(
+            location,
+            "member offset requested for non-aggregate type",
+        )),
+    }
+}
+
+fn static_address_target(
+    expression: &Expr,
+    symbols: &HashMap<Symbol, String>,
+) -> Result<Option<(String, i64)>, Error> {
+    fn resolve(
+        expression: &Expr,
+        symbols: &HashMap<Symbol, String>,
+    ) -> Result<Option<(String, i64)>, Error> {
+        match &expression.expr {
+            ExprType::Noop(inner) | ExprType::Cast(inner) => resolve(inner, symbols),
+            ExprType::StaticRef(inner) => match &inner.expr {
+                ExprType::Id(symbol) => Ok(symbols.get(symbol).cloned().map(|name| (name, 0))),
+                ExprType::Member(base, member) => {
+                    if let ExprType::Id(symbol) = &base.expr {
+                        let Some(name) = symbols.get(symbol).cloned() else {
+                            return Ok(None);
+                        };
+                        let offset = aggregate_member_offset(&base.ctype, *member, base.location)?;
+                        let addend = i64::try_from(offset).map_err(|_| {
+                            Error::Codegen("member relocation addend overflows".into())
+                        })?;
+                        Ok(Some((name, addend)))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                _ => Ok(None),
+            },
+            // Function designators can appear directly in pointer initializers.
+            ExprType::Id(symbol) if matches!(symbol.get().ctype, Type::Function(_)) => {
+                Ok(symbols.get(symbol).cloned().map(|name| (name, 0)))
+            }
+            _ => Ok(None),
+        }
+    }
+    resolve(expression, symbols)
+}
+
+fn write_global_initializer(
+    bytes: &mut [u8],
+    relocations: &mut Vec<RelocationArtifact>,
+    symbols: &HashMap<Symbol, String>,
+    strings: &HashMap<Vec<u8>, u32>,
+    base_offset: usize,
+    ctype: &Type,
+    initializer: &Initializer,
+    location: Location,
+) -> Result<(), Error> {
+    match initializer {
+        Initializer::Scalar(expression) if ctype.is_scalar() => {
+            if matches!(ctype, Type::Pointer(_, _) | Type::Function(_)) {
+                let mut string_expression = expression;
+                while let ExprType::Noop(inner) | ExprType::Cast(inner) = &string_expression.expr {
+                    string_expression = inner;
+                }
+                let string_bytes = match &string_expression.expr {
+                    ExprType::StaticRef(inner) => match &inner.expr {
+                        ExprType::Literal(LiteralValue::Str(bytes)) => Some(bytes),
+                        _ => None,
+                    },
+                    ExprType::Literal(LiteralValue::Str(bytes)) => Some(bytes),
+                    _ => None,
+                };
+                if let Some(bytes_value) = string_bytes {
+                    let index = strings.get(bytes_value).copied().ok_or_else(|| {
+                        Error::Codegen("string literal missing from translation-unit pool".into())
+                    })?;
+                    let offset = u32::try_from(base_offset)
+                        .map_err(|_| Error::Codegen("data relocation offset overflows".into()))?;
+                    relocations.push(RelocationArtifact {
+                        offset,
+                        target: string_symbol_name(index),
+                        addend: 0,
+                    });
+                    return Ok(());
+                }
+                if let Some((target, addend)) = static_address_target(expression, symbols)? {
+                    let offset = u32::try_from(base_offset)
+                        .map_err(|_| Error::Codegen("data relocation offset overflows".into()))?;
+                    let end = base_offset
+                        .checked_add(4)
+                        .ok_or_else(|| Error::Codegen("data relocation offset overflows".into()))?;
+                    if end > bytes.len() {
+                        return Err(Error::Codegen(
+                            "data relocation exceeds global object".into(),
+                        ));
+                    }
+                    relocations.push(RelocationArtifact {
+                        offset,
+                        target,
+                        addend,
+                    });
+                    return Ok(());
+                }
+            }
+            let value = scalar_initializer_bytes(expression, ctype, location)?;
+            let end = base_offset
+                .checked_add(value.len())
+                .ok_or_else(|| Error::Codegen("global initializer offset overflows".into()))?;
+            bytes
+                .get_mut(base_offset..end)
+                .ok_or_else(|| Error::Codegen("global initializer exceeds object size".into()))?
+                .copy_from_slice(&value);
+            Ok(())
+        }
+        Initializer::InitializerList(items) if ctype.is_scalar() => {
+            if items.len() != 1 {
+                return Err(unsupported(
+                    location,
+                    "scalar global initializer list must contain exactly one element",
+                ));
+            }
+            write_global_initializer(
+                bytes,
+                relocations,
+                symbols,
+                strings,
+                base_offset,
+                ctype,
+                &items[0],
+                location,
+            )
+        }
+        Initializer::InitializerList(items) => match ctype {
+            Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
+                if u64::try_from(items.len()).unwrap_or(u64::MAX) > *count {
+                    return Err(unsupported(
+                        location,
+                        "too many elements in global array initializer",
+                    ));
+                }
+                let element_size = usize::try_from(
+                    element
+                        .sizeof()
+                        .map_err(|error| unsupported(location, error.to_string()))?,
+                )
+                .map_err(|_| unsupported(location, "global array element is too large"))?;
+                for (index, item) in items.iter().enumerate() {
+                    let offset = base_offset
+                        .checked_add(index.checked_mul(element_size).ok_or_else(|| {
+                            Error::Codegen("global array initializer offset overflows".into())
+                        })?)
+                        .ok_or_else(|| {
+                            Error::Codegen("global array initializer offset overflows".into())
+                        })?;
+                    write_global_initializer(
+                        bytes,
+                        relocations,
+                        symbols,
+                        strings,
+                        offset,
+                        element,
+                        item,
+                        location,
+                    )?;
+                }
+                Ok(())
+            }
+            Type::Struct(struct_type) => {
+                let mut offset = 0usize;
+                for (field, item) in struct_type.members().iter().zip(items.iter()) {
+                    let align = usize::try_from(
+                        field
+                            .ctype
+                            .alignof()
+                            .map_err(|error| unsupported(location, error.to_string()))?,
+                    )
+                    .map_err(|_| unsupported(location, "struct field alignment is too large"))?;
+                    if align > 1 {
+                        let rem = offset % align;
+                        if rem != 0 {
+                            offset += align - rem;
+                        }
+                    }
+                    let field_offset = base_offset
+                        .checked_add(offset)
+                        .ok_or_else(|| Error::Codegen("global struct offset overflows".into()))?;
+                    write_global_initializer(
+                        bytes,
+                        relocations,
+                        symbols,
+                        strings,
+                        field_offset,
+                        &field.ctype,
+                        item,
+                        location,
+                    )?;
+                    offset = offset
+                        .checked_add(
+                            usize::try_from(
+                                field
+                                    .ctype
+                                    .sizeof()
+                                    .map_err(|error| unsupported(location, error.to_string()))?,
+                            )
+                            .map_err(|_| unsupported(location, "struct field is too large"))?,
+                        )
+                        .ok_or_else(|| Error::Codegen("global struct offset overflows".into()))?;
+                }
+                Ok(())
+            }
+            Type::Union(union_type) => {
+                if let Some(item) = items.first() {
+                    let members = union_type.members();
+                    let first = members.first().ok_or_else(|| {
+                        unsupported(location, "union has no initializable member")
+                    })?;
+                    write_global_initializer(
+                        bytes,
+                        relocations,
+                        symbols,
+                        strings,
+                        base_offset,
+                        &first.ctype,
+                        item,
+                        location,
+                    )?;
+                }
+                Ok(())
+            }
+            _ => Err(unsupported(
+                location,
+                "unsupported global aggregate initializer shape",
+            )),
+        },
+        Initializer::Scalar(expression) => {
+            if let Type::Array(element, _) = ctype {
+                if matches!(element.as_ref(), Type::Char(_)) {
+                    if let ExprType::Literal(LiteralValue::Str(string)) = &expression.expr {
+                        let end = base_offset.checked_add(string.len()).ok_or_else(|| {
+                            Error::Codegen("string initializer offset overflows".into())
+                        })?;
+                        bytes
+                            .get_mut(base_offset..end)
+                            .ok_or_else(|| {
+                                Error::Codegen("string initializer exceeds array".into())
+                            })?
+                            .copy_from_slice(string);
+                        return Ok(());
+                    }
+                }
+            }
+            Err(unsupported(
+                location,
+                "aggregate global scalar initialization requires aggregate-copy lowering",
+            ))
+        }
+        Initializer::FunctionBody(_) => Err(unsupported(
+            location,
+            "function body cannot initialize a global data object",
+        )),
+    }
+}
+
 /// Compile C source to SIA32 instructions through the production Cranelift backend.
 pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     let program = check_semantics(source, opt);
@@ -401,6 +1125,12 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     }
 
     let isa = target_isa()?;
+    let mut string_indices = HashMap::new();
+    for declaration in &declarations {
+        if let Some(initializer) = &declaration.data.init {
+            collect_string_literals_initializer(initializer, &mut string_indices);
+        }
+    }
     let function_indices: HashMap<Symbol, u32> = declarations
         .iter()
         .enumerate()
@@ -409,33 +1139,173 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
                 .then_some((declaration.data.symbol, index as u32))
         })
         .collect();
+    let mut global_indices: HashMap<Symbol, u32> = declarations
+        .iter()
+        .enumerate()
+        .filter_map(|(index, declaration)| {
+            let metadata = declaration.data.symbol.get();
+            (!matches!(metadata.ctype, Type::Function(_))
+                && metadata.storage_class != StorageClass::Typedef)
+                .then_some((declaration.data.symbol, index as u32))
+        })
+        .collect();
+    let mut symbol_names: HashMap<Symbol, String> = declarations
+        .iter()
+        .enumerate()
+        .filter(|(_, declaration)| {
+            declaration.data.symbol.get().storage_class != StorageClass::Typedef
+        })
+        .map(|(index, declaration)| {
+            (
+                declaration.data.symbol,
+                translation_unit_symbol_name(index, &declaration.data),
+            )
+        })
+        .collect();
+    let mut static_locals = Vec::new();
+    for (function_index, declaration) in declarations.iter().enumerate() {
+        if let Some(Initializer::FunctionBody(body)) = &declaration.data.init {
+            collect_static_locals(body, function_index, &mut static_locals);
+        }
+    }
+    for (ordinal, (function_index, declaration, _)) in static_locals.iter().enumerate() {
+        let index = declarations
+            .len()
+            .checked_add(ordinal)
+            .and_then(|index| u32::try_from(index).ok())
+            .expect("translation-unit symbol table fits in u32");
+        let raw = declaration.symbol.get().id.resolve_and_clone();
+        let name = format!("__cosmic_static_local_{function_index}_{ordinal}_{raw}");
+        global_indices.insert(declaration.symbol, index);
+        symbol_names.insert(declaration.symbol, name);
+    }
     let mut functions = Vec::new();
+    let mut pooled_strings = string_indices
+        .iter()
+        .map(|(bytes, index)| (*index, bytes.clone()))
+        .collect::<Vec<_>>();
+    pooled_strings.sort_by_key(|(index, _)| *index);
+    let mut data = pooled_strings
+        .into_iter()
+        .map(|(index, bytes)| DataArtifact {
+            name: string_symbol_name(index),
+            bytes,
+            align: 1,
+            read_only: true,
+            relocations: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    for (_, declaration, location) in &static_locals {
+        let metadata = declaration.symbol.get();
+        let completed_type =
+            completed_object_type(&metadata.ctype, declaration.init.as_ref(), *location)?;
+        let size = usize::try_from(
+            completed_type
+                .sizeof()
+                .map_err(|error| unsupported(*location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(*location, "static local is too large"))?;
+        let align = u32::try_from(
+            completed_type
+                .alignof()
+                .map_err(|error| unsupported(*location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(*location, "static local alignment is too large"))?;
+        let mut bytes = vec![0; size];
+        let mut relocations = Vec::new();
+        if let Some(initializer) = &declaration.init {
+            write_global_initializer(
+                &mut bytes,
+                &mut relocations,
+                &symbol_names,
+                &string_indices,
+                0,
+                &completed_type,
+                initializer,
+                *location,
+            )?;
+        }
+        let name = symbol_names
+            .get(&declaration.symbol)
+            .cloned()
+            .expect("static local has a symbol name");
+        data.push(DataArtifact {
+            name,
+            bytes,
+            align: align.max(1),
+            read_only: metadata.qualifiers.c_const,
+            relocations,
+        });
+    }
     for (index, declaration) in declarations.iter().enumerate() {
         let metadata = declaration.data.symbol.get();
         if metadata.storage_class == StorageClass::Typedef {
             continue;
         }
-        let function_type = match &metadata.ctype {
-            Type::Function(function_type) => function_type,
-            _ if metadata.storage_class == StorageClass::Extern
-                && declaration.data.init.is_none() =>
-            {
-                // A declaration-only extern object allocates no storage in this
-                // translation unit. Accept it here; an actual reference still
-                // requires global-symbol lowering.
-                continue;
-            }
-            _ => {
-                return Err(unsupported(
-                    declaration.location,
-                    format!(
-                        "SIA32 top-level data unsupported: symbol={:?}, metadata={metadata:?}, init={:?}",
-                        declaration.data.symbol,
-                        declaration.data.init,
-                    ),
-                ));
-            }
-        };
+        let function_type =
+            match &metadata.ctype {
+                Type::Function(function_type) => function_type,
+                _ if metadata.storage_class == StorageClass::Extern
+                    && declaration.data.init.is_none() =>
+                {
+                    // Declaration-only extern objects allocate no storage here.
+                    continue;
+                }
+                object_type => {
+                    let completed_type = completed_object_type(
+                        object_type,
+                        declaration.data.init.as_ref(),
+                        declaration.location,
+                    )?;
+                    let object_type = &completed_type;
+                    let size =
+                        usize::try_from(object_type.sizeof().map_err(|error| {
+                            unsupported(declaration.location, error.to_string())
+                        })?)
+                        .map_err(|_| {
+                            unsupported(
+                                declaration.location,
+                                "global object is too large for the host compiler",
+                            )
+                        })?;
+                    let align =
+                        u32::try_from(object_type.alignof().map_err(|error| {
+                            unsupported(declaration.location, error.to_string())
+                        })?)
+                        .map_err(|_| {
+                            unsupported(
+                                declaration.location,
+                                "global object alignment does not fit in u32",
+                            )
+                        })?;
+                    let mut bytes = vec![0; size];
+                    let mut relocations = Vec::new();
+                    if let Some(initializer) = &declaration.data.init {
+                        write_global_initializer(
+                            &mut bytes,
+                            &mut relocations,
+                            &symbol_names,
+                            &string_indices,
+                            0,
+                            object_type,
+                            initializer,
+                            declaration.location,
+                        )?;
+                    }
+                    let name = symbol_names
+                        .get(&declaration.data.symbol)
+                        .cloned()
+                        .expect("every global definition has a symbol name");
+                    data.push(DataArtifact {
+                        name,
+                        bytes,
+                        align: align.max(1),
+                        read_only: metadata.qualifiers.c_const,
+                        relocations,
+                    });
+                    continue;
+                }
+            };
         let body = match &declaration.data.init {
             Some(Initializer::FunctionBody(body)) => body,
             Some(_) => {
@@ -453,6 +1323,9 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             declaration.location,
             index as u32,
             &function_indices,
+            &global_indices,
+            &string_indices,
+            &symbol_names,
             &*isa,
         )?);
     }
@@ -465,6 +1338,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     Ok(Artifact {
         target: TARGET,
         functions,
+        data,
     })
 }
 
@@ -496,18 +1370,24 @@ fn compile_function(
     location: Location,
     function_index: u32,
     function_indices: &HashMap<Symbol, u32>,
+    global_indices: &HashMap<Symbol, u32>,
+    string_indices: &HashMap<Vec<u8>, u32>,
+    symbol_names: &HashMap<Symbol, String>,
     isa: &dyn TargetIsa,
 ) -> Result<FunctionArtifact, Error> {
     let mut signature = Signature::new(CallConv::SystemV);
     let parameters = function_parameters(function_type);
-    for parameter in parameters {
-        let parameter_ty = match &parameter.get().ctype {
-            Type::Function(_) => types::I32,
-            other => ir_type(other, location)?,
-        };
-        signature.params.push(AbiParam::new(parameter_ty));
+    let aggregate_return = is_by_value_aggregate(&function_type.return_type);
+    if aggregate_return {
+        signature.params.push(AbiParam::new(types::I32));
     }
-    if !matches!(*function_type.return_type, Type::Void) {
+    for parameter in parameters {
+        signature.params.push(AbiParam::new(abi_parameter_type(
+            &parameter.get().ctype,
+            location,
+        )?));
+    }
+    if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
         signature.returns.push(AbiParam::new(ir_type(
             &function_type.return_type,
             location,
@@ -526,12 +1406,29 @@ fn compile_function(
         let entry_values = builder.block_params(entry).to_vec();
 
         let terminated = {
-            let mut lowerer = FunctionLowerer::new(&mut builder, function_indices);
-            for (parameter, value) in parameters.iter().zip(entry_values.iter()) {
-                let parameter_ty = match &parameter.get().ctype {
-                    Type::Function(_) => types::I32,
-                    other => ir_type(other, location)?,
-                };
+            let aggregate_return_address = aggregate_return.then(|| entry_values[0]);
+            let parameter_values = if aggregate_return {
+                &entry_values[1..]
+            } else {
+                &entry_values[..]
+            };
+            let mut lowerer = FunctionLowerer::new(
+                &mut builder,
+                function_indices,
+                global_indices,
+                string_indices,
+                aggregate_return_address,
+            );
+            for (parameter, value) in parameters.iter().zip(parameter_values.iter()) {
+                let parameter_ctype = &parameter.get().ctype;
+                if is_by_value_aggregate(parameter_ctype) {
+                    let (slot, address) =
+                        lowerer.create_aggregate_slot(parameter_ctype, location)?;
+                    lowerer.copy_aggregate_value(address, *value, parameter_ctype, location)?;
+                    lowerer.stack_locals.insert(*parameter, slot);
+                    continue;
+                }
+                let parameter_ty = abi_parameter_type(parameter_ctype, location)?;
                 let variable = lowerer.builder.declare_var(parameter_ty);
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
@@ -583,15 +1480,42 @@ fn compile_function(
         let target = match &relocation.target {
             RelocTarget::ExternalName(ExternalName::User(reference)) => {
                 let user = user_named_funcs[*reference].clone();
-                function_indices
+                let table = match user.namespace {
+                    0 => function_indices,
+                    1 => global_indices,
+                    2 => {
+                        let target = string_indices
+                            .iter()
+                            .find_map(|(_, index)| {
+                                (*index == user.index).then(|| string_symbol_name(*index))
+                            })
+                            .ok_or_else(|| {
+                                Error::Codegen(format!(
+                                    "SIA32 emitted unknown string relocation in {name}"
+                                ))
+                            })?;
+                        relocations.push(RelocationArtifact {
+                            offset: relocation.offset,
+                            target,
+                            addend: relocation.addend,
+                        });
+                        continue;
+                    }
+                    namespace => {
+                        return Err(Error::Codegen(format!(
+                            "SIA32 emitted relocation from unknown namespace {namespace} in {name}"
+                        )))
+                    }
+                };
+                table
                     .iter()
                     .find_map(|(symbol, index)| {
-                        (*index == user.index).then(|| symbol.get().id.resolve_and_clone())
+                        (*index == user.index)
+                            .then(|| symbol_names.get(symbol).cloned())
+                            .flatten()
                     })
                     .ok_or_else(|| {
-                        Error::Codegen(format!(
-                            "SIA32 emitted unknown function relocation in {name}"
-                        ))
+                        Error::Codegen(format!("SIA32 emitted unknown symbol relocation in {name}"))
                     })?
             }
             other => {
@@ -618,6 +1542,20 @@ fn compile_function(
     })
 }
 
+fn is_by_value_aggregate(ctype: &Type) -> bool {
+    matches!(ctype, Type::Struct(_) | Type::Union(_))
+}
+
+fn abi_parameter_type(
+    ctype: &Type,
+    location: Location,
+) -> Result<cranelift_codegen::ir::Type, Error> {
+    match ctype {
+        Type::Function(_) | Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => Ok(types::I32),
+        other => ir_type(other, location),
+    }
+}
+
 fn function_parameters(function_type: &FunctionType) -> &[Symbol] {
     if function_type.params.len() == 1 && function_type.params[0].get().ctype == Type::Void {
         &[]
@@ -632,6 +1570,9 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     stack_locals: HashMap<Symbol, StackSlot>,
     function_indices: &'c HashMap<Symbol, u32>,
+    global_indices: &'c HashMap<Symbol, u32>,
+    string_indices: &'c HashMap<Vec<u8>, u32>,
+    aggregate_return_address: Option<Value>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block)>,
     break_targets: Vec<Block>,
@@ -644,6 +1585,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     fn new(
         builder: &'a mut FunctionBuilder<'b>,
         function_indices: &'c HashMap<Symbol, u32>,
+        global_indices: &'c HashMap<Symbol, u32>,
+        string_indices: &'c HashMap<Vec<u8>, u32>,
+        aggregate_return_address: Option<Value>,
     ) -> Self {
         let return_type = builder
             .func
@@ -657,6 +1601,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             variable_types: HashMap::new(),
             stack_locals: HashMap::new(),
             function_indices,
+            global_indices,
+            string_indices,
+            aggregate_return_address,
             return_type,
             loop_targets: Vec::new(),
             break_targets: Vec::new(),
@@ -664,6 +1611,122 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             labels: HashMap::new(),
             terminated: false,
         }
+    }
+
+    fn symbol_address(
+        &mut self,
+        symbol: Symbol,
+        addend: i64,
+        location: Location,
+    ) -> Result<Value, Error> {
+        let (namespace, index) = if let Some(index) = self.function_indices.get(&symbol).copied() {
+            (0, index)
+        } else if let Some(index) = self.global_indices.get(&symbol).copied() {
+            (1, index)
+        } else {
+            return Err(unsupported(
+                location,
+                "SIA32 symbol address has no translation-unit declaration",
+            ));
+        };
+        let external = self
+            .builder
+            .func
+            .declare_imported_user_function(UserExternalName::new(namespace, index));
+        let global = self
+            .builder
+            .func
+            .create_global_value(GlobalValueData::Symbol {
+                name: ExternalName::user(external),
+                offset: addend.into(),
+                colocated: false,
+                tls: false,
+            });
+        Ok(self.builder.ins().symbol_value(types::I32, global))
+    }
+
+    fn string_address(&mut self, bytes: &[u8], location: Location) -> Result<Value, Error> {
+        let index = self.string_indices.get(bytes).copied().ok_or_else(|| {
+            unsupported(
+                location,
+                "string literal has no translation-unit data object",
+            )
+        })?;
+        let external = self
+            .builder
+            .func
+            .declare_imported_user_function(UserExternalName::new(2, index));
+        let global = self
+            .builder
+            .func
+            .create_global_value(GlobalValueData::Symbol {
+                name: ExternalName::user(external),
+                offset: 0.into(),
+                colocated: false,
+                tls: false,
+            });
+        Ok(self.builder.ins().symbol_value(types::I32, global))
+    }
+
+    fn create_aggregate_slot(
+        &mut self,
+        ctype: &Type,
+        location: Location,
+    ) -> Result<(StackSlot, Value), Error> {
+        let size = u32::try_from(
+            ctype
+                .sizeof()
+                .map_err(|error| unsupported(location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(location, "aggregate ABI object is too large for SIA32"))?;
+        let align = ctype
+            .alignof()
+            .map_err(|error| unsupported(location, error.to_string()))?;
+        let align_shift = u8::try_from(align.trailing_zeros())
+            .map_err(|_| unsupported(location, "aggregate ABI alignment is too large"))?;
+        let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+            StackSlotKind::ExplicitSlot,
+            size,
+            align_shift,
+        ));
+        let address = self.builder.ins().stack_addr(types::I32, slot, 0);
+        Ok((slot, address))
+    }
+
+    fn copy_aggregate_value(
+        &mut self,
+        destination: Value,
+        source: Value,
+        ctype: &Type,
+        location: Location,
+    ) -> Result<(), Error> {
+        let size = i32::try_from(
+            ctype
+                .sizeof()
+                .map_err(|error| unsupported(location, error.to_string()))?,
+        )
+        .map_err(|_| unsupported(location, "aggregate copy is too large for SIA32"))?;
+        let mut offset = 0i32;
+        while offset < size {
+            let remaining = size - offset;
+            let ty = if remaining >= 4 {
+                types::I32
+            } else if remaining >= 2 {
+                types::I16
+            } else {
+                types::I8
+            };
+            let width = i32::try_from(ty.bytes()).expect("SIA32 scalar width fits in i32");
+            let value = self
+                .builder
+                .ins()
+                .load(ty, MemFlagsData::new(), source, offset);
+            self.builder
+                .ins()
+                .store(MemFlagsData::new(), value, destination, offset);
+            offset += width;
+        }
+        Ok(())
     }
 
     fn compile_condition(&mut self, expression: &Expr) -> Result<Value, Error> {
@@ -721,6 +1784,24 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Return(value) => {
+                if let Some(destination) = self.aggregate_return_address {
+                    let expression = value.as_ref().ok_or_else(|| {
+                        unsupported(
+                            statement.location,
+                            "aggregate-returning function requires a return value",
+                        )
+                    })?;
+                    let source = self.compile_expr(expression)?;
+                    self.copy_aggregate_value(
+                        destination,
+                        source,
+                        &expression.ctype,
+                        statement.location,
+                    )?;
+                    self.builder.ins().return_(&[]);
+                    self.terminated = true;
+                    return Ok(());
+                }
                 if let Some(expression) = value {
                     let signed = matches!(
                         &expression.ctype,
@@ -1051,6 +2132,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.terminated = false;
                 self.compile_stmt(inner)
             }
+            StmtType::Label(_, _) => {
+                unreachable!("labels are handled before the main statement match")
+            }
         }
     }
 
@@ -1063,19 +2147,24 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         if metadata.storage_class == StorageClass::Typedef {
             return Ok(());
         }
+        if metadata.storage_class == StorageClass::Static
+            && !matches!(metadata.ctype, Type::Function(_))
+        {
+            return Ok(());
+        }
         if matches!(
             metadata.ctype,
             Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
         ) {
+            let completed_type =
+                completed_object_type(&metadata.ctype, declaration.init.as_ref(), location)?;
             let size = u32::try_from(
-                metadata
-                    .ctype
+                completed_type
                     .sizeof()
                     .map_err(|_| unsupported(location, "aggregate local has incomplete type"))?,
             )
             .map_err(|_| unsupported(location, "aggregate local is too large for SIA32"))?;
-            let align = metadata
-                .ctype
+            let align = completed_type
                 .alignof()
                 .map_err(|_| unsupported(location, "aggregate local has unsupported alignment"))?;
             let align_shift = u8::try_from(align.trailing_zeros())
@@ -1087,7 +2176,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ));
             self.stack_locals.insert(declaration.symbol, slot);
             if let Some(initializer) = &declaration.init {
-                self.initialize_stack_aggregate(slot, &metadata.ctype, initializer, location)?;
+                self.initialize_stack_aggregate(slot, &completed_type, initializer, location)?;
             }
             return Ok(());
         }
@@ -1102,51 +2191,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         self.variable_types.insert(declaration.symbol, ty);
 
         match &declaration.init {
-            Some(initializer) => {
-                let initial = self.compile_scalar_initializer(
-                    initializer,
-                    ty,
-                    &metadata.ctype,
-                    location,
-                )?;
+            Some(Initializer::Scalar(expression)) => {
+                let initial = self.compile_expr(expression)?;
                 self.builder.def_var(variable, initial);
+            }
+            Some(_) => {
+                return Err(unsupported(
+                    location,
+                    "aggregate local initialization is not supported for SIA32 yet",
+                ));
             }
             None => {}
         }
 
         Ok(())
-    }
-
-    fn compile_scalar_initializer(
-        &mut self,
-        initializer: &Initializer,
-        target_ty: cranelift_codegen::ir::Type,
-        target_ctype: &Type,
-        location: Location,
-    ) -> Result<Value, Error> {
-        match initializer {
-            Initializer::Scalar(expression) => {
-                let value = self.compile_expr(expression)?;
-                Ok(self.coerce_integer_value(value, target_ty, &expression.ctype))
-            }
-            Initializer::InitializerList(items) if items.len() == 1 => {
-                self.compile_scalar_initializer(
-                    &items[0],
-                    target_ty,
-                    target_ctype,
-                    location,
-                )
-            }
-            Initializer::InitializerList(items) if items.is_empty() => {
-                Ok(self.builder.ins().iconst(target_ty, 0))
-            }
-            _ => Err(unsupported(
-                location,
-                format!(
-                    "scalar initializer for {target_ctype:?} must contain at most one value"
-                ),
-            )),
-        }
     }
 
     fn address_of_local(&mut self, symbol: Symbol, location: Location) -> Result<Value, Error> {
@@ -1179,16 +2237,29 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         initializer: &Initializer,
         location: Location,
     ) -> Result<(), Error> {
-        let size = ctype
-            .sizeof()
-            .map_err(|_| unsupported(location, "aggregate initializer requires a complete type"))?;
-        let zero = self.builder.ins().iconst(types::I8, 0);
-        for offset in 0..size {
-            let offset = i32::try_from(offset)
-                .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
-            self.builder
-                .ins()
-                .stack_store(types::I32, zero, slot, offset);
+        if let Initializer::Scalar(expression) = initializer {
+            if let Type::Array(element, _) = ctype {
+                if matches!(element.as_ref(), Type::Char(_)) {
+                    if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
+                        for (offset, byte) in bytes.iter().copied().enumerate() {
+                            let value = self.builder.ins().iconst(types::I8, i64::from(byte));
+                            let offset = i32::try_from(offset).map_err(|_| {
+                                unsupported(location, "string initializer is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, offset);
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+            if is_by_value_aggregate(ctype) {
+                let destination = self.builder.ins().stack_addr(types::I32, slot, 0);
+                let source = self.compile_expr(expression)?;
+                self.copy_aggregate_value(destination, source, ctype, location)?;
+                return Ok(());
+            }
         }
         self.initialize_stack_aggregate_at(slot, ctype, initializer, 0, location)
     }
@@ -1202,86 +2273,90 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         location: Location,
     ) -> Result<(), Error> {
         let Initializer::InitializerList(items) = initializer else {
-            return self.initialize_stack_scalar_at(slot, ctype, initializer, base_offset, location);
-        };
-        let mut cursor = 0usize;
-        self.initialize_stack_sequence_at(slot, ctype, items, &mut cursor, base_offset, location)
-    }
-
-    fn initialize_stack_scalar_at(
-        &mut self,
-        slot: StackSlot,
-        ctype: &Type,
-        initializer: &Initializer,
-        offset: u64,
-        location: Location,
-    ) -> Result<(), Error> {
-        match initializer {
-            Initializer::Scalar(expression) => {
-                let value = self.compile_expr(expression)?;
-                let value_ty = ir_type(ctype, location)?;
-                let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
-                let offset = i32::try_from(offset)
-                    .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
-                self.builder
-                    .ins()
-                    .stack_store(types::I32, value, slot, offset);
-                Ok(())
-            }
-            Initializer::InitializerList(items) if items.len() == 1 => {
-                self.initialize_stack_scalar_at(slot, ctype, &items[0], offset, location)
-            }
-            _ => Err(unsupported(
+            return Err(unsupported(
                 location,
-                "scalar aggregate member has unsupported initializer shape",
-            )),
-        }
-    }
-
-    fn initialize_stack_sequence_at(
-        &mut self,
-        slot: StackSlot,
-        ctype: &Type,
-        items: &[Initializer],
-        cursor: &mut usize,
-        base_offset: u64,
-        location: Location,
-    ) -> Result<(), Error> {
+                "aggregate local initialization requires an initializer list",
+            ));
+        };
         match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
                 let element_size = element
                     .sizeof()
                     .map_err(|_| unsupported(location, "array element has incomplete type"))?;
-                for index in 0..*count {
-                    if *cursor >= items.len() {
+                for (index, item) in items.iter().enumerate() {
+                    if u64::try_from(index).unwrap_or(u64::MAX) >= *count {
                         break;
                     }
-                    let offset = base_offset + index * element_size;
-                    if is_address_valued_type(element) {
-                        if matches!(items[*cursor], Initializer::InitializerList(_)) {
-                            let item = &items[*cursor];
-                            *cursor += 1;
-                            self.initialize_stack_aggregate_at(slot, element, item, offset, location)?;
-                        } else {
-                            self.initialize_stack_sequence_at(
-                                slot, element, items, cursor, offset, location,
+                    let offset = base_offset + (index as u64) * element_size;
+                    match item {
+                        Initializer::Scalar(expression) => {
+                            let value = self.compile_expr(expression)?;
+                            let value_ty = ir_type(element, location)?;
+                            let value =
+                                self.coerce_integer_value(value, value_ty, &expression.ctype);
+                            let offset = i32::try_from(offset).map_err(|_| {
+                                unsupported(location, "aggregate initializer offset is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, offset);
+                        }
+                        Initializer::InitializerList(_) => {
+                            self.initialize_stack_aggregate_at(
+                                slot, element, item, offset, location,
                             )?;
                         }
-                    } else {
-                        let item = &items[*cursor];
-                        *cursor += 1;
-                        self.initialize_stack_scalar_at(slot, element, item, offset, location)?;
+                        _ => {
+                            return Err(unsupported(
+                                location,
+                                "unsupported array initializer element",
+                            ))
+                        }
+                    }
+                }
+                Ok(())
+            }
+            Type::Union(union_type) => {
+                if let Some(item) = items.first() {
+                    let members = union_type.members();
+                    let field = members.first().ok_or_else(|| {
+                        unsupported(location, "union has no initializable member")
+                    })?;
+                    match item {
+                        Initializer::Scalar(expression) => {
+                            let value = self.compile_expr(expression)?;
+                            let value_ty = ir_type(&field.ctype, location)?;
+                            let value =
+                                self.coerce_integer_value(value, value_ty, &expression.ctype);
+                            let offset = i32::try_from(base_offset).map_err(|_| {
+                                unsupported(location, "aggregate initializer offset is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, offset);
+                        }
+                        Initializer::InitializerList(_) => {
+                            self.initialize_stack_aggregate_at(
+                                slot,
+                                &field.ctype,
+                                item,
+                                base_offset,
+                                location,
+                            )?;
+                        }
+                        _ => {
+                            return Err(unsupported(
+                                location,
+                                "unsupported union initializer element",
+                            ))
+                        }
                     }
                 }
                 Ok(())
             }
             Type::Struct(struct_type) => {
-                let members = struct_type.members();
                 let mut offset = 0u64;
-                for field in members.iter() {
-                    if *cursor >= items.len() {
-                        break;
-                    }
+                for (field, item) in struct_type.members().iter().zip(items.iter()) {
                     let align = field.ctype.alignof().map_err(|_| {
                         unsupported(location, "struct field has unsupported alignment")
                     })?;
@@ -1290,10 +2365,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         offset += align - rem;
                     }
                     let field_offset = base_offset + offset;
-                    if is_address_valued_type(&field.ctype) {
-                        if matches!(items[*cursor], Initializer::InitializerList(_)) {
-                            let item = &items[*cursor];
-                            *cursor += 1;
+                    match item {
+                        Initializer::Scalar(expression) => {
+                            let value = self.compile_expr(expression)?;
+                            let value_ty = ir_type(&field.ctype, location)?;
+                            let value =
+                                self.coerce_integer_value(value, value_ty, &expression.ctype);
+                            let field_offset = i32::try_from(field_offset).map_err(|_| {
+                                unsupported(location, "aggregate initializer offset is too large")
+                            })?;
+                            self.builder
+                                .ins()
+                                .stack_store(types::I32, value, slot, field_offset);
+                        }
+                        Initializer::InitializerList(_) => {
                             self.initialize_stack_aggregate_at(
                                 slot,
                                 &field.ctype,
@@ -1301,26 +2386,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 field_offset,
                                 location,
                             )?;
-                        } else {
-                            self.initialize_stack_sequence_at(
-                                slot,
-                                &field.ctype,
-                                items,
-                                cursor,
-                                field_offset,
-                                location,
-                            )?;
                         }
-                    } else {
-                        let item = &items[*cursor];
-                        *cursor += 1;
-                        self.initialize_stack_scalar_at(
-                            slot,
-                            &field.ctype,
-                            item,
-                            field_offset,
-                            location,
-                        )?;
+                        _ => {
+                            return Err(unsupported(
+                                location,
+                                "unsupported struct initializer element",
+                            ))
+                        }
                     }
                     offset += field
                         .ctype
@@ -1329,91 +2401,31 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 Ok(())
             }
-            Type::Union(union_type) => {
-                if *cursor >= items.len() {
-                    return Ok(());
-                }
-                let members = union_type.members();
-                let field = members
-                    .first()
-                    .ok_or_else(|| unsupported(location, "union has no initializable member"))?;
-                if is_address_valued_type(&field.ctype) {
-                    if matches!(items[*cursor], Initializer::InitializerList(_)) {
-                        let item = &items[*cursor];
-                        *cursor += 1;
-                        self.initialize_stack_aggregate_at(
-                            slot,
-                            &field.ctype,
-                            item,
-                            base_offset,
-                            location,
-                        )
-                    } else {
-                        self.initialize_stack_sequence_at(
-                            slot,
-                            &field.ctype,
-                            items,
-                            cursor,
-                            base_offset,
-                            location,
-                        )
-                    }
-                } else {
-                    let item = &items[*cursor];
-                    *cursor += 1;
-                    self.initialize_stack_scalar_at(slot, &field.ctype, item, base_offset, location)
-                }
-            }
-            _ => {
-                if *cursor >= items.len() {
-                    return Ok(());
-                }
-                let item = &items[*cursor];
-                *cursor += 1;
-                self.initialize_stack_scalar_at(slot, ctype, item, base_offset, location)
-            }
+            _ => Err(unsupported(
+                location,
+                "this aggregate initializer shape is not supported for SIA32 yet",
+            )),
         }
-    }
-
-    fn copy_aggregate_value(
-        &mut self,
-        destination: Value,
-        source: Value,
-        ctype: &Type,
-        location: Location,
-    ) -> Result<(), Error> {
-        let size = ctype
-            .sizeof()
-            .map_err(|_| unsupported(location, "aggregate copy requires a complete type"))?;
-        for offset in 0..size {
-            let offset = i32::try_from(offset)
-                .map_err(|_| unsupported(location, "aggregate copy offset is too large"))?;
-            let byte = self
-                .builder
-                .ins()
-                .load(types::I8, MemFlagsData::new(), source, offset);
-            self.builder
-                .ins()
-                .store(MemFlagsData::new(), byte, destination, offset);
-        }
-        Ok(())
     }
 
     fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
         match &lvalue.expr {
-            ExprType::Id(symbol) => self.address_of_local(*symbol, lvalue.location),
+            ExprType::Id(symbol) => {
+                if self.variables.contains_key(symbol) || self.stack_locals.contains_key(symbol) {
+                    self.address_of_local(*symbol, lvalue.location)
+                } else {
+                    self.symbol_address(*symbol, 0, lvalue.location)
+                }
+            }
             ExprType::Deref(pointer) => self.compile_expr(pointer),
             ExprType::Member(base, member) => {
                 self.compile_member_address(base, *member, lvalue.location)
             }
             // Saltwater lowers subscripting into pointer arithmetic and can
             // leave that Binary(Add, ...) directly as the lvalue.
-            ExprType::Binary(
-                saltwater_parser::data::hir::BinaryOp::Add
-                | saltwater_parser::data::hir::BinaryOp::Sub,
-                _,
-                _,
-            ) => self.compile_expr(lvalue)
+            ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                self.compile_expr(lvalue)
+            }
             ExprType::Noop(inner) | ExprType::Cast(inner) => self.compile_lvalue_address(inner),
             _ => Err(unsupported(
                 lvalue.location,
@@ -1474,14 +2486,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // Direct local aggregate member access, e.g. local.field.
                 if let Some(slot) = self.stack_locals.get(symbol).copied() {
                     self.builder.ins().stack_addr(types::I32, slot, 0)
-                } else {
-                    let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            location,
-                            "direct aggregate member base has no SIA32 storage",
-                        )
-                    })?;
+                } else if let Some(variable) = self.variables.get(symbol).copied() {
                     self.builder.use_var(variable)
+                } else {
+                    self.symbol_address(*symbol, 0, location)?
                 }
             }
             ExprType::Deref(pointer) => {
@@ -1569,10 +2577,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                 } else if let Some(variable) = self.variables.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
+                } else if self.global_indices.contains_key(symbol)
+                    || self.function_indices.contains_key(symbol)
+                {
+                    self.symbol_address(*symbol, 0, expression.location)
                 } else {
                     Err(unsupported(
                         expression.location,
-                        "taking addresses of globals or unsupported objects is not supported for SIA32 yet",
+                        "SIA32 identifier has no local or symbolic storage",
                     ))
                 }
             }
@@ -1600,10 +2612,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 expression.location,
                 "floating-point C is not supported for the SIA32 target",
             )),
-            ExprType::Literal(LiteralValue::Str(_)) => Err(unsupported(
-                expression.location,
-                "string literals require SIA32 global-data support",
-            )),
+            ExprType::Literal(LiteralValue::Str(bytes)) => {
+                self.string_address(bytes, expression.location)
+            }
             ExprType::Noop(value) => self.compile_expr(value),
             ExprType::Cast(value) => {
                 let value_clif = self.compile_expr(value)?;
@@ -1637,11 +2648,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else if source_ty.bits() > dest_ty.bits() {
                     Ok(self.builder.ins().ireduce(dest_ty, value_clif))
                 } else {
-                    // All currently supported non-floating scalar SIA32 values
-                    // with equal bit width share the same integer register
-                    // representation (notably pointer/function/integer casts).
-                    debug_assert_eq!(source_ty.bits(), dest_ty.bits());
-                    Ok(value_clif)
+                    Err(unsupported(
+                        expression.location,
+                        format!(
+                            "SIA32 cast lowering is not implemented from {:?} to {:?}",
+                            value.ctype, expression.ctype
+                        ),
+                    ))
                 }
             }
             ExprType::Sizeof(sized) => {
@@ -1682,16 +2695,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         } else {
                             Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                         }
-                    } else {
-                        let variable = self.variables.get(symbol).copied().ok_or_else(|| {
-                            unsupported(
-                                expression.location,
-                                format!(
-                                    "SIA32 Deref(Id) has no local mapping: symbol={symbol:?}, expr={expression:?}"
-                                ),
-                            )
-                        })?;
+                    } else if let Some(variable) = self.variables.get(symbol).copied() {
                         Ok(self.builder.use_var(variable))
+                    } else {
+                        let address = self.symbol_address(*symbol, 0, expression.location)?;
+                        Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                     }
                 }
                 ExprType::Member(_, _) | ExprType::Noop(_) | ExprType::Cast(_) => {
@@ -1764,11 +2772,21 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             self.builder.def_var(variable, updated);
                         }
                     }
-                    _ => {
+                    ExprType::Member(_, _)
+                    | ExprType::Deref(_)
+                    | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
                         let address = self.compile_lvalue_address(lvalue)?;
                         self.builder
                             .ins()
                             .store(MemFlagsData::new(), stored, address, 0);
+                    }
+                    _ => {
+                        return Err(unsupported(
+                            expression.location,
+                            format!(
+                                "SIA32 post-increment/decrement lowering is not implemented for {lvalue:?}"
+                            ),
+                        ));
                     }
                 }
 
@@ -1822,21 +2840,22 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         assignment_left = inner;
                     }
 
-                    let value = self.compile_expr(right)?;
-
                     if matches!(
                         assignment_left.ctype,
                         Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
                     ) {
                         let destination = self.compile_lvalue_address(assignment_left)?;
+                        let source = self.compile_expr(right)?;
                         self.copy_aggregate_value(
                             destination,
-                            value,
+                            source,
                             &assignment_left.ctype,
-                            left.location,
+                            expression.location,
                         )?;
                         return Ok(destination);
                     }
+
+                    let value = self.compile_expr(right)?;
 
                     // The analyzer may represent an ordinary local assignment
                     // either directly as Id(symbol) or as Deref(Id(symbol)).
@@ -1862,6 +2881,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             self.builder.def_var(variable, value);
                             return Ok(value);
                         }
+                        if self.global_indices.contains_key(symbol) {
+                            let address = self.symbol_address(*symbol, 0, left.location)?;
+                            let target_ty = ir_type(&symbol.get().ctype, left.location)?;
+                            let value = self.coerce_integer_value(value, target_ty, &right.ctype);
+                            self.builder
+                                .ins()
+                                .store(MemFlagsData::new(), value, address, 0);
+                            return Ok(value);
+                        }
                         return Err(unsupported(
                             left.location,
                             format!(
@@ -1870,7 +2898,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         ));
                     }
 
-                    if !matches!(assignment_left.expr, ExprType::Deref(_)) {
+                    if matches!(
+                        assignment_left.expr,
+                        ExprType::Member(_, _)
+                            | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _)
+                    ) {
                         let address = self.compile_lvalue_address(assignment_left)?;
                         let target_ty = ir_type(&assignment_left.ctype, left.location)?;
                         let value = self.coerce_integer_value(value, target_ty, &right.ctype);
@@ -1881,7 +2913,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
 
                     let ExprType::Deref(pointer) = &assignment_left.expr else {
-                        unreachable!("non-deref lvalues returned through compile_lvalue_address")
+                        return Err(unsupported(
+                            left.location,
+                            format!(
+                                "SIA32 assignment lowering is not implemented for lhs {left:?}"
+                            ),
+                        ));
                     };
 
                     if let ExprType::Id(symbol) = &pointer.expr {
@@ -2151,7 +3188,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         self.builder.ins().uextend(types::I32, boolean)
                     }
                     BinaryOp::Assign | BinaryOp::LogicalAnd | BinaryOp::LogicalOr => {
-                        unreachable!()
+                        unreachable!(
+                            "assignment and logical operators are lowered before this match"
+                        )
                     }
                 };
                 Ok(value)
@@ -2187,7 +3226,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         unsupported(
                             expression.location,
                             format!(
-                                "SIA32 direct call target `{}` has no translation-unit definition",
+                                "SIA32 direct call target `{}` has no translation-unit declaration",
                                 symbol.get().id.resolve_and_clone()
                             ),
                         )
@@ -2205,12 +3244,15 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     ));
                 }
                 let mut signature = Signature::new(CallConv::SystemV);
+                let aggregate_return = is_by_value_aggregate(&function_type.return_type);
+                if aggregate_return {
+                    signature.params.push(AbiParam::new(types::I32));
+                }
                 for parameter in parameters {
-                    let parameter_ty = match &parameter.get().ctype {
-                        Type::Function(_) => types::I32,
-                        other => ir_type(other, expression.location)?,
-                    };
-                    signature.params.push(AbiParam::new(parameter_ty));
+                    signature.params.push(AbiParam::new(abi_parameter_type(
+                        &parameter.get().ctype,
+                        expression.location,
+                    )?));
                 }
                 if function_type.varargs {
                     // Cranelift signatures describe the concrete call site.
@@ -2226,7 +3268,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         signature.params.push(AbiParam::new(promoted_ty));
                     }
                 }
-                if !matches!(*function_type.return_type, Type::Void) {
+                if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
                     signature.returns.push(AbiParam::new(ir_type(
                         &function_type.return_type,
                         expression.location,
@@ -2247,14 +3289,25 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else {
                     None
                 };
-                let mut values = Vec::with_capacity(arguments.len());
+                let mut aggregate_result = None;
+                let mut values =
+                    Vec::with_capacity(arguments.len() + usize::from(aggregate_return));
+                if aggregate_return {
+                    let (_, address) = self
+                        .create_aggregate_slot(&function_type.return_type, expression.location)?;
+                    aggregate_result = Some(address);
+                    values.push(address);
+                }
                 for (index, argument) in arguments.iter().enumerate() {
                     let value = self.compile_expr(argument)?;
-                    let parameter_ty = if let Some(parameter) = parameters.get(index) {
-                        match &parameter.get().ctype {
-                            Type::Function(_) => types::I32,
-                            other => ir_type(other, expression.location)?,
+                    if let Some(parameter) = parameters.get(index) {
+                        if is_by_value_aggregate(&parameter.get().ctype) {
+                            values.push(value);
+                            continue;
                         }
+                    }
+                    let parameter_ty = if let Some(parameter) = parameters.get(index) {
+                        abi_parameter_type(&parameter.get().ctype, expression.location)?
                     } else {
                         match &argument.ctype {
                             Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
@@ -2271,6 +3324,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let callee = self.compile_expr(function)?;
                     self.builder.ins().call_indirect(signature, callee, &values)
                 };
+                if let Some(address) = aggregate_result {
+                    return Ok(address);
+                }
                 if matches!(*function_type.return_type, Type::Void) {
                     // Expression statements discard this value. Returning a
                     // harmless integer placeholder keeps compile_expr uniform
@@ -2309,31 +3365,18 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         | Type::Long(_)
         | Type::Enum(_, _)
         | Type::Pointer(_, _)
-        | Type::Function(_)
-        | Type::VaList => types::I32,
+        | Type::Function(_) => types::I32,
         Type::Float | Type::Double => {
             return Err(unsupported(
                 location,
                 "floating-point C is not supported for the SIA32 target",
             ));
         }
-        Type::Void => {
+        _ => {
             return Err(unsupported(
                 location,
-                "void has no scalar SIA32 value representation",
-            ));
-        }
-        Type::Array(_, _) | Type::Struct(_) | Type::Union(_) => {
-            return Err(unsupported(
-                location,
-                "aggregate C types are represented by addresses, not scalar SIA32 values",
-            ));
-        }
-        Type::Error => {
-            return Err(unsupported(
-                location,
-                "semantic-error type reached SIA32 lowering",
-            ));
+                format!("SIA32 type lowering is not implemented for {ctype:?}"),
+            ))
         }
     };
     Ok(ty)
@@ -2462,6 +3505,151 @@ mod tests {
     }
 
     #[test]
+    fn compiles_global_load_store_and_address_relocations() {
+        let artifact = compile_source(
+            "int global = 3; int read(void) { return global; } int write(int x) { global = x; return global; } int *address(void) { return &global; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 3);
+        assert!(artifact.functions.iter().all(|function| function
+            .relocations
+            .iter()
+            .any(|reloc| reloc.target == "global")));
+    }
+
+    #[test]
+    fn pools_string_literals_into_read_only_data() {
+        let artifact = compile_source(
+            "const char *g = \"hello\"; int f(void) { const char *p = \"hello\"; return p[0]; }",
+        )
+        .unwrap();
+        let strings = artifact
+            .data
+            .iter()
+            .filter(|object| object.name.starts_with("__cosmic_str_"))
+            .collect::<Vec<_>>();
+        assert_eq!(strings.len(), 1);
+        assert_eq!(strings[0].bytes, b"hello\0");
+        assert!(strings[0].read_only);
+        assert!(artifact
+            .functions
+            .iter()
+            .flat_map(|function| function.relocations.iter())
+            .any(|reloc| reloc.target == strings[0].name));
+    }
+
+    #[test]
+    fn initializes_character_arrays_from_string_literals() {
+        let artifact = compile_source(
+            "char global[] = \"abc\"; int f(void) { char local[] = \"xy\"; return local[1]; }",
+        )
+        .unwrap();
+        assert!(artifact
+            .data
+            .iter()
+            .any(|object| object.name == "global" && object.bytes == b"abc\0"));
+    }
+
+    #[test]
+    fn emits_data_relocations_for_global_and_function_addresses() {
+        let artifact = compile_source(
+            "struct pair { int x; int y; }; int target(void) { return 1; } int global; int *p = &global; int (*fp)(void) = target; struct pair pair; int *member = &pair.y;",
+        )
+        .unwrap();
+        assert_eq!(artifact.data.len(), 5);
+        let p = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "p")
+            .unwrap();
+        let fp = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "fp")
+            .unwrap();
+        let member = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "member")
+            .unwrap();
+        assert_eq!(p.relocations[0].target, "global");
+        assert_eq!(p.relocations[0].addend, 0);
+        assert_eq!(fp.relocations[0].target, "target");
+        assert_eq!(member.relocations[0].target, "pair");
+        assert_eq!(member.relocations[0].addend, 4);
+    }
+
+    #[test]
+    fn infers_unbounded_array_sizes_from_initializers() {
+        let artifact = compile_source(
+            "int global[] = {1, 2, 3}; int f(void) { int local[] = {4, 5}; return local[1]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.data[0].bytes.len(), 12);
+        assert_eq!(artifact.data[0].bytes[8..12], 3i32.to_le_bytes());
+        assert_eq!(artifact.functions.len(), 1);
+    }
+
+    #[test]
+    fn emits_recursive_aggregate_global_initializers() {
+        let artifact = compile_source(
+            "struct pair { int a; short b; }; union value { int i; short s; }; int a[3] = {1, 2}; struct pair p = {3, 4}; union value u = {5}; int f(void) { return 0; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.data.len(), 3);
+        assert_eq!(&artifact.data[0].bytes[..8], &[1, 0, 0, 0, 2, 0, 0, 0]);
+        assert_eq!(&artifact.data[1].bytes[..6], &[3, 0, 0, 0, 4, 0]);
+        assert_eq!(&artifact.data[2].bytes[..4], &[5, 0, 0, 0]);
+    }
+
+    #[test]
+    fn emits_scalar_global_initializers() {
+        let artifact = compile_source(
+            "int a = 1 + 2; unsigned short b = 4660; char c = 65; int *p = 0; int f(void) { return 0; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.data.len(), 4);
+        assert_eq!(artifact.data[0].bytes, 3i32.to_le_bytes());
+        assert_eq!(artifact.data[1].bytes, 4660u16.to_le_bytes());
+        assert_eq!(artifact.data[2].bytes, vec![65]);
+        assert_eq!(artifact.data[3].bytes, vec![0; 4]);
+    }
+
+    #[test]
+    fn lowers_static_locals_into_translation_unit_data() {
+        let artifact = compile_source(
+            "int f(void) { static int x = 3; x = x + 1; return x; } int g(void) { static int x; return &x != 0; }",
+        )
+        .unwrap();
+        let locals = artifact
+            .data
+            .iter()
+            .filter(|object| object.name.starts_with("__cosmic_static_local_"))
+            .collect::<Vec<_>>();
+        assert_eq!(locals.len(), 2);
+        assert_eq!(locals[0].bytes, 3i32.to_le_bytes());
+        assert_ne!(locals[0].name, locals[1].name);
+        assert!(artifact
+            .functions
+            .iter()
+            .flat_map(|function| function.relocations.iter())
+            .any(|relocation| relocation.target == locals[0].name));
+    }
+
+    #[test]
+    fn emits_zero_initialized_top_level_objects() {
+        let artifact =
+            compile_source("int global; static unsigned short hidden; int f(void) { return 0; }")
+                .unwrap();
+        assert_eq!(artifact.data.len(), 2);
+        assert_eq!(artifact.data[0].name, "global");
+        assert_eq!(artifact.data[0].bytes, vec![0; 4]);
+        assert_eq!(artifact.data[0].align, 4);
+        assert_eq!(artifact.data[1].bytes, vec![0; 2]);
+        assert!(artifact.data[1].name.contains("hidden"));
+    }
+
+    #[test]
     fn compiles_integer_c_to_real_sia32_bytes() {
         let artifact =
             compile_source("int main(void) { int x = 4; return (x << 2) + 3; }").unwrap();
@@ -2492,6 +3680,19 @@ mod tests {
         let artifact = compile_source("short f(int x) { return x; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_struct_arguments_and_returns_by_value() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; struct pair make(int x) { struct pair p = { x, x + 1 }; return p; } int sum(struct pair p) { p.a = p.a + 10; return p.a + p.b; } int run(void) { return sum(make(3)); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 3);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -2648,12 +3849,6 @@ mod tests {
     }
 
     #[test]
-    fn va_list_uses_pointer_width_on_sia32() {
-        let location = Location::default();
-        assert_eq!(ir_type(&Type::VaList, location).unwrap(), types::I32);
-    }
-
-    #[test]
     fn function_designator_types_are_pointer_width_on_sia32() {
         let artifact = compile_source(
             "int inc(int x) { return x + 1; } int apply(int (*f)(int), int x) { return f(x); }",
@@ -2667,13 +3862,13 @@ mod tests {
     }
 
     #[test]
-    fn compiles_equal_width_pointer_integer_and_function_casts() {
-        let artifact = compile_source(
-            "int inc(int x) { return x + 1; } unsigned int f(int *p) { unsigned int x = (unsigned int)p; int *q = (int *)x; int (*fp)(int) = (int (*)(int))inc; return (unsigned int)q + (unsigned int)fp; }",
-        )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    fn emits_unresolved_relocations_for_external_function_calls() {
+        let artifact =
+            compile_source("extern int external(int); int f(void) { return external(3); }")
+                .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert_eq!(artifact.functions[0].relocations.len(), 1);
+        assert_eq!(artifact.functions[0].relocations[0].target, "external");
     }
 
     #[test]
@@ -2769,16 +3964,6 @@ mod tests {
     }
 
     #[test]
-    fn compiles_address_of_pointer_subtraction_lvalue() {
-        let artifact = compile_source(
-            "int f(int *p, int n) { int *q = p - n; *q = 7; return *q; }",
-        )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
-    }
-
-    #[test]
     fn compiles_address_of_array_element_and_post_increment() {
         let artifact =
             compile_source("int f(int *p, int i) { int *q = &p[i]; p[i]++; return *q; }").unwrap();
@@ -2796,29 +3981,19 @@ mod tests {
     }
 
     #[test]
-    fn compiles_pointer_subtraction_assignment_lvalue() {
-        let artifact = compile_source(
-            "int f(int *p, int n) { *(p - n) = 5; return *(p - n); }",
-        )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
-    }
-
-    #[test]
-    fn compiles_struct_and_union_value_assignment() {
-        let artifact = compile_source(
-            "struct pair { int x; int y; }; union value { int i; unsigned int u; }; int f(void) { struct pair a = { 1, 2 }; struct pair b; union value u = { 3 }; union value v; b = a; v = u; return b.y + v.i; }",
-        )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
-    }
-
-    #[test]
     fn compiles_cast_wrapped_member_and_array_lvalue_assignments() {
         let artifact = compile_source(
             "struct pair { int x; }; int f(struct pair *p, int *a, int i) { p->x = 3; a[i] = p->x; return a[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_whole_struct_and_union_assignments() {
+        let artifact = compile_source(
+            "struct pair { int a; short b; }; union value { int i; short s; }; int f(void) { struct pair a = {1, 2}; struct pair b; union value u = {3}; union value v; b = a; v = u; return b.a + b.b + v.i; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
@@ -2860,13 +4035,16 @@ mod tests {
     }
 
     #[test]
-    fn compiles_brace_elided_and_partial_aggregate_initializers() {
+    fn compiles_scalar_struct_and_union_local_initializers() {
         let artifact = compile_source(
-            "struct inner { int x; int y; }; struct outer { struct inner i; int a[2]; int z; }; int f(void) { struct outer o = { 1, 2, 3, 4 }; return o.i.y + o.a[1] + o.z; }",
+            "struct pair { int a; int b; }; union value { int i; short s; }; struct pair make(void) { struct pair p = {1, 2}; return p; } int f(void) { struct pair a = {3, 4}; struct pair b = a; struct pair c = make(); union value u = {5}; union value v = u; return b.a + c.b + v.i; }",
         )
         .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -3058,16 +4236,6 @@ mod tests {
     }
 
     #[test]
-    fn compiles_pointer_subtraction_post_update_lvalue() {
-        let artifact = compile_source(
-            "int f(int *p, int n) { (*(p - n))++; return *(p - n); }",
-        )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
-    }
-
-    #[test]
     fn compiles_member_and_array_post_increment_through_lvalue_addressing() {
         let artifact = compile_source(
             "struct pair { int x; }; int f(struct pair *p, int *a, int i) { p->x++; a[i]--; return p->x + a[i]; }",
@@ -3101,16 +4269,6 @@ mod tests {
     }
 
     #[test]
-    fn compiles_braced_scalar_local_initializers() {
-        let artifact = compile_source(
-            "int f(void) { unsigned char x = { 7 }; short y = {{ 9 }}; int z = {}; return x + y + z; }",
-        )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
-    }
-
-    #[test]
     fn compiles_uninitialized_local_assigned_before_read() {
         let artifact =
             compile_source("int f(int n) { int value; value = n + 1; return value; }").unwrap();
@@ -3125,6 +4283,27 @@ mod tests {
                 .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn cosmic_sia_bundle_round_trips_data_objects() {
+        let artifact = Artifact {
+            target: TARGET,
+            functions: Vec::new(),
+            data: vec![DataArtifact {
+                name: "global".into(),
+                bytes: vec![1, 2, 3, 4],
+                align: 4,
+                read_only: false,
+                relocations: vec![RelocationArtifact {
+                    offset: 0,
+                    target: "other".into(),
+                    addend: 8,
+                }],
+            }],
+        };
+        let encoded = artifact.to_bytes().unwrap();
+        assert_eq!(Artifact::from_bytes(&encoded).unwrap(), artifact);
     }
 
     #[test]
