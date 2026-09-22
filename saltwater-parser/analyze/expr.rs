@@ -691,7 +691,7 @@ impl PureAnalyzer {
         ) {
             return Expr {
                 lval: false,
-                ctype: Type::UnsignedLong,
+                ctype: Type::Long(false),
                 location,
                 expr: ExprType::Sizeof(ctype),
             };
