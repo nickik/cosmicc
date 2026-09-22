@@ -692,10 +692,15 @@ impl<I: Lexer> Parser<I> {
             let mut designators = Vec::new();
             loop {
                 if self.match_next(&Token::Dot).is_some() {
-                    let token = self.next_token()?;
-                    let id = match token.data {
-                        Token::Id(id) => id,
-                        other => return Err(token.location.with(SyntaxError::UnexpectedToken(other))),
+                    let token = self.next_token();
+                    let id = match token {
+                        Some(token) => match token.data {
+                            Token::Id(id) => id,
+                            other => {
+                                return Err(token.location.with(SyntaxError::ExpectedId(Some(other))))
+                            }
+                        },
+                        None => return Err(Location::default().with(SyntaxError::ExpectedId(None))),
                     };
                     designators.push(ast::Designator::Member(id));
                 } else if self.match_next(&Token::LeftBracket).is_some() {
@@ -707,7 +712,7 @@ impl<I: Lexer> Parser<I> {
                 }
             }
             if !designators.is_empty() {
-                self.expect(Token::Assignment(crate::data::lex::AssignmentToken::Assign))?;
+                self.expect(Token::Assignment(crate::data::lex::AssignmentToken::Equal))?;
             }
             let next = if self.match_next(&Token::LeftBrace).is_some() {
                 self.aggregate_initializer()?
