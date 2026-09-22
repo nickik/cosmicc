@@ -2191,16 +2191,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
         if let Type::Array(
             element,
-            saltwater_parser::data::types::ArrayType::Variable(bound_symbol),
+            saltwater_parser::data::types::ArrayType::Variable(bound_expression),
         ) = &metadata.ctype
         {
             let element_size = element
                 .sizeof()
                 .map_err(|_| unsupported(location, "VLA element type must be complete"))?;
-            let bound_variable = self.variables.get(bound_symbol).copied().ok_or_else(|| {
-                unsupported(location, "VLA bound must name an initialized local integer")
-            })?;
-            let bound = self.builder.use_var(bound_variable);
+            let bound = self.compile_expr(bound_expression)?;
             let bound_ty = self.builder.func.dfg.value_type(bound);
             let bound = if bound_ty == types::I32 {
                 bound
@@ -4918,6 +4915,14 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_general_runtime_vla_bound_expression() {
+        let artifact =
+            compile_source("int f(int n) { int a[n + 3]; a[n] = 11; return a[n]; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_identifier_bound_vla_to_dynamic_stack_allocation() {
         let artifact = compile_source("int f(int n) { int a[n]; a[2] = 7; return a[2]; }").unwrap();
