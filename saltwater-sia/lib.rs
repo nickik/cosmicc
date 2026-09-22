@@ -1066,7 +1066,10 @@ fn write_global_initializer(
             }
             Type::Union(union_type) => {
                 if items.len() > 1 {
-                    return Err(unsupported(location, "too many elements in local union initializer"));
+                    return Err(unsupported(
+                        location,
+                        "too many elements in local union initializer",
+                    ));
                 }
                 if let Some(item) = items.first() {
                     let members = union_type.members();
@@ -2344,7 +2347,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
                 if u64::try_from(items.len()).unwrap_or(u64::MAX) > *count {
-                    return Err(unsupported(location, "too many elements in local array initializer"));
+                    return Err(unsupported(
+                        location,
+                        "too many elements in local array initializer",
+                    ));
                 }
                 let element_size = element
                     .sizeof()
@@ -2419,7 +2425,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             Type::Struct(struct_type) => {
                 if items.len() > struct_type.members().len() {
-                    return Err(unsupported(location, "too many elements in local struct initializer"));
+                    return Err(unsupported(
+                        location,
+                        "too many elements in local struct initializer",
+                    ));
                 }
                 let mut offset = 0u64;
                 for (field, item) in struct_type.members().iter().zip(items.iter()) {
@@ -4600,10 +4609,7 @@ mod tests {
     }
     #[test]
     fn compiles_cast_to_void_while_preserving_side_effects() {
-        let artifact = compile_source(
-            "int f(int *p) { (void)(*p = 7); return *p; }",
-        )
-        .unwrap();
+        let artifact = compile_source("int f(int *p) { (void)(*p = 7); return *p; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
@@ -4615,7 +4621,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4640,20 +4649,16 @@ mod tests {
 
     #[test]
     fn compiles_assignment_through_pointer_to_pointer_dereference() {
-        let artifact = compile_source(
-            "int f(int **pp) { **pp = 9; return **pp; }",
-        )
-        .unwrap();
+        let artifact = compile_source("int f(int **pp) { **pp = 9; return **pp; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
     fn compiles_chained_assignment_values() {
-        let artifact = compile_source(
-            "int f(int *p) { int a; int b; a = b = *p = 6; return a + b + *p; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int f(int *p) { int a; int b; a = b = *p = 6; return a + b + *p; }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
@@ -4670,10 +4675,9 @@ mod tests {
 
     #[test]
     fn compiles_post_increment_through_nested_pointer_lvalues() {
-        let artifact = compile_source(
-            "int f(int **pp) { int old = (**pp)++; (**pp)--; return old + **pp; }",
-        )
-        .unwrap();
+        let artifact =
+            compile_source("int f(int **pp) { int old = (**pp)++; (**pp)--; return old + **pp; }")
+                .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
@@ -4695,7 +4699,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
-        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+        assert!(artifact
+            .functions
+            .iter()
+            .all(|function| !function.code.is_empty()));
     }
 
     #[test]
@@ -4758,5 +4765,4 @@ mod tests {
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
-
 }
