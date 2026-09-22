@@ -3367,7 +3367,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let value = self.compile_expr(argument)?;
                     if let Some(parameter) = parameters.get(index) {
                         if is_by_value_aggregate(&parameter.get().ctype) {
-                            values.push(value);
+                            let parameter_ctype = &parameter.get().ctype;
+                            let (_, copy_address) =
+                                self.create_aggregate_slot(parameter_ctype, expression.location)?;
+                            self.copy_aggregate_value(
+                                copy_address,
+                                value,
+                                parameter_ctype,
+                                expression.location,
+                            )?;
+                            values.push(copy_address);
                             continue;
                         }
                     }
@@ -4618,6 +4627,36 @@ mod tests {
     fn compiles_odd_sized_struct_return_by_hidden_address() {
         let artifact = compile_source(
             "struct bytes { char a; char b; char c; }; struct bytes make(void) { struct bytes v = {1, 2, 3}; return v; } int run(void) { struct bytes v = make(); return v.c; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn aggregate_argument_is_copied_before_callee_mutation() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; int mutate(struct pair p) { p.a = 99; return p.a + p.b; } int run(void) { struct pair p = {1, 2}; int x = mutate(p); return p.a + x; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_multiple_struct_and_union_arguments_by_value() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; union value { int i; unsigned char b[4]; }; int sum(struct pair a, union value u, struct pair b) { return a.a + a.b + u.i + b.a + b.b; } int run(void) { struct pair a = {1, 2}; struct pair b = {3, 4}; union value u = {5}; return sum(a, u, b); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_odd_sized_struct_argument_by_value() {
+        let artifact = compile_source(
+            "struct bytes { char a; char b; char c; }; int sum(struct bytes v) { v.a = 7; return v.a + v.b + v.c; } int run(void) { struct bytes v = {1, 2, 3}; return sum(v) + v.a; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 2);
