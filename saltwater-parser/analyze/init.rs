@@ -326,4 +326,14 @@ mod test {
         );
         assert_errs_decls("struct s { int *p; } s = { 1.0 }", 1, 0, 1);
     }
+    #[test]
+    fn nested_designated_initializers_analyze() {
+        let result = crate::analyze::test::analyze(
+            "struct inner { int x; int y; }; struct outer { struct inner a[2]; }; struct outer o = { .a[1].y = 7 };",
+            crate::parse::Parser::translation_unit,
+            PureAnalyzer::translation_unit,
+        );
+        assert!(result.is_ok(), "{result:?}");
+    }
+
 }
