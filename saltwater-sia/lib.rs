@@ -2845,7 +2845,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 ) = sized
                 {
                     let element_size = element.sizeof().map_err(|_| {
-                        unsupported(expression.location, "sizeof VLA element type must be complete")
+                        unsupported(
+                            expression.location,
+                            "sizeof VLA element type must be complete",
+                        )
                     })?;
                     let bound = self.compile_expr(bound_expression)?;
                     let bound_ty = self.builder.func.dfg.value_type(bound);
@@ -2856,8 +2859,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     } else {
                         self.builder.ins().ireduce(ty, bound)
                     };
-                    let element_size =
-                        self.builder.ins().iconst(ty, element_size as i64);
+                    let element_size = self.builder.ins().iconst(ty, element_size as i64);
                     Ok(self.builder.ins().imul(bound, element_size))
                 } else {
                     let bytes = sized.sizeof().map_err(|_| {
