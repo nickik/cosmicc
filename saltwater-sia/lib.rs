@@ -2979,54 +2979,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         ));
                     }
 
-                    if matches!(
-                        assignment_left.expr,
-                        ExprType::Member(_, _)
-                            | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _)
-                    ) {
-                        let address = self.compile_lvalue_address(assignment_left)?;
-                        let target_ty = ir_type(&assignment_left.ctype, left.location)?;
-                        let value = self.coerce_integer_value(value, target_ty, &right.ctype);
-                        self.builder
-                            .ins()
-                            .store(MemFlagsData::new(), value, address, 0);
-                        return Ok(value);
-                    }
-
-                    let ExprType::Deref(pointer) = &assignment_left.expr else {
-                        return Err(unsupported(
-                            left.location,
-                            format!(
-                                "SIA32 assignment lowering is not implemented for lhs {left:?}"
-                            ),
-                        ));
-                    };
-
-                    if let ExprType::Id(symbol) = &pointer.expr {
-                        if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                            if let Some(variable_ty) = self.variable_types.get(symbol).copied() {
-                                let value =
-                                    self.coerce_integer_value(value, variable_ty, &right.ctype);
-                                self.builder.ins().stack_store(types::I32, value, slot, 0);
-                                return Ok(value);
-                            }
-                        }
-                        if let Some(variable) = self.variables.get(symbol).copied() {
-                            let variable_ty =
-                                *self.variable_types.get(symbol).ok_or_else(|| {
-                                    unsupported(
-                                        expression.location,
-                                        "SIA32 local variable type metadata is missing",
-                                    )
-                                })?;
-                            let value = self.coerce_integer_value(value, variable_ty, &right.ctype);
-
-                            self.builder.def_var(variable, value);
-                            return Ok(value);
-                        }
-                    }
-
-                    let address = self.compile_expr(pointer)?;
+                    let address = self.compile_lvalue_address(assignment_left)?;
                     let target_ty = ir_type(&assignment_left.ctype, left.location)?;
                     let value = self.coerce_integer_value(value, target_ty, &right.ctype);
                     self.builder
@@ -4653,6 +4606,36 @@ mod tests {
     fn compiles_equal_width_signedness_and_pointer_casts_without_reencoding() {
         let artifact = compile_source(
             "unsigned f(int x, int *p) { unsigned a = (unsigned)x; unsigned b = (unsigned)p; return a + b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_assignment_through_nested_wrapped_lvalues() {
+        let artifact = compile_source(
+            "struct pair { int x; }; int f(struct pair *p, int *a, int i) { *((int *)&p->x) = 3; *((int *)&a[i]) = 4; return p->x + a[i]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_assignment_through_pointer_to_pointer_dereference() {
+        let artifact = compile_source(
+            "int f(int **pp) { **pp = 9; return **pp; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_chained_assignment_values() {
+        let artifact = compile_source(
+            "int f(int *p) { int a; int b; a = b = *p = 6; return a + b + *p; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
