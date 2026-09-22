@@ -135,6 +135,13 @@ pub struct InitDeclarator {
 pub enum Initializer {
     Scalar(Box<Expr>),
     Aggregate(Vec<Initializer>),
+    Designated(Vec<Designator>, Box<Initializer>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Designator {
+    Member(InternedStr),
+    Index(Box<Expr>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
