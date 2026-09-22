@@ -9,7 +9,7 @@ use std::fmt;
 
 use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
-use cranelift_codegen::ir::condcodes::IntCC;
+use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
 use cranelift_codegen::ir::{
     types, AbiParam, Block, ExtFuncData, ExternalName, Function, GlobalValueData, InstBuilder,
     MemFlagsData, Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName,
@@ -3107,6 +3107,24 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // on the binary expression. Normalize both operands to that
                 // width before emitting CLIF. This avoids type-mismatch IR for
                 // combinations such as char + int and short < long.
+                if let BinaryOp::Compare(compare) = operator {
+                    if matches!(left_expr_type, Type::Float | Type::Double)
+                        || matches!(right_expr_type, Type::Float | Type::Double)
+                    {
+                        use saltwater_parser::data::lex::ComparisonToken;
+                        let condition = match compare {
+                            ComparisonToken::Less => FloatCC::LessThan,
+                            ComparisonToken::Greater => FloatCC::GreaterThan,
+                            ComparisonToken::EqualEqual => FloatCC::Equal,
+                            ComparisonToken::NotEqual => FloatCC::NotEqual,
+                            ComparisonToken::LessEqual => FloatCC::LessThanOrEqual,
+                            ComparisonToken::GreaterEqual => FloatCC::GreaterThanOrEqual,
+                        };
+                        let boolean = self.builder.ins().fcmp(condition, left, right);
+                        return Ok(self.builder.ins().uextend(types::I32, boolean));
+                    }
+                }
+
                 let operation_ty = match operator {
                     BinaryOp::Shl | BinaryOp::Shr => self.builder.func.dfg.value_type(left),
                     BinaryOp::Compare(_) => {
@@ -4452,6 +4470,34 @@ mod tests {
             "{}",
             error
         );
+    }
+
+    #[test]
+    fn lowers_f32_comparisons_to_clif_before_backend_boundary() {
+        for (operator, instruction) in [
+            ("<", "fcmp lt"),
+            (">", "fcmp gt"),
+            ("==", "fcmp eq"),
+            ("!=", "fcmp ne"),
+            ("<=", "fcmp le"),
+            (">=", "fcmp ge"),
+        ] {
+            let source = format!(
+                "int f(float a, float b) {{ return a {operator} b; }}"
+            );
+            let error = compile_source(&source).unwrap_err();
+            let message = error.to_string();
+            assert!(message.contains("SSA value type f32"), "{message}");
+            assert!(message.contains(instruction), "{message}");
+        }
+    }
+
+    #[test]
+    fn lowers_f64_comparisons_to_clif_before_backend_boundary() {
+        let error = compile_source("int f(double a, double b) { return a <= b; }").unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("SSA value type f64"), "{message}");
+        assert!(message.contains("fcmp le"), "{message}");
     }
 
 }
