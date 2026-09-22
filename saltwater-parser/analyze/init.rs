@@ -10,10 +10,17 @@ impl PureAnalyzer {
         ctype: &Type,
         location: Location,
     ) -> Initializer {
-        use ast::Initializer::{Aggregate, Scalar};
+        use ast::Initializer::{Aggregate, Designated, Scalar};
         // initializer_list
         let mut expr = match init {
             Aggregate(list) => return self.check_aggregate_overflow(list, ctype, location),
+            Designated(_, _) => {
+                self.err(
+                    SemanticError::from("designated initializer requires an aggregate context"),
+                    location,
+                );
+                return Initializer::InitializerList(Vec::new());
+            }
             Scalar(expr) => self.expr(*expr),
         };
         // The only time (that I know of) that an expression will initialize a non-scalar
@@ -68,7 +75,7 @@ impl PureAnalyzer {
         elem_type: &Type,
         location: Location,
     ) -> Initializer {
-        use ast::Initializer::{Aggregate, Scalar};
+        use ast::Initializer::{Aggregate, Designated, Scalar};
 
         let mut elems = vec![];
         if list.peek().is_none() {
@@ -77,6 +84,64 @@ impl PureAnalyzer {
         }
         // char [][3] = {1};
         while let Some(elem) = list.peek() {
+            if matches!(elem, Designated(_, _)) {
+                let designated = list.next().expect("peeked designated initializer");
+                let Designated(designators, initializer) = designated else {
+                    unreachable!()
+                };
+                if designators.len() != 1 {
+                    self.err(
+                        SemanticError::from("nested designated initializer paths are not supported yet"),
+                        location,
+                    );
+                    continue;
+                }
+                let target = match &designators[0] {
+                    ast::Designator::Index(index) => {
+                        match Self::const_uint(self.expr((**index).clone())) {
+                            Ok(value) => value as usize,
+                            Err(error) => {
+                                self.error_handler.push_back(error);
+                                continue;
+                            }
+                        }
+                    }
+                    ast::Designator::Member(member) => match elem_type {
+                        Type::Struct(st) | Type::Union(st) => st
+                            .members()
+                            .iter()
+                            .position(|field| field.id == *member)
+                            .unwrap_or_else(|| {
+                                self.err(
+                                    SemanticError::from("unknown member in designated initializer"),
+                                    location,
+                                );
+                                0
+                            }),
+                        _ => {
+                            self.err(
+                                SemanticError::from("member designator requires struct or union"),
+                                location,
+                            );
+                            0
+                        }
+                    },
+                };
+                while elems.len() < target {
+                    elems.push(Initializer::InitializerList(Vec::new()));
+                }
+                let inner = elem_type.type_at(target).unwrap_or(Type::Error);
+                let value = self.parse_initializer(*initializer, &inner, location);
+                if elems.len() == target {
+                    elems.push(value);
+                } else {
+                    elems[target] = value;
+                }
+                if matches!(elem_type, Type::Union(_)) {
+                    break;
+                }
+                continue;
+            }
             let inner = elem_type.type_at(elems.len()).unwrap_or_else(|err| {
                 // int a[1] = {1, 2};
                 self.err(err, location);
