@@ -1701,7 +1701,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             } else {
                 types::I8
             };
-            let width = i32::from(ty.bytes());
+            let width = i32::try_from(ty.bytes()).expect("SIA32 scalar width fits in i32");
             let value = self
                 .builder
                 .ins()
@@ -3173,7 +3173,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         self.builder.ins().uextend(types::I32, boolean)
                     }
                     BinaryOp::Assign | BinaryOp::LogicalAnd | BinaryOp::LogicalOr => {
-                        unreachable!("assignment and logical operators are lowered before this match")
+                        unreachable!(
+                            "assignment and logical operators are lowered before this match"
+                        )
                     }
                 };
                 Ok(value)
