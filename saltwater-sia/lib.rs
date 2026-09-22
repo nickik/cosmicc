@@ -2207,8 +2207,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             } else {
                 self.builder.ins().uextend(types::I32, bound)
             };
-            let element_size_value =
-                self.builder.ins().iconst(types::I32, element_size as i64);
+            let element_size_value = self.builder.ins().iconst(types::I32, element_size as i64);
             let bytes = self.builder.ins().imul(bound, element_size_value);
             let alignment = element
                 .alignof()
@@ -2216,7 +2215,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             let alignment = u32::try_from(alignment)
                 .map_err(|_| unsupported(location, "VLA alignment is too large for SIA32"))?;
             let bytes = if alignment > 1 {
-                let mask = self.builder.ins().iconst(types::I32, i64::from(alignment - 1));
+                let mask = self
+                    .builder
+                    .ins()
+                    .iconst(types::I32, i64::from(alignment - 1));
                 let rounded = self.builder.ins().iadd(bytes, mask);
                 let clear_mask = self
                     .builder
@@ -2719,6 +2721,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                     }
                 } else if let Some(variable) = self.variables.get(symbol).copied() {
+                    Ok(self.builder.use_var(variable))
+                } else if let Some(variable) = self.vla_bases.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
                 } else if self.global_indices.contains_key(symbol)
                     || self.function_indices.contains_key(symbol)
@@ -4916,8 +4920,7 @@ mod tests {
     }
     #[test]
     fn lowers_identifier_bound_vla_to_dynamic_stack_allocation() {
-        let artifact =
-            compile_source("int f(int n) { int a[n]; a[2] = 7; return a[2]; }").unwrap();
+        let artifact = compile_source("int f(int n) { int a[n]; a[2] = 7; return a[2]; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
     }
