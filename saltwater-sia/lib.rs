@@ -1585,6 +1585,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variables: HashMap<Symbol, Variable>,
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     stack_locals: HashMap<Symbol, StackSlot>,
+    vla_bases: HashMap<Symbol, Variable>,
     function_indices: &'c HashMap<Symbol, u32>,
     global_indices: &'c HashMap<Symbol, u32>,
     string_indices: &'c HashMap<Vec<u8>, u32>,
@@ -1616,6 +1617,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             variables: HashMap::new(),
             variable_types: HashMap::new(),
             stack_locals: HashMap::new(),
+            vla_bases: HashMap::new(),
             function_indices,
             global_indices,
             string_indices,
@@ -2187,6 +2189,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         {
             return Ok(());
         }
+        if let Type::Array(
+            _,
+            saltwater_parser::data::types::ArrayType::Variable(_),
+        ) = &metadata.ctype
+        {
+            return Err(unsupported(
+                location,
+                "SIA32 VLA base-address plumbing is ready, but dynamic stack allocation is not implemented yet",
+            ));
+        }
         if matches!(
             metadata.ctype,
             Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
@@ -2245,6 +2257,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     fn address_of_local(&mut self, symbol: Symbol, location: Location) -> Result<Value, Error> {
         if let Some(slot) = self.stack_locals.get(&symbol).copied() {
             return Ok(self.builder.ins().stack_addr(types::I32, slot, 0));
+        }
+        if let Some(variable) = self.vla_bases.get(&symbol).copied() {
+            return Ok(self.builder.use_var(variable));
         }
         let variable = self.variables.get(&symbol).copied().ok_or_else(|| {
             unsupported(
@@ -2500,7 +2515,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
         match &lvalue.expr {
             ExprType::Id(symbol) => {
-                if self.variables.contains_key(symbol) || self.stack_locals.contains_key(symbol) {
+                if self.variables.contains_key(symbol)
+                    || self.stack_locals.contains_key(symbol)
+                    || self.vla_bases.contains_key(symbol)
+                {
                     self.address_of_local(*symbol, lvalue.location)
                 } else {
                     self.symbol_address(*symbol, 0, lvalue.location)
