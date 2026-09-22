@@ -786,7 +786,7 @@ fn completed_object_type(
                         "unbounded array requires an initializer that determines its size",
                     ))
                 }
-            },
+            }
             _ => {
                 return Err(unsupported(
                     location,
@@ -1537,10 +1537,7 @@ fn is_by_value_aggregate(ctype: &Type) -> bool {
     matches!(ctype, Type::Struct(_) | Type::Union(_))
 }
 
-fn abi_scalar_type(
-    ctype: &Type,
-    location: Location,
-) -> Result<cranelift_codegen::ir::Type, Error> {
+fn abi_scalar_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
     match ctype {
         Type::Float => Ok(types::F32),
         Type::Double => Ok(types::F64),
@@ -3493,136 +3490,6 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
     Ok(ty)
 }
 
-fn declaration_uses_float_value(declaration: &Declaration) -> bool {
-    match &declaration.symbol.get().ctype {
-        Type::Function(function) => {
-            matches!(*function.return_type, Type::Float | Type::Double)
-                || function
-                    .params
-                    .iter()
-                    .any(|parameter| matches!(parameter.get().ctype, Type::Float | Type::Double))
-        }
-        Type::Float | Type::Double => true,
-        _ => declaration
-            .init
-            .as_ref()
-            .map_or(false, initializer_uses_float),
-    }
-}
-
-fn declaration_uses_float(declaration: &Declaration) -> bool {
-    type_uses_float(&declaration.symbol.get().ctype, &mut HashSet::new())
-        || declaration
-            .init
-            .as_ref()
-            .map_or(false, initializer_uses_float)
-}
-
-fn initializer_uses_float(initializer: &Initializer) -> bool {
-    match initializer {
-        Initializer::Scalar(expression) => expr_uses_float(expression),
-        Initializer::InitializerList(items) => items.iter().any(initializer_uses_float),
-        Initializer::FunctionBody(statements) => statements.iter().any(stmt_uses_float),
-    }
-}
-
-fn stmt_uses_float(statement: &Stmt) -> bool {
-    match &statement.data {
-        StmtType::Compound(statements) => statements.iter().any(stmt_uses_float),
-        StmtType::If(condition, yes, no) => {
-            expr_uses_float(condition)
-                || stmt_uses_float(yes)
-                || no.as_deref().map_or(false, stmt_uses_float)
-        }
-        StmtType::Do(body, condition) | StmtType::While(condition, body) => {
-            expr_uses_float(condition) || stmt_uses_float(body)
-        }
-        StmtType::For(init, condition, step, body) => {
-            stmt_uses_float(init)
-                || condition.as_deref().map_or(false, expr_uses_float)
-                || step.as_deref().map_or(false, expr_uses_float)
-                || stmt_uses_float(body)
-        }
-        StmtType::Switch(expression, body) => expr_uses_float(expression) || stmt_uses_float(body),
-        StmtType::Label(_, body) | StmtType::Case(_, body) | StmtType::Default(body) => {
-            stmt_uses_float(body)
-        }
-        StmtType::Expr(expression) => expr_uses_float(expression),
-        StmtType::Return(value) => value.as_ref().map_or(false, expr_uses_float),
-        StmtType::Decl(declarations) => declarations
-            .iter()
-            .any(|decl| declaration_uses_float_value(&decl.data)),
-        StmtType::Goto(_) | StmtType::Continue | StmtType::Break => false,
-    }
-}
-
-fn expr_uses_float(expression: &Expr) -> bool {
-    type_uses_float(&expression.ctype, &mut HashSet::new())
-        || match &expression.expr {
-            ExprType::Literal(LiteralValue::Float(_)) => true,
-            ExprType::FuncCall(function, arguments) => {
-                expr_uses_float(function) || arguments.iter().any(expr_uses_float)
-            }
-            ExprType::Member(value, _)
-            | ExprType::PostIncrement(value, _)
-            | ExprType::Cast(value)
-            | ExprType::Deref(value)
-            | ExprType::Negate(value)
-            | ExprType::BitwiseNot(value)
-            | ExprType::StaticRef(value)
-            | ExprType::Noop(value) => expr_uses_float(value),
-            ExprType::Sizeof(ctype) => type_uses_float(ctype, &mut HashSet::new()),
-            ExprType::Binary(_, left, right) | ExprType::Comma(left, right) => {
-                expr_uses_float(left) || expr_uses_float(right)
-            }
-            ExprType::Ternary(condition, yes, no) => {
-                expr_uses_float(condition) || expr_uses_float(yes) || expr_uses_float(no)
-            }
-            ExprType::Id(_) | ExprType::Literal(_) => false,
-        }
-}
-
-fn type_uses_float(ctype: &Type, seen_structs: &mut HashSet<String>) -> bool {
-    match ctype {
-        Type::Float | Type::Double => true,
-        Type::Pointer(pointee, _) => type_uses_float(pointee, seen_structs),
-        Type::Array(element, _) => type_uses_float(element, seen_structs),
-        Type::Function(function) => {
-            type_uses_float(&function.return_type, seen_structs)
-                || function
-                    .params
-                    .iter()
-                    .any(|parameter| type_uses_float(&parameter.get().ctype, seen_structs))
-        }
-        Type::Struct(struct_type) | Type::Union(struct_type) => {
-            struct_uses_float(struct_type, seen_structs)
-        }
-        _ => false,
-    }
-}
-
-fn struct_uses_float(struct_type: &StructType, seen_structs: &mut HashSet<String>) -> bool {
-    let name = match struct_type {
-        StructType::Named(name, _) => Some(name.resolve_and_clone()),
-        StructType::Anonymous(_) => None,
-    };
-    if let Some(name) = &name {
-        if !seen_structs.insert(name.clone()) {
-            return false;
-        }
-    }
-    struct_type
-        .members()
-        .iter()
-        .any(|member| type_uses_float(&member.ctype, seen_structs))
-}
-
-fn unsupported(location: Location, message: impl Into<String>) -> Error {
-    Error::Unsupported {
-        location,
-        message: message.into(),
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -4518,9 +4385,9 @@ mod tests {
         )
         .unwrap_err();
         let message = error.to_string();
-        assert!(message.contains("SSA value type f32"), "{message}");
+        assert!(message.contains("SSA value type f32"), "{}", message);
         for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
-            assert!(message.contains(instruction), "{message}");
+            assert!(message.contains(instruction), "{}", message);
         }
     }
 
@@ -4531,9 +4398,9 @@ mod tests {
         )
         .unwrap_err();
         let message = error.to_string();
-        assert!(message.contains("SSA value type f64"), "{message}");
+        assert!(message.contains("SSA value type f64"), "{}", message);
         for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
-            assert!(message.contains(instruction), "{message}");
+            assert!(message.contains(instruction), "{}", message);
         }
     }
 
@@ -4547,7 +4414,7 @@ mod tests {
         ] {
             let error = compile_source(source).unwrap_err();
             let message = error.to_string();
-            assert!(message.contains(instruction), "{message}");
+            assert!(message.contains(instruction), "{}", message);
         }
     }
 
@@ -4559,7 +4426,7 @@ mod tests {
         ] {
             let error = compile_source(source).unwrap_err();
             let message = error.to_string();
-            assert!(message.contains(instruction), "{message}");
+            assert!(message.contains(instruction), "{}", message);
         }
     }
 
@@ -4578,8 +4445,8 @@ mod tests {
             );
             let error = compile_source(&source).unwrap_err();
             let message = error.to_string();
-            assert!(message.contains("SSA value type f32"), "{message}");
-            assert!(message.contains(instruction), "{message}");
+            assert!(message.contains("SSA value type f32"), "{}", message);
+            assert!(message.contains(instruction), "{}", message);
         }
     }
 
@@ -4587,8 +4454,8 @@ mod tests {
     fn lowers_f64_comparisons_to_clif_before_backend_boundary() {
         let error = compile_source("int f(double a, double b) { return a <= b; }").unwrap_err();
         let message = error.to_string();
-        assert!(message.contains("SSA value type f64"), "{message}");
-        assert!(message.contains("fcmp le"), "{message}");
+        assert!(message.contains("SSA value type f64"), "{}", message);
+        assert!(message.contains("fcmp le"), "{}", message);
     }
 
     #[test]
@@ -4599,8 +4466,8 @@ mod tests {
         ] {
             let error = compile_source(source).unwrap_err();
             let message = error.to_string();
-            assert!(message.contains(&format!("({ty}) -> {ty}")), "{message}");
-            assert!(message.contains(&format!("SSA value type {ty}")), "{message}");
+            assert!(message.contains(&format!("({ty}) -> {ty}")), "{}", message);
+            assert!(message.contains(&format!("SSA value type {ty}")), "{}", message);
         }
     }
 
@@ -4611,7 +4478,7 @@ mod tests {
         )
         .unwrap_err();
         let message = error.to_string();
-        assert!(message.contains("(f32) -> f32"), "{message}");
+        assert!(message.contains("(f32) -> f32"), "{}", message);
     }
 
     #[test]
@@ -4621,7 +4488,7 @@ mod tests {
         )
         .unwrap_err();
         let message = error.to_string();
-        assert!(message.contains("(f32) -> f32"), "{message}");
+        assert!(message.contains("(f32) -> f32"), "{}", message);
     }
 
     #[test]
