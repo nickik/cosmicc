@@ -1785,6 +1785,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             "aggregate-returning function requires a return value",
                         )
                     })?;
+                    if !is_by_value_aggregate(&expression.ctype) {
+                        return Err(unsupported(
+                            statement.location,
+                            "aggregate return expression must have struct or union type",
+                        ));
+                    }
                     let source = self.compile_expr(expression)?;
                     self.copy_aggregate_value(
                         destination,
@@ -4586,6 +4592,36 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_struct_return_from_local_and_nested_call() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; struct pair make(int x) { struct pair p = {x, x + 1}; return p; } struct pair relay(int x) { return make(x); } int run(void) { struct pair p = relay(4); return p.a + p.b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 3);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_union_return_by_value() {
+        let artifact = compile_source(
+            "union value { int i; unsigned char bytes[4]; }; union value make(int x) { union value v = {x}; return v; } int run(void) { union value v = make(9); return v.i; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_odd_sized_struct_return_by_hidden_address() {
+        let artifact = compile_source(
+            "struct bytes { char a; char b; char c; }; struct bytes make(void) { struct bytes v = {1, 2, 3}; return v; } int run(void) { struct bytes v = make(); return v.c; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
     }
 
 }
