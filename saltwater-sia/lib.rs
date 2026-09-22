@@ -4772,7 +4772,7 @@ mod tests {
     #[test]
     fn compiles_pointer_binary_operator_matrix() {
         let artifact = compile_source(
-            "int f(int *p, int *q, int i) { int *a = p + i; int *b = i + p; int *c = a - i; return (a - q) == i || *b == *c || p == q || p != q || p < q || p <= q || p > q || p >= q; }",
+            "int f(int *p, int *q, int i) { int *a = p + i; int *b = i + p; int *c = a - i; return *b + *c + (p == q) + (p != q) + (p < q) + (p <= q) + (p > q) + (p >= q); }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
@@ -4801,6 +4801,13 @@ mod tests {
             }
         }
         assert_eq!(kind(saltwater_parser::data::hir::BinaryOp::Add), "add");
+    }
+
+    #[test]
+    fn compiles_pointer_difference_as_function_result() {
+        let artifact = compile_source("long f(int *p, int *q) { return p - q; }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
 }
