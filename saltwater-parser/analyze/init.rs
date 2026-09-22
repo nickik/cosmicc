@@ -131,7 +131,7 @@ impl PureAnalyzer {
                     },
                 };
                 while elems.len() < target {
-                    elems.push(Initializer::InitializerList(Vec::new()));
+                    elems.push(Initializer::Zero);
                 }
                 let inner = elem_type.type_at(target).unwrap_or(Type::Error);
                 let value = if designators.len() == 1 {
