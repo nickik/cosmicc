@@ -1295,6 +1295,30 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
     }
 
+    fn copy_aggregate_value(
+        &mut self,
+        destination: Value,
+        source: Value,
+        ctype: &Type,
+        location: Location,
+    ) -> Result<(), Error> {
+        let size = ctype
+            .sizeof()
+            .map_err(|_| unsupported(location, "aggregate copy requires a complete type"))?;
+        for offset in 0..size {
+            let offset = i32::try_from(offset)
+                .map_err(|_| unsupported(location, "aggregate copy offset is too large"))?;
+            let byte = self
+                .builder
+                .ins()
+                .load(types::I8, MemFlagsData::new(), source, offset);
+            self.builder
+                .ins()
+                .store(MemFlagsData::new(), byte, destination, offset);
+        }
+        Ok(())
+    }
+
     fn compile_lvalue_address(&mut self, lvalue: &Expr) -> Result<Value, Error> {
         match &lvalue.expr {
             ExprType::Id(symbol) => self.address_of_local(*symbol, lvalue.location),
@@ -1721,6 +1745,20 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
 
                     let value = self.compile_expr(right)?;
+
+                    if matches!(
+                        assignment_left.ctype,
+                        Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
+                    ) {
+                        let destination = self.compile_lvalue_address(assignment_left)?;
+                        self.copy_aggregate_value(
+                            destination,
+                            value,
+                            &assignment_left.ctype,
+                            left.location,
+                        )?;
+                        return Ok(destination);
+                    }
 
                     // The analyzer may represent an ordinary local assignment
                     // either directly as Id(symbol) or as Deref(Id(symbol)).
@@ -2664,6 +2702,16 @@ mod tests {
     fn compiles_pointer_subtraction_assignment_lvalue() {
         let artifact = compile_source(
             "int f(int *p, int n) { *(p - n) = 5; return *(p - n); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_struct_and_union_value_assignment() {
+        let artifact = compile_source(
+            "struct pair { int x; int y; }; union value { int i; unsigned int u; }; int f(void) { struct pair a = { 1, 2 }; struct pair b; union value u = { 3 }; union value v; b = a; v = u; return b.y + v.i; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
