@@ -1585,6 +1585,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variables: HashMap<Symbol, Variable>,
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     stack_locals: HashMap<Symbol, StackSlot>,
+    vla_bases: HashMap<Symbol, Variable>,
     function_indices: &'c HashMap<Symbol, u32>,
     global_indices: &'c HashMap<Symbol, u32>,
     string_indices: &'c HashMap<Vec<u8>, u32>,
@@ -1616,6 +1617,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             variables: HashMap::new(),
             variable_types: HashMap::new(),
             stack_locals: HashMap::new(),
+            vla_bases: HashMap::new(),
             function_indices,
             global_indices,
             string_indices,
@@ -2187,6 +2189,35 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         {
             return Ok(());
         }
+        if let Type::Array(
+            element,
+            saltwater_parser::data::types::ArrayType::Variable(bound_symbol),
+        ) = &metadata.ctype
+        {
+            let element_size = element
+                .sizeof()
+                .map_err(|_| unsupported(location, "VLA element type must be complete"))?;
+            let bound_variable = self.variables.get(bound_symbol).copied().ok_or_else(|| {
+                unsupported(location, "VLA bound must name an initialized local integer")
+            })?;
+            let bound = self.builder.use_var(bound_variable);
+            let bound_ty = self.builder.func.dfg.value_type(bound);
+            let bound = if bound_ty == types::I32 {
+                bound
+            } else {
+                self.builder.ins().uextend(types::I32, bound)
+            };
+            let element_size = self.builder.ins().iconst(types::I32, element_size as i64);
+            let bytes = self.builder.ins().imul(bound, element_size);
+            let base = self.builder.ins().stack_alloc_dynamic(types::I32, bytes);
+            let base_variable = self.builder.declare_var(types::I32);
+            self.builder.def_var(base_variable, base);
+            self.vla_bases.insert(declaration.symbol, base_variable);
+            if declaration.init.is_some() {
+                return Err(unsupported(location, "VLA initialization is not supported"));
+            }
+            return Ok(());
+        }
         if matches!(
             metadata.ctype,
             Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
@@ -2245,6 +2276,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     fn address_of_local(&mut self, symbol: Symbol, location: Location) -> Result<Value, Error> {
         if let Some(slot) = self.stack_locals.get(&symbol).copied() {
             return Ok(self.builder.ins().stack_addr(types::I32, slot, 0));
+        }
+        if let Some(variable) = self.vla_bases.get(&symbol).copied() {
+            return Ok(self.builder.use_var(variable));
         }
         let variable = self.variables.get(&symbol).copied().ok_or_else(|| {
             unsupported(
