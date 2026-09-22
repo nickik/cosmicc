@@ -1591,8 +1591,8 @@ struct FunctionLowerer<'a, 'b, 'c> {
     string_indices: &'c HashMap<Vec<u8>, u32>,
     aggregate_return_address: Option<Value>,
     return_type: Option<cranelift_codegen::ir::Type>,
-    loop_targets: Vec<(Block, Block)>,
-    break_targets: Vec<Block>,
+    loop_targets: Vec<(Block, Block, usize)>,
+    break_targets: Vec<(Block, usize)>,
     switch_cases: Vec<(HashMap<u64, Block>, Option<Block>)>,
     labels: HashMap<saltwater_parser::intern::InternedStr, Block>,
     terminated: bool,
@@ -1774,6 +1774,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
     }
 
+    fn emit_dynamic_stack_cleanup_to(&mut self, depth: usize) {
+        for bytes in self.dynamic_stack_bytes[depth..].iter().rev().copied() {
+            self.builder.ins().stack_free_dynamic(bytes);
+        }
+    }
+
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
         let _statement_kind = Self::statement_kind(statement);
         // A label starts a new reachable basic block even when the preceding
@@ -1944,8 +1950,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // body_block has a backedge from the condition block, so it
                 // cannot be sealed until that predecessor has been emitted.
                 self.terminated = false;
-                self.loop_targets.push((condition_block, exit));
-                self.break_targets.push(exit);
+                let dynamic_depth = self.dynamic_stack_bytes.len();
+                self.loop_targets
+                    .push((condition_block, exit, dynamic_depth));
+                self.break_targets.push((exit, dynamic_depth));
                 self.compile_stmt(body)?;
                 self.break_targets.pop();
                 self.loop_targets.pop();
@@ -1991,8 +1999,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.switch_to_block(body_block);
                 self.builder.seal_block(body_block);
                 self.terminated = false;
-                self.loop_targets.push((step_block, exit));
-                self.break_targets.push(exit);
+                let dynamic_depth = self.dynamic_stack_bytes.len();
+                self.loop_targets.push((step_block, exit, dynamic_depth));
+                self.break_targets.push((exit, dynamic_depth));
                 self.compile_stmt(body)?;
                 self.break_targets.pop();
                 self.loop_targets.pop();
@@ -2029,8 +2038,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.switch_to_block(body_block);
                 self.builder.seal_block(body_block);
                 self.terminated = false;
-                self.loop_targets.push((header, exit));
-                self.break_targets.push(exit);
+                let dynamic_depth = self.dynamic_stack_bytes.len();
+                self.loop_targets.push((header, exit, dynamic_depth));
+                self.break_targets.push((exit, dynamic_depth));
                 self.compile_stmt(body)?;
                 self.break_targets.pop();
                 self.loop_targets.pop();
@@ -2045,9 +2055,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Break => {
-                let exit = self.break_targets.last().copied().ok_or_else(|| {
-                    unsupported(statement.location, "break outside a SIA32 loop or switch")
-                })?;
+                let (exit, dynamic_depth) =
+                    self.break_targets.last().copied().ok_or_else(|| {
+                        unsupported(statement.location, "break outside a SIA32 loop or switch")
+                    })?;
+                self.emit_dynamic_stack_cleanup_to(dynamic_depth);
                 self.builder.ins().jump(exit, &[]);
                 self.terminated = true;
                 Ok(())
@@ -2065,9 +2077,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             StmtType::Continue => {
-                let (header, _) = self.loop_targets.last().copied().ok_or_else(|| {
-                    unsupported(statement.location, "continue outside a SIA32 loop")
-                })?;
+                let (header, _, dynamic_depth) =
+                    self.loop_targets.last().copied().ok_or_else(|| {
+                        unsupported(statement.location, "continue outside a SIA32 loop")
+                    })?;
+                self.emit_dynamic_stack_cleanup_to(dynamic_depth);
                 self.builder.ins().jump(header, &[]);
                 self.terminated = true;
                 Ok(())
@@ -2142,7 +2156,8 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.builder.ins().jump(default_block.unwrap_or(exit), &[]);
 
                 self.switch_cases.push((case_blocks, default_block));
-                self.break_targets.push(exit);
+                let dynamic_depth = self.dynamic_stack_bytes.len();
+                self.break_targets.push((exit, dynamic_depth));
                 // The dispatch block is already terminated. The compound
                 // walker still visits case/default labels and skips ordinary
                 // statements until a label establishes a reachable block.
@@ -5009,6 +5024,16 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_break_and_continue_across_vla_scopes_with_stack_cleanup() {
+        let artifact = compile_source(
+            "int f(int n) { int r = 0; for (int i = 0; i < 4; i++) { { int a[n + i]; a[0] = i; if (i == 1) continue; if (i == 2) break; r += a[0]; } } return r; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_return_across_vla_scope_with_stack_cleanup() {
         let artifact =
