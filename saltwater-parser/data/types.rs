@@ -157,11 +157,11 @@ pub enum Type {
     Error,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ArrayType {
     Fixed(u64),
-    /// Runtime bound preserved from a simple local identifier expression.
-    Variable(Symbol),
+    /// Runtime bound expression for a variable length array.
+    Variable(Box<super::hir::Expr>),
     Unbounded,
 }
 
