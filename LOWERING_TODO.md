@@ -4,15 +4,15 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 
 ## Global and static data
 
-- [ ] **L1 — Global data definitions:** lower non-function top-level object definitions into COSMIC-SIA data objects.
-- [ ] **L2 — Global references:** lower reads and writes of global variables.
-- [ ] **L3 — Global addresses:** lower `&global` and code references to global symbols with relocations.
-- [ ] **L4 — Static locals:** allocate function-local `static` objects in static storage and reference them from functions.
-- [ ] **L5 — String literals:** emit string literals as read-only data objects and produce address relocations.
-- [ ] **L6 — Scalar global initializers:** serialize integer, enum, pointer/null and other supported scalar initializers.
-- [ ] **L7 — Aggregate globals:** serialize global arrays, structs and unions, including nested initializers.
-- [ ] **L8 — Data relocations:** support pointers/function addresses embedded in data and data-to-data/data-to-code symbol relocations.
-- [ ] **L9 — External calls:** emit unresolved external function symbols/relocations for declared-but-not-defined callees.
+- [x] **L1 — Global data definitions:** lower non-function top-level object definitions into COSMIC-SIA data objects.
+- [x] **L2 — Global references:** lower reads and writes of global variables.
+- [x] **L3 — Global addresses:** lower `&global` and code references to global symbols with relocations.
+- [x] **L4 — Static locals:** allocate function-local `static` objects in static storage and reference them from functions.
+- [x] **L5 — String literals:** emit string literals as read-only data objects and produce address relocations.
+- [x] **L6 — Scalar global initializers:** serialize integer, enum, pointer/null and other supported scalar initializers.
+- [x] **L7 — Aggregate globals:** serialize global arrays, structs and unions, including nested initializers.
+- [x] **L8 — Data relocations:** support pointers/function addresses embedded in data and data-to-data/data-to-code symbol relocations.
+- [x] **L9 — External calls:** emit unresolved external function symbols/relocations for declared-but-not-defined callees.
 
 ## Floating point
 
@@ -44,6 +44,8 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 - [x] **L29 — Type lowering completion:** `ir_type()` now exhaustively enumerates every frontend `Type` variant: integer/enum/pointer/function scalars map explicitly, FP maps to CLIF FP types, arrays/structs/unions are explicitly address-only/aggregate-ABI types, and void/va_list/error receive deliberate diagnostics. No wildcard/generic type-lowering fallback remains.
 
 ## Validation / completion criteria
+
+L1–L9 were reconciled after the completion pass: their implementations and focused regressions are already present on `master` (global/static data objects, symbol references/addresses, strings, initializers, data relocations, and unresolved external calls).
 
 Each lowering item should land as its own commit with focused regression tests. Before marking an item complete:
 
