@@ -2212,7 +2212,8 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         | Type::Long(_)
         | Type::Enum(_, _)
         | Type::Pointer(_, _)
-        | Type::Function(_) => types::I32,
+        | Type::Function(_)
+        | Type::VaList => types::I32,
         Type::Float | Type::Double => {
             return Err(unsupported(
                 location,
@@ -2535,6 +2536,12 @@ mod tests {
         let artifact = compile_source("int neg(int x) { return -x; }").unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn va_list_uses_pointer_width_on_sia32() {
+        let location = Location::default();
+        assert_eq!(ir_type(&Type::VaList, location).unwrap(), types::I32);
     }
 
     #[test]
