@@ -913,6 +913,9 @@ fn write_global_initializer(
     location: Location,
 ) -> Result<(), Error> {
     match initializer {
+        // Global object storage is allocated zero-filled before explicit
+        // initializer writes, so a sparse designated gap requires no write.
+        Initializer::Zero => Ok(()),
         Initializer::Scalar(expression) if ctype.is_scalar() => {
             if matches!(ctype, Type::Pointer(_, _) | Type::Function(_)) {
                 let mut string_expression = expression;
