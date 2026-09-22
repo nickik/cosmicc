@@ -14,12 +14,19 @@ impl PureAnalyzer {
         // initializer_list
         let mut expr = match init {
             Aggregate(list) => return self.check_aggregate_overflow(list, ctype, location),
-            Designated(_, _) => {
-                self.err(
-                    SemanticError::from("designated initializer requires an aggregate context"),
+            Designated(designators, initializer) => {
+                if ctype.is_scalar() {
+                    self.err(
+                        SemanticError::from("designated initializer requires an aggregate context"),
+                        location,
+                    );
+                    return Initializer::InitializerList(Vec::new());
+                }
+                return self.check_aggregate_overflow(
+                    vec![Designated(designators, initializer)],
+                    ctype,
                     location,
                 );
-                return Initializer::InitializerList(Vec::new());
             }
             Scalar(expr) => self.expr(*expr),
         };
@@ -89,16 +96,10 @@ impl PureAnalyzer {
                 let Designated(designators, initializer) = designated else {
                     unreachable!()
                 };
-                if designators.len() != 1 {
-                    self.err(
-                        SemanticError::from(
-                            "nested designated initializer paths are not supported yet",
-                        ),
-                        location,
-                    );
-                    continue;
-                }
-                let target = match &designators[0] {
+                let Some(first) = designators.first() else {
+                    unreachable!("designated initializer has at least one designator")
+                };
+                let target = match first {
                     ast::Designator::Index(index) => {
                         match Self::const_uint(self.expr((**index).clone())) {
                             Ok(value) => value as usize,
@@ -133,7 +134,15 @@ impl PureAnalyzer {
                     elems.push(Initializer::InitializerList(Vec::new()));
                 }
                 let inner = elem_type.type_at(target).unwrap_or(Type::Error);
-                let value = self.parse_initializer(*initializer, &inner, location);
+                let value = if designators.len() == 1 {
+                    self.parse_initializer(*initializer, &inner, location)
+                } else {
+                    self.parse_initializer(
+                        ast::Initializer::Designated(designators[1..].to_vec(), initializer),
+                        &inner,
+                        location,
+                    )
+                };
                 if elems.len() == target {
                     elems.push(value);
                 } else {
@@ -163,7 +172,9 @@ impl PureAnalyzer {
                     }
                     _ => unreachable!(),
                 },
-                Designated(_, _) => unreachable!("designators are handled before positional elements"),
+                Designated(_, _) => {
+                    unreachable!("designators are handled before positional elements")
+                }
                 Scalar(_) => {
                     // int a[][3] = {1,2,3}
                     //               ^
@@ -316,5 +327,13 @@ mod test {
             "struct { int i; float f; } s = {(int)1, (float)1.2};",
         );
         assert_errs_decls("struct s { int *p; } s = { 1.0 }", 1, 0, 1);
+    }
+    #[test]
+    fn nested_designated_initializers_analyze() {
+        let results = crate::analyze::test::decls(
+            "struct inner { int x; int y; }; struct outer { struct inner a[2]; }; struct outer o = { .a[1].y = 7 };",
+        );
+        assert_eq!(results.len(), 1);
+        assert!(results.into_iter().all(|result| result.is_ok()));
     }
 }

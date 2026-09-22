@@ -4852,5 +4852,4 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
-
 }
