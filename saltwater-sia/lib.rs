@@ -1102,20 +1102,51 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         self.variable_types.insert(declaration.symbol, ty);
 
         match &declaration.init {
-            Some(Initializer::Scalar(expression)) => {
-                let initial = self.compile_expr(expression)?;
-                self.builder.def_var(variable, initial);
-            }
-            Some(_) => {
-                return Err(unsupported(
+            Some(initializer) => {
+                let initial = self.compile_scalar_initializer(
+                    initializer,
+                    ty,
+                    &metadata.ctype,
                     location,
-                    "aggregate local initialization is not supported for SIA32 yet",
-                ));
+                )?;
+                self.builder.def_var(variable, initial);
             }
             None => {}
         }
 
         Ok(())
+    }
+
+    fn compile_scalar_initializer(
+        &mut self,
+        initializer: &Initializer,
+        target_ty: cranelift_codegen::ir::Type,
+        target_ctype: &Type,
+        location: Location,
+    ) -> Result<Value, Error> {
+        match initializer {
+            Initializer::Scalar(expression) => {
+                let value = self.compile_expr(expression)?;
+                Ok(self.coerce_integer_value(value, target_ty, &expression.ctype))
+            }
+            Initializer::InitializerList(items) if items.len() == 1 => {
+                self.compile_scalar_initializer(
+                    &items[0],
+                    target_ty,
+                    target_ctype,
+                    location,
+                )
+            }
+            Initializer::InitializerList(items) if items.is_empty() => {
+                Ok(self.builder.ins().iconst(target_ty, 0))
+            }
+            _ => Err(unsupported(
+                location,
+                format!(
+                    "scalar initializer for {target_ctype:?} must contain at most one value"
+                ),
+            )),
+        }
     }
 
     fn address_of_local(&mut self, symbol: Symbol, location: Location) -> Result<Value, Error> {
@@ -3067,6 +3098,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_braced_scalar_local_initializers() {
+        let artifact = compile_source(
+            "int f(void) { unsigned char x = { 7 }; short y = {{ 9 }}; int z = {}; return x + y + z; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
