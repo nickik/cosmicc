@@ -161,6 +161,7 @@ impl PureAnalyzer {
                     }
                     _ => unreachable!(),
                 },
+                Designated(_, _) => unreachable!("designators are handled before positional elements"),
                 Scalar(_) => {
                     // int a[][3] = {1,2,3}
                     //               ^
