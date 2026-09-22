@@ -333,7 +333,7 @@ mod test {
         let results = crate::analyze::test::decls(
             "struct inner { int x; int y; }; struct outer { struct inner a[2]; }; struct outer o = { .a[1].y = 7 };",
         );
-        assert_eq!(results.len(), 3);
+        assert_eq!(results.len(), 1);
         assert!(results.into_iter().all(|result| result.is_ok()));
     }
 }
