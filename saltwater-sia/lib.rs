@@ -1148,6 +1148,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         initializer: &Initializer,
         location: Location,
     ) -> Result<(), Error> {
+        let size = ctype
+            .sizeof()
+            .map_err(|_| unsupported(location, "aggregate initializer requires a complete type"))?;
+        let zero = self.builder.ins().iconst(types::I8, 0);
+        for offset in 0..size {
+            let offset = i32::try_from(offset)
+                .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
+            self.builder
+                .ins()
+                .stack_store(types::I32, zero, slot, offset);
+        }
         self.initialize_stack_aggregate_at(slot, ctype, initializer, 0, location)
     }
 
@@ -1160,90 +1171,86 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         location: Location,
     ) -> Result<(), Error> {
         let Initializer::InitializerList(items) = initializer else {
-            return Err(unsupported(
-                location,
-                "aggregate local initialization requires an initializer list",
-            ));
+            return self.initialize_stack_scalar_at(slot, ctype, initializer, base_offset, location);
         };
+        let mut cursor = 0usize;
+        self.initialize_stack_sequence_at(slot, ctype, items, &mut cursor, base_offset, location)
+    }
+
+    fn initialize_stack_scalar_at(
+        &mut self,
+        slot: StackSlot,
+        ctype: &Type,
+        initializer: &Initializer,
+        offset: u64,
+        location: Location,
+    ) -> Result<(), Error> {
+        match initializer {
+            Initializer::Scalar(expression) => {
+                let value = self.compile_expr(expression)?;
+                let value_ty = ir_type(ctype, location)?;
+                let value = self.coerce_integer_value(value, value_ty, &expression.ctype);
+                let offset = i32::try_from(offset)
+                    .map_err(|_| unsupported(location, "aggregate initializer offset is too large"))?;
+                self.builder
+                    .ins()
+                    .stack_store(types::I32, value, slot, offset);
+                Ok(())
+            }
+            Initializer::InitializerList(items) if items.len() == 1 => {
+                self.initialize_stack_scalar_at(slot, ctype, &items[0], offset, location)
+            }
+            _ => Err(unsupported(
+                location,
+                "scalar aggregate member has unsupported initializer shape",
+            )),
+        }
+    }
+
+    fn initialize_stack_sequence_at(
+        &mut self,
+        slot: StackSlot,
+        ctype: &Type,
+        items: &[Initializer],
+        cursor: &mut usize,
+        base_offset: u64,
+        location: Location,
+    ) -> Result<(), Error> {
         match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
                 let element_size = element
                     .sizeof()
                     .map_err(|_| unsupported(location, "array element has incomplete type"))?;
-                for (index, item) in items.iter().enumerate() {
-                    if u64::try_from(index).unwrap_or(u64::MAX) >= *count {
+                for index in 0..*count {
+                    if *cursor >= items.len() {
                         break;
                     }
-                    let offset = base_offset + (index as u64) * element_size;
-                    match item {
-                        Initializer::Scalar(expression) => {
-                            let value = self.compile_expr(expression)?;
-                            let value_ty = ir_type(element, location)?;
-                            let value =
-                                self.coerce_integer_value(value, value_ty, &expression.ctype);
-                            let offset = i32::try_from(offset).map_err(|_| {
-                                unsupported(location, "aggregate initializer offset is too large")
-                            })?;
-                            self.builder
-                                .ins()
-                                .stack_store(types::I32, value, slot, offset);
-                        }
-                        Initializer::InitializerList(_) => {
-                            self.initialize_stack_aggregate_at(
-                                slot, element, item, offset, location,
+                    let offset = base_offset + index * element_size;
+                    if is_address_valued_type(element) {
+                        if matches!(items[*cursor], Initializer::InitializerList(_)) {
+                            let item = &items[*cursor];
+                            *cursor += 1;
+                            self.initialize_stack_aggregate_at(slot, element, item, offset, location)?;
+                        } else {
+                            self.initialize_stack_sequence_at(
+                                slot, element, items, cursor, offset, location,
                             )?;
                         }
-                        _ => {
-                            return Err(unsupported(
-                                location,
-                                "unsupported array initializer element",
-                            ))
-                        }
-                    }
-                }
-                Ok(())
-            }
-            Type::Union(union_type) => {
-                if let Some(item) = items.first() {
-                    let members = union_type.members();
-                    let field = members.first().ok_or_else(|| {
-                        unsupported(location, "union has no initializable member")
-                    })?;
-                    match item {
-                        Initializer::Scalar(expression) => {
-                            let value = self.compile_expr(expression)?;
-                            let value_ty = ir_type(&field.ctype, location)?;
-                            let value =
-                                self.coerce_integer_value(value, value_ty, &expression.ctype);
-                            let offset = i32::try_from(base_offset).map_err(|_| {
-                                unsupported(location, "aggregate initializer offset is too large")
-                            })?;
-                            self.builder
-                                .ins()
-                                .stack_store(types::I32, value, slot, offset);
-                        }
-                        Initializer::InitializerList(_) => {
-                            self.initialize_stack_aggregate_at(
-                                slot,
-                                &field.ctype,
-                                item,
-                                base_offset,
-                                location,
-                            )?;
-                        }
-                        _ => {
-                            return Err(unsupported(
-                                location,
-                                "unsupported union initializer element",
-                            ))
-                        }
+                    } else {
+                        let item = &items[*cursor];
+                        *cursor += 1;
+                        self.initialize_stack_scalar_at(slot, element, item, offset, location)?;
                     }
                 }
                 Ok(())
             }
             Type::Struct(struct_type) => {
+                let members = struct_type.members();
                 let mut offset = 0u64;
-                for (field, item) in struct_type.members().iter().zip(items.iter()) {
+                for field in members.iter() {
+                    if *cursor >= items.len() {
+                        break;
+                    }
                     let align = field.ctype.alignof().map_err(|_| {
                         unsupported(location, "struct field has unsupported alignment")
                     })?;
@@ -1252,20 +1259,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         offset += align - rem;
                     }
                     let field_offset = base_offset + offset;
-                    match item {
-                        Initializer::Scalar(expression) => {
-                            let value = self.compile_expr(expression)?;
-                            let value_ty = ir_type(&field.ctype, location)?;
-                            let value =
-                                self.coerce_integer_value(value, value_ty, &expression.ctype);
-                            let field_offset = i32::try_from(field_offset).map_err(|_| {
-                                unsupported(location, "aggregate initializer offset is too large")
-                            })?;
-                            self.builder
-                                .ins()
-                                .stack_store(types::I32, value, slot, field_offset);
-                        }
-                        Initializer::InitializerList(_) => {
+                    if is_address_valued_type(&field.ctype) {
+                        if matches!(items[*cursor], Initializer::InitializerList(_)) {
+                            let item = &items[*cursor];
+                            *cursor += 1;
                             self.initialize_stack_aggregate_at(
                                 slot,
                                 &field.ctype,
@@ -1273,13 +1270,26 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 field_offset,
                                 location,
                             )?;
-                        }
-                        _ => {
-                            return Err(unsupported(
+                        } else {
+                            self.initialize_stack_sequence_at(
+                                slot,
+                                &field.ctype,
+                                items,
+                                cursor,
+                                field_offset,
                                 location,
-                                "unsupported struct initializer element",
-                            ))
+                            )?;
                         }
+                    } else {
+                        let item = &items[*cursor];
+                        *cursor += 1;
+                        self.initialize_stack_scalar_at(
+                            slot,
+                            &field.ctype,
+                            item,
+                            field_offset,
+                            location,
+                        )?;
                     }
                     offset += field
                         .ctype
@@ -1288,10 +1298,49 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 Ok(())
             }
-            _ => Err(unsupported(
-                location,
-                "this aggregate initializer shape is not supported for SIA32 yet",
-            )),
+            Type::Union(union_type) => {
+                if *cursor >= items.len() {
+                    return Ok(());
+                }
+                let members = union_type.members();
+                let field = members
+                    .first()
+                    .ok_or_else(|| unsupported(location, "union has no initializable member"))?;
+                if is_address_valued_type(&field.ctype) {
+                    if matches!(items[*cursor], Initializer::InitializerList(_)) {
+                        let item = &items[*cursor];
+                        *cursor += 1;
+                        self.initialize_stack_aggregate_at(
+                            slot,
+                            &field.ctype,
+                            item,
+                            base_offset,
+                            location,
+                        )
+                    } else {
+                        self.initialize_stack_sequence_at(
+                            slot,
+                            &field.ctype,
+                            items,
+                            cursor,
+                            base_offset,
+                            location,
+                        )
+                    }
+                } else {
+                    let item = &items[*cursor];
+                    *cursor += 1;
+                    self.initialize_stack_scalar_at(slot, &field.ctype, item, base_offset, location)
+                }
+            }
+            _ => {
+                if *cursor >= items.len() {
+                    return Ok(());
+                }
+                let item = &items[*cursor];
+                *cursor += 1;
+                self.initialize_stack_scalar_at(slot, ctype, item, base_offset, location)
+            }
         }
     }
 
@@ -2756,6 +2805,16 @@ mod tests {
     fn compiles_union_local_initializers_and_member_access() {
         let artifact = compile_source(
             "union value { int i; unsigned int u; }; int f(void) { union value v = { 7 }; v.u = 9; return v.i; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_brace_elided_and_partial_aggregate_initializers() {
+        let artifact = compile_source(
+            "struct inner { int x; int y; }; struct outer { struct inner i; int a[2]; int z; }; int f(void) { struct outer o = { 1, 2, 3, 4 }; return o.i.y + o.a[1] + o.z; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
