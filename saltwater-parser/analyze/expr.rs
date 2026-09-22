@@ -396,8 +396,10 @@ impl PureAnalyzer {
         // `p1 + p2` for pointers p1 and p2 is not valid
         } else if !is_add && left.ctype.is_pointer_to_complete_object() && left.ctype == right.ctype
         {
-            // not sure what type to use here, C11 standard doesn't mention it
-            (left.ctype.clone(), true)
+            // C11 6.5.6: subtracting two compatible object pointers yields
+            // ptrdiff_t. SIA32 uses a 32-bit signed long for this frontend
+            // representation; importantly, the result is not pointer-typed.
+            (Type::Long(true), false)
         } else {
             // check if already type error
             if left.ctype != Type::Error && right.ctype != Type::Error {
