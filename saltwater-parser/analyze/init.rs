@@ -91,7 +91,9 @@ impl PureAnalyzer {
                 };
                 if designators.len() != 1 {
                     self.err(
-                        SemanticError::from("nested designated initializer paths are not supported yet"),
+                        SemanticError::from(
+                            "nested designated initializer paths are not supported yet",
+                        ),
                         location,
                     );
                     continue;
