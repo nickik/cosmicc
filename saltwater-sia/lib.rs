@@ -2175,6 +2175,33 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
     }
 
+    fn runtime_sizeof_type(&mut self, ctype: &Type, location: Location) -> Result<Value, Error> {
+        match ctype {
+            Type::Array(
+                element,
+                saltwater_parser::data::types::ArrayType::Variable(bound_expression),
+            ) => {
+                let bound = self.compile_expr(bound_expression)?;
+                let bound_ty = self.builder.func.dfg.value_type(bound);
+                let bound = if bound_ty == types::I32 {
+                    bound
+                } else if bound_ty.bits() < types::I32.bits() {
+                    self.builder.ins().uextend(types::I32, bound)
+                } else {
+                    self.builder.ins().ireduce(types::I32, bound)
+                };
+                let element_size = self.runtime_sizeof_type(element, location)?;
+                Ok(self.builder.ins().imul(bound, element_size))
+            }
+            _ => {
+                let size = ctype
+                    .sizeof()
+                    .map_err(|_| unsupported(location, "VLA element type must be complete"))?;
+                Ok(self.builder.ins().iconst(types::I32, size as i64))
+            }
+        }
+    }
+
     fn compile_local(
         &mut self,
         declaration: &Declaration,
@@ -2194,9 +2221,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             saltwater_parser::data::types::ArrayType::Variable(bound_expression),
         ) = &metadata.ctype
         {
-            let element_size = element
-                .sizeof()
-                .map_err(|_| unsupported(location, "VLA element type must be complete"))?;
+            let element_size_value = self.runtime_sizeof_type(element, location)?;
             let bound = self.compile_expr(bound_expression)?;
             let bound_ty = self.builder.func.dfg.value_type(bound);
             let bound = if bound_ty == types::I32 {
@@ -2204,9 +2229,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             } else {
                 self.builder.ins().uextend(types::I32, bound)
             };
-            let element_size_value = self.builder.ins().iconst(types::I32, element_size as i64);
             let bytes = self.builder.ins().imul(bound, element_size_value);
-            let alignment = element
+            let alignment_type = match element.as_ref() {
+                Type::Array(inner, _) => inner.as_ref(),
+                other => other,
+            };
+            let alignment = alignment_type
                 .alignof()
                 .map_err(|_| unsupported(location, "VLA element type has unsupported alignment"))?;
             let alignment = u32::try_from(alignment)
