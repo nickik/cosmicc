@@ -1065,6 +1065,9 @@ fn write_global_initializer(
                 Ok(())
             }
             Type::Union(union_type) => {
+                if items.len() > 1 {
+                    return Err(unsupported(location, "too many elements in local union initializer"));
+                }
                 if let Some(item) = items.first() {
                     let members = union_type.members();
                     let first = members.first().ok_or_else(|| {
@@ -2319,13 +2322,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         };
         match ctype {
             Type::Array(element, saltwater_parser::data::types::ArrayType::Fixed(count)) => {
+                if u64::try_from(items.len()).unwrap_or(u64::MAX) > *count {
+                    return Err(unsupported(location, "too many elements in local array initializer"));
+                }
                 let element_size = element
                     .sizeof()
                     .map_err(|_| unsupported(location, "array element has incomplete type"))?;
                 for (index, item) in items.iter().enumerate() {
-                    if u64::try_from(index).unwrap_or(u64::MAX) >= *count {
-                        break;
-                    }
                     let offset = base_offset + (index as u64) * element_size;
                     match item {
                         Initializer::Scalar(_) if element.is_scalar() => {
@@ -2394,6 +2397,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(())
             }
             Type::Struct(struct_type) => {
+                if items.len() > struct_type.members().len() {
+                    return Err(unsupported(location, "too many elements in local struct initializer"));
+                }
                 let mut offset = 0u64;
                 for (field, item) in struct_type.members().iter().zip(items.iter()) {
                     let align = field.ctype.alignof().map_err(|_| {
@@ -4685,6 +4691,27 @@ mod tests {
     fn compiles_address_of_dereference_identity_for_nested_pointers() {
         let artifact = compile_source(
             "int f(int **pp) { int **a = &*pp; int *b = &**pp; return *b + (**a); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn diagnoses_excess_local_aggregate_initializer_elements() {
+        for source in [
+            "int f(void) { int a[2] = {1, 2, 3}; return a[0]; }",
+            "struct pair { int a; int b; }; int f(void) { struct pair p = {1, 2, 3}; return p.a; }",
+            "union value { int a; int b; }; int f(void) { union value v = {1, 2}; return v.a; }",
+        ] {
+            assert!(compile_source(source).is_err(), "{source}");
+        }
+    }
+
+    #[test]
+    fn compiles_deeply_nested_partial_aggregate_initializers() {
+        let artifact = compile_source(
+            "struct leaf { short x; short y; }; struct node { struct leaf leaves[2]; int tail; }; int f(void) { struct node n = {{{1}, {2, 3}}}; return n.leaves[0].x + n.leaves[0].y + n.leaves[1].y + n.tail; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
