@@ -546,7 +546,9 @@ fn scalar_initializer_is_zero(expression: &Expr) -> bool {
         ExprType::Literal(LiteralValue::Int(0))
         | ExprType::Literal(LiteralValue::UnsignedInt(0))
         | ExprType::Literal(LiteralValue::Char(0)) => true,
-        ExprType::Cast(inner) | ExprType::Noop(inner) => scalar_initializer_is_zero(inner),
+        ExprType::Cast(inner) | ExprType::Noop(inner) | ExprType::StaticRef(inner) => {
+            scalar_initializer_is_zero(inner)
+        }
         _ => false,
     }
 }
@@ -597,7 +599,7 @@ fn scalar_initializer_bytes(
         _ => {
             return Err(unsupported(
                 location,
-                format!("global scalar initializer is not a link-time constant: {folded:?}"),
+                "global scalar initializer is not a link-time constant",
             ))
         }
     }
