@@ -2141,12 +2141,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     self.labels.insert(*label, block);
                     block
                 };
-                let dynamic_depth = self.label_dynamic_depths.get(label).copied().ok_or_else(|| {
-                    unsupported(
-                        statement.location,
-                        "forward goto requires VLA scope-depth prepass",
-                    )
-                })?;
+                let dynamic_depth =
+                    self.label_dynamic_depths
+                        .get(label)
+                        .copied()
+                        .ok_or_else(|| {
+                            unsupported(
+                                statement.location,
+                                "forward goto requires VLA scope-depth prepass",
+                            )
+                        })?;
                 if dynamic_depth > self.dynamic_stack_bytes.len() {
                     return Err(unsupported(
                         statement.location,
