@@ -1768,6 +1768,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
     }
 
+    fn release_all_dynamic_stack(&mut self) {
+        for bytes in self.dynamic_stack_bytes.drain(..).rev() {
+            self.builder.ins().stack_free_dynamic(bytes);
+        }
+    }
+
     fn compile_stmt(&mut self, statement: &Stmt) -> Result<(), Error> {
         let _statement_kind = Self::statement_kind(statement);
         // A label starts a new reachable basic block even when the preceding
@@ -1845,6 +1851,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         &expression.ctype,
                         statement.location,
                     )?;
+                    self.release_all_dynamic_stack();
                     self.builder.ins().return_(&[]);
                     self.terminated = true;
                     return Ok(());
@@ -1873,8 +1880,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             }
                         }
                     }
+                    self.release_all_dynamic_stack();
                     self.builder.ins().return_(&[value]);
                 } else {
+                    self.release_all_dynamic_stack();
                     self.builder.ins().return_(&[]);
                 }
                 self.terminated = true;
@@ -5000,6 +5009,14 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_return_across_vla_scope_with_stack_cleanup() {
+        let artifact =
+            compile_source("int f(int n) { { int a[n]; a[0] = 7; return a[0]; } }").unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
     #[test]
     fn lowers_vla_in_nested_scope_before_following_stack_use() {
         let artifact =
