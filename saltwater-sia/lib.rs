@@ -1662,21 +1662,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             self.builder.def_var(variable, updated);
                         }
                     }
-                    ExprType::Member(_, _)
-                    | ExprType::Deref(_)
-                    | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                    _ => {
                         let address = self.compile_lvalue_address(lvalue)?;
                         self.builder
                             .ins()
                             .store(MemFlagsData::new(), stored, address, 0);
-                    }
-                    _ => {
-                        return Err(unsupported(
-                            expression.location,
-                            format!(
-                                "SIA32 post-increment/decrement lowering is not implemented for {lvalue:?}"
-                            ),
-                        ));
                     }
                 }
 
@@ -2910,6 +2900,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_pointer_subtraction_post_update_lvalue() {
+        let artifact = compile_source(
+            "int f(int *p, int n) { (*(p - n))++; return *(p - n); }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
     }
 
     #[test]
