@@ -2621,13 +2621,31 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 let source_ty = self.builder.func.dfg.value_type(value_clif);
                 let dest_ty = ty;
-                if source_ty.is_float() != dest_ty.is_float()
-                    || (source_ty.is_float() && dest_ty.is_float() && source_ty != dest_ty)
-                {
-                    return Err(unsupported(
-                        expression.location,
-                        "floating-point conversion is not supported until L14",
-                    ));
+                if source_ty.is_float() && dest_ty.is_float() {
+                    if source_ty == dest_ty {
+                        return Ok(value_clif);
+                    }
+                    return if source_ty == types::F32 && dest_ty == types::F64 {
+                        Ok(self.builder.ins().fpromote(types::F64, value_clif))
+                    } else {
+                        Ok(self.builder.ins().fdemote(types::F32, value_clif))
+                    };
+                }
+                if source_ty.is_float() {
+                    let signed = is_signed_integer_type(&expression.ctype);
+                    return if signed {
+                        Ok(self.builder.ins().fcvt_to_sint_sat(dest_ty, value_clif))
+                    } else {
+                        Ok(self.builder.ins().fcvt_to_uint_sat(dest_ty, value_clif))
+                    };
+                }
+                if dest_ty.is_float() {
+                    let signed = is_signed_integer_type(&value.ctype);
+                    return if signed {
+                        Ok(self.builder.ins().fcvt_from_sint(dest_ty, value_clif))
+                    } else {
+                        Ok(self.builder.ins().fcvt_from_uint(dest_ty, value_clif))
+                    };
                 }
 
                 if source_ty == dest_ty {
@@ -4461,15 +4479,29 @@ mod tests {
     }
 
     #[test]
-    fn rejects_float_to_integer_cast_until_l14() {
-        let error = compile_source("int main(void) { return (int)1.0; }").unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("floating-point conversion is not supported until L14"),
-            "{}",
-            error
-        );
+    fn lowers_integer_float_conversions_to_clif_before_backend_boundary() {
+        for (source, instruction) in [
+            ("float f(int x) { return (float)x; }", "fcvt_from_sint"),
+            ("float f(unsigned x) { return (float)x; }", "fcvt_from_uint"),
+            ("int f(float x) { return (int)x; }", "fcvt_to_sint_sat"),
+            ("unsigned f(float x) { return (unsigned)x; }", "fcvt_to_uint_sat"),
+        ] {
+            let error = compile_source(source).unwrap_err();
+            let message = error.to_string();
+            assert!(message.contains(instruction), "{message}");
+        }
+    }
+
+    #[test]
+    fn lowers_float_width_conversions_to_clif_before_backend_boundary() {
+        for (source, instruction) in [
+            ("double f(float x) { return (double)x; }", "fpromote"),
+            ("float f(double x) { return (float)x; }", "fdemote"),
+        ] {
+            let error = compile_source(source).unwrap_err();
+            let message = error.to_string();
+            assert!(message.contains(instruction), "{message}");
+        }
     }
 
     #[test]
