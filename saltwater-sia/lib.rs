@@ -1606,13 +1606,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else if source_ty.bits() > dest_ty.bits() {
                     Ok(self.builder.ins().ireduce(dest_ty, value_clif))
                 } else {
-                    Err(unsupported(
-                        expression.location,
-                        format!(
-                            "SIA32 cast lowering is not implemented from {:?} to {:?}",
-                            value.ctype, expression.ctype
-                        ),
-                    ))
+                    // All currently supported non-floating scalar SIA32 values
+                    // with equal bit width share the same integer register
+                    // representation (notably pointer/function/integer casts).
+                    debug_assert_eq!(source_ty.bits(), dest_ty.bits());
+                    Ok(value_clif)
                 }
             }
             ExprType::Sizeof(sized) => {
@@ -2626,6 +2624,16 @@ mod tests {
             .functions
             .iter()
             .all(|function| !function.code.is_empty()));
+    }
+
+    #[test]
+    fn compiles_equal_width_pointer_integer_and_function_casts() {
+        let artifact = compile_source(
+            "int inc(int x) { return x + 1; } unsigned int f(int *p) { unsigned int x = (unsigned int)p; int *q = (int *)x; int (*fp)(int) = (int (*)(int))inc; return (unsigned int)q + (unsigned int)fp; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
     }
 
     #[test]
