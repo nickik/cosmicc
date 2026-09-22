@@ -580,7 +580,7 @@ fn scalar_initializer_bytes(
                 "string scalar initialization requires SIA32 string-data lowering",
             ));
         }
-        _ if folded.is_zero() && matches!(target, Type::Pointer(_, _)) => {}
+        _ if folded.is_zero() => {}
         _ => {
             return Err(unsupported(
                 location,
@@ -3541,12 +3541,19 @@ mod tests {
             "struct pair { int x; int y; }; int target(void) { return 1; } int global; int *p = &global; int (*fp)(void) = target; struct pair pair; int *member = &pair.y;",
         )
         .unwrap();
-        assert_eq!(artifact.data.len(), 4);
-        assert_eq!(artifact.data[1].relocations[0].target, "global");
-        assert_eq!(artifact.data[1].relocations[0].addend, 0);
-        assert_eq!(artifact.data[2].relocations[0].target, "target");
-        assert_eq!(artifact.data[3].relocations[0].target, "pair");
-        assert_eq!(artifact.data[3].relocations[0].addend, 4);
+        assert_eq!(artifact.data.len(), 5);
+        let p = artifact.data.iter().find(|object| object.name == "p").unwrap();
+        let fp = artifact.data.iter().find(|object| object.name == "fp").unwrap();
+        let member = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "member")
+            .unwrap();
+        assert_eq!(p.relocations[0].target, "global");
+        assert_eq!(p.relocations[0].addend, 0);
+        assert_eq!(fp.relocations[0].target, "target");
+        assert_eq!(member.relocations[0].target, "pair");
+        assert_eq!(member.relocations[0].addend, 4);
     }
 
     #[test]
