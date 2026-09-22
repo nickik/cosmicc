@@ -4860,4 +4860,30 @@ mod tests {
             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
         }
     }
+    #[test]
+    fn lowers_local_designated_initializers_to_sia32() {
+        let artifact = compile_source(
+            "struct s { int a; int b; int c; }; int f(void) { int a[5] = { [2] = 7, 8 }; struct s v = { .b = 4, 5 }; return a[0] + a[2] + a[3] + v.a + v.b + v.c; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn lowers_global_designated_initializers_to_data() {
+        let artifact = compile_source(
+            "int a[5] = { [2] = 7, 8 }; struct s { int a; int b; int c; }; struct s v = { .b = 4, 5 }; int f(void) { return a[2] + v.b; }",
+        )
+        .unwrap();
+        let array = artifact.data.iter().find(|object| object.name == "a").unwrap();
+        assert_eq!(&array.bytes[0..8], &[0; 8]);
+        assert_eq!(&array.bytes[8..12], &7i32.to_le_bytes());
+        assert_eq!(&array.bytes[12..16], &8i32.to_le_bytes());
+        let value = artifact.data.iter().find(|object| object.name == "v").unwrap();
+        assert_eq!(&value.bytes[0..4], &[0; 4]);
+        assert_eq!(&value.bytes[4..8], &4i32.to_le_bytes());
+        assert_eq!(&value.bytes[8..12], &5i32.to_le_bytes());
+    }
+
 }
