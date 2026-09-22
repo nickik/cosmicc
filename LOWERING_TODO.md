@@ -18,7 +18,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 
 - [x] **L10 — `float` type:** represent and lower C `float` values.
 - [x] **L11 — `double` type:** represent and lower C `double` values.
-- [ ] **L12 — FP arithmetic:** lower floating `+`, `-`, `*`, and `/` (and unary negation where applicable).
+- [x] **L12 — FP arithmetic:** lower floating `+`, `-`, `*`, and `/` (and unary negation where applicable).
 - [ ] **L13 — FP comparisons:** lower floating equality and ordered comparisons to C integer booleans.
 - [ ] **L14 — FP conversions:** lower integer ↔ float/double and float ↔ double conversions.
 - [ ] **L15 — FP ABI:** support floating-point parameters, return values, direct calls, and indirect calls according to the SIA32 ABI.
