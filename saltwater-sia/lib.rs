@@ -2621,6 +2621,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 let source_ty = self.builder.func.dfg.value_type(value_clif);
                 let dest_ty = ty;
+                if source_ty.is_float() != dest_ty.is_float()
+                    || (source_ty.is_float() && dest_ty.is_float() && source_ty != dest_ty)
+                {
+                    return Err(unsupported(
+                        expression.location,
+                        "floating-point conversion is not supported until L14",
+                    ));
+                }
 
                 if source_ty == dest_ty {
                     Ok(value_clif)
@@ -4409,32 +4417,38 @@ mod tests {
     }
 
     #[test]
-    fn compiles_f32_arithmetic_and_negation_to_clif() {
-        let artifact = compile_source(
+    fn lowers_f32_arithmetic_to_clif_before_backend_boundary() {
+        let error = compile_source(
             "float f(float a, float b) { return -(a + b) * (a - b) / b; }",
         )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("SSA value type f32"), "{message}");
+        for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
+            assert!(message.contains(instruction), "{message}");
+        }
     }
 
     #[test]
-    fn compiles_f64_arithmetic_and_negation_to_clif() {
-        let artifact = compile_source(
+    fn lowers_f64_arithmetic_to_clif_before_backend_boundary() {
+        let error = compile_source(
             "double f(double a, double b) { return -(a + b) * (a - b) / b; }",
         )
-        .unwrap();
-        assert_eq!(artifact.functions.len(), 1);
-        assert!(!artifact.functions[0].code.is_empty());
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("SSA value type f64"), "{message}");
+        for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
+            assert!(message.contains(instruction), "{message}");
+        }
     }
 
     #[test]
     fn rejects_float_to_integer_cast_until_l14() {
         let error = compile_source("int main(void) { return (int)1.0; }").unwrap_err();
         assert!(
-            error.to_string().contains("cast")
-                || error.to_string().contains("floating")
-                || error.to_string().contains("type"),
+            error
+                .to_string()
+                .contains("floating-point conversion is not supported until L14"),
             "{}",
             error
         );
