@@ -356,6 +356,15 @@ impl Display for Initializer {
                 write!(f, "{}", joined(items, ", "))?;
                 write!(f, " }}")
             }
+            Initializer::Designated(designators, initializer) => {
+                for designator in designators {
+                    match designator {
+                        Designator::Member(member) => write!(f, ".{}", member)?,
+                        Designator::Index(index) => write!(f, "[{}]", index)?,
+                    }
+                }
+                write!(f, " = {}", initializer)
+            }
         }
     }
 }
