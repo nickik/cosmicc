@@ -2838,37 +2838,22 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 let storage_ty = ir_type(&lvalue.ctype, expression.location)?;
                 let stored = self.coerce_integer_value(updated, storage_ty, &lvalue.ctype);
 
-                match &lvalue.expr {
-                    ExprType::Id(symbol) => {
-                        if let Some(slot) = self.stack_locals.get(symbol).copied() {
-                            self.builder.ins().stack_store(types::I32, stored, slot, 0);
-                        } else {
-                            let variable =
-                                self.variables.get(symbol).copied().ok_or_else(|| {
-                                    unsupported(
-                                        expression.location,
-                                        "SIA32 post-increment/decrement target is not a mapped local",
-                                    )
-                                })?;
-                            self.builder.def_var(variable, updated);
-                        }
-                    }
-                    ExprType::Member(_, _)
-                    | ExprType::Deref(_)
-                    | ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
+                if let ExprType::Id(symbol) = &lvalue.expr {
+                    if let Some(slot) = self.stack_locals.get(symbol).copied() {
+                        self.builder.ins().stack_store(types::I32, stored, slot, 0);
+                    } else if let Some(variable) = self.variables.get(symbol).copied() {
+                        self.builder.def_var(variable, updated);
+                    } else {
                         let address = self.compile_lvalue_address(lvalue)?;
                         self.builder
                             .ins()
                             .store(MemFlagsData::new(), stored, address, 0);
                     }
-                    _ => {
-                        return Err(unsupported(
-                            expression.location,
-                            format!(
-                                "SIA32 post-increment/decrement lowering is not implemented for {lvalue:?}"
-                            ),
-                        ));
-                    }
+                } else {
+                    let address = self.compile_lvalue_address(lvalue)?;
+                    self.builder
+                        .ins()
+                        .store(MemFlagsData::new(), stored, address, 0);
                 }
 
                 Ok(old)
@@ -4636,6 +4621,36 @@ mod tests {
     fn compiles_chained_assignment_values() {
         let artifact = compile_source(
             "int f(int *p) { int a; int b; a = b = *p = 6; return a + b + *p; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_post_increment_and_decrement_of_globals() {
+        let artifact = compile_source(
+            "int g; int f(void) { g = 4; int a = g++; int b = g--; return a + b + g; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_post_increment_through_nested_pointer_lvalues() {
+        let artifact = compile_source(
+            "int f(int **pp) { int old = (**pp)++; (**pp)--; return old + **pp; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_post_increment_through_cast_wrapped_member_and_index_lvalues() {
+        let artifact = compile_source(
+            "struct pair { short x; }; int f(struct pair *p, short *a, int i) { p->x++; a[i]--; return p->x + a[i]; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
