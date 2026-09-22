@@ -160,7 +160,6 @@ pub enum Type {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub enum ArrayType {
     Fixed(u64),
     /// Runtime bound preserved from a simple local identifier expression.
@@ -460,7 +459,14 @@ pub(crate) mod tests {
             prop_oneof![
                 (inner.clone(), any::<Qualifiers>())
                     .prop_map(|(t, q)| Type::Pointer(Box::new(t), q)),
-                (inner, any::<ArrayType>()).prop_map(|(t, at)| Type::Array(Box::new(t), at)),
+                (
+                    inner,
+                    prop_oneof![
+                        any::<u16>().prop_map(|n| ArrayType::Fixed(u64::from(n))),
+                        Just(ArrayType::Unbounded),
+                    ],
+                )
+                    .prop_map(|(t, at)| Type::Array(Box::new(t), at)),
                 //Type::Function(FunctionType),
                 //Type::Union(StructType),
                 //Type::Struct(StructType),
