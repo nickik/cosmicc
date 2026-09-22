@@ -16,8 +16,8 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 
 ## Floating point
 
-- [ ] **L10 — `float` type:** represent and lower C `float` values.
-- [ ] **L11 — `double` type:** represent and lower C `double` values.
+- [x] **L10 — `float` type:** represent and lower C `float` values.
+- [x] **L11 — `double` type:** represent and lower C `double` values.
 - [ ] **L12 — FP arithmetic:** lower floating `+`, `-`, `*`, and `/` (and unary negation where applicable).
 - [ ] **L13 — FP comparisons:** lower floating equality and ordered comparisons to C integer booleans.
 - [ ] **L14 — FP conversions:** lower integer ↔ float/double and float ↔ double conversions.
