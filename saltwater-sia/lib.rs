@@ -1596,6 +1596,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     switch_cases: Vec<(HashMap<u64, Block>, Option<Block>)>,
     labels: HashMap<saltwater_parser::intern::InternedStr, Block>,
     terminated: bool,
+    dynamic_stack_bytes: Vec<Value>,
 }
 
 impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
@@ -1628,6 +1629,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             switch_cases: Vec::new(),
             labels: HashMap::new(),
             terminated: false,
+            dynamic_stack_bytes: Vec::new(),
         }
     }
 
@@ -1796,11 +1798,19 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         }
         match &statement.data {
             StmtType::Compound(statements) => {
+                let dynamic_depth = self.dynamic_stack_bytes.len();
                 for statement in statements {
                     // Do not prune here: labels, including case/default labels,
                     // can restore reachability after a terminating statement.
                     // compile_stmt itself ignores unreachable ordinary statements.
                     self.compile_stmt(statement)?;
+                }
+                if !self.terminated {
+                    for bytes in self.dynamic_stack_bytes.drain(dynamic_depth..).rev() {
+                        self.builder.ins().stack_free_dynamic(bytes);
+                    }
+                } else {
+                    self.dynamic_stack_bytes.truncate(dynamic_depth);
                 }
                 Ok(())
             }
@@ -2254,6 +2264,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 bytes
             };
             let base = self.builder.ins().stack_alloc_dynamic(types::I32, bytes);
+            self.dynamic_stack_bytes.push(bytes);
             let base_variable = self.builder.declare_var(types::I32);
             self.builder.def_var(base_variable, base);
             self.vla_bases.insert(declaration.symbol, base_variable);
