@@ -85,6 +85,7 @@ impl PureAnalyzer {
         use ast::Initializer::{Aggregate, Designated, Scalar};
 
         let mut elems = vec![];
+        let mut current = 0usize;
         if list.peek().is_none() {
             self.err(SemanticError::EmptyInitializer, location);
             return Initializer::InitializerList(elems);
@@ -148,12 +149,16 @@ impl PureAnalyzer {
                 } else {
                     elems[target] = value;
                 }
+                current = target + 1;
                 if matches!(elem_type, Type::Union(_)) {
                     break;
                 }
                 continue;
             }
-            let inner = elem_type.type_at(elems.len()).unwrap_or_else(|err| {
+            while elems.len() < current {
+                elems.push(Initializer::Zero);
+            }
+            let inner = elem_type.type_at(current).unwrap_or_else(|err| {
                 // int a[1] = {1, 2};
                 self.err(err, location);
                 Type::Error
@@ -197,7 +202,12 @@ impl PureAnalyzer {
                     }
                 }
             };
-            elems.push(next);
+            if elems.len() == current {
+                elems.push(next);
+            } else {
+                elems[current] = next;
+            }
+            current += 1;
 
             // Otherwise, only enough initializers from the list are taken
             // to account for the elements or members of the subaggregate
@@ -205,7 +215,7 @@ impl PureAnalyzer {
             // any remaining initializers are left to initialize the next
             // element or member of the aggregate of which the current
             // subaggregate or contained union is a part.
-            if elems.len() == elem_type.type_len() {
+            if current == elem_type.type_len() {
                 break;
             }
         }
@@ -336,4 +346,13 @@ mod test {
         assert_eq!(results.len(), 1);
         assert!(results.into_iter().all(|result| result.is_ok()));
     }
+    #[test]
+    fn designated_initializer_continues_at_following_subobject() {
+        let results = crate::analyze::test::decls(
+            "int a[5] = { [2] = 7, 8, 9 }; struct s { int a; int b; int c; }; struct s v = { .b = 4, 5 };",
+        );
+        assert_eq!(results.len(), 2);
+        assert!(results.into_iter().all(|result| result.is_ok()));
+    }
+
 }
