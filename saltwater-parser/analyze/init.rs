@@ -172,7 +172,9 @@ impl PureAnalyzer {
                     }
                     _ => unreachable!(),
                 },
-                Designated(_, _) => unreachable!("designators are handled before positional elements"),
+                Designated(_, _) => {
+                    unreachable!("designators are handled before positional elements")
+                }
                 Scalar(_) => {
                     // int a[][3] = {1,2,3}
                     //               ^
@@ -334,5 +336,4 @@ mod test {
         assert_eq!(results.len(), 3);
         assert!(results.into_iter().all(|result| result.is_ok()));
     }
-
 }
