@@ -472,10 +472,7 @@ impl PureAnalyzer {
         // which later forced an invalid pointer-to-integer implicit cast.
         let offset = index.rval();
         let size_expr = match pointee {
-            Type::Array(
-                element,
-                crate::data::types::ArrayType::Variable(bound_expression),
-            ) => {
+            Type::Array(element, crate::data::types::ArrayType::Variable(bound_expression)) => {
                 let element_size = match element.sizeof() {
                     Ok(size) => size,
                     Err(_) => {
@@ -496,11 +493,7 @@ impl PureAnalyzer {
                     lval: false,
                     location: offset.location,
                     ctype: offset.ctype.clone(),
-                    expr: ExprType::Binary(
-                        BinaryOp::Mul,
-                        Box::new(element_size),
-                        Box::new(bound),
-                    ),
+                    expr: ExprType::Binary(BinaryOp::Mul, Box::new(element_size), Box::new(bound)),
                 }
             }
             _ => {
