@@ -1304,9 +1304,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             // Saltwater lowers subscripting into pointer arithmetic and can
             // leave that Binary(Add, ...) directly as the lvalue.
-            ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
-                self.compile_expr(lvalue)
-            }
+            ExprType::Binary(
+                saltwater_parser::data::hir::BinaryOp::Add
+                | saltwater_parser::data::hir::BinaryOp::Sub,
+                _,
+                _,
+            ) => self.compile_expr(lvalue)
             ExprType::Noop(inner) | ExprType::Cast(inner) => self.compile_lvalue_address(inner),
             _ => Err(unsupported(
                 lvalue.location,
@@ -2643,6 +2646,16 @@ mod tests {
     fn compiles_address_of_local_and_member_through_common_lvalue_path() {
         let artifact = compile_source(
             "struct pair { int x; }; int f(void) { int x = 1; struct pair p; int *a = &x; int *b = &p.x; *b = 4; return *a + *b; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_address_of_pointer_subtraction_lvalue() {
+        let artifact = compile_source(
+            "int f(int *p, int n) { int *q = p - n; *q = 7; return *q; }",
         )
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
