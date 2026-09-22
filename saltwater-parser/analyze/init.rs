@@ -363,5 +363,4 @@ mod test {
         assert_eq!(results.len(), 2);
         assert!(results.into_iter().all(|result| result.is_ok()));
     }
-
 }

@@ -879,11 +879,19 @@ impl PureAnalyzer {
             Array { of, size } => {
                 // int a[5]
                 let size = if let Some(expr) = size {
-                    let size = Self::const_uint(self.expr(*expr)).unwrap_or_else(|err| {
-                        self.error_handler.push_back(err);
-                        1
-                    });
-                    ArrayType::Fixed(size)
+                    let analyzed = self.expr(*expr).rval();
+                    match Self::const_uint(analyzed.clone()) {
+                        Ok(size) => ArrayType::Fixed(size),
+                        Err(error) => match analyzed.expr {
+                            ExprType::Id(symbol) if analyzed.ctype.is_integral() => {
+                                ArrayType::Variable(symbol)
+                            }
+                            _ => {
+                                self.error_handler.push_back(error);
+                                ArrayType::Fixed(1)
+                            }
+                        },
+                    }
                 } else {
                     // int a[]
                     ArrayType::Unbounded

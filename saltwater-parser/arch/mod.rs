@@ -116,7 +116,8 @@ impl Type {
             Array(t, ArrayType::Fixed(l)) => t
                 .sizeof()
                 .and_then(|n| n.checked_mul(*l).ok_or("overflow in array size")),
-            Array(_, ArrayType::Unbounded) => Err("cannot take sizeof variable length array"),
+            Array(_, ArrayType::Variable(_)) => Err("cannot statically take sizeof variable length array"),
+            Array(_, ArrayType::Unbounded) => Err("cannot take sizeof incomplete array"),
             Enum(_, symbols) => {
                 let uchar = CHAR_BIT as usize;
                 // integer division, but taking the ceiling instead of the floor

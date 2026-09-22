@@ -2,8 +2,6 @@
 
 use super::hir::{Symbol, Variable};
 use crate::intern::InternedStr;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 use std::fmt::{self, Formatter};
 pub use struct_ref::{StructRef, StructType};
 
@@ -160,9 +158,10 @@ pub enum Type {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub enum ArrayType {
     Fixed(u64),
+    /// Runtime bound preserved from a simple local identifier expression.
+    Variable(Symbol),
     Unbounded,
 }
 
@@ -323,6 +322,7 @@ pub(super) fn print_type(
                 prefixes.push(String::new());
                 postfixes.push(match array_type {
                     ArrayType::Fixed(length) => format!("[{}]", length),
+                    ArrayType::Variable(symbol) => format!("[{}]", symbol.get().id),
                     ArrayType::Unbounded => "[]".to_string(),
                 });
             }
@@ -458,7 +458,14 @@ pub(crate) mod tests {
             prop_oneof![
                 (inner.clone(), any::<Qualifiers>())
                     .prop_map(|(t, q)| Type::Pointer(Box::new(t), q)),
-                (inner, any::<ArrayType>()).prop_map(|(t, at)| Type::Array(Box::new(t), at)),
+                (
+                    inner,
+                    prop_oneof![
+                        any::<u16>().prop_map(|n| ArrayType::Fixed(u64::from(n))),
+                        Just(ArrayType::Unbounded),
+                    ],
+                )
+                    .prop_map(|(t, at)| Type::Array(Box::new(t), at)),
                 //Type::Function(FunctionType),
                 //Type::Union(StructType),
                 //Type::Struct(StructType),

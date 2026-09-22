@@ -4876,14 +4876,21 @@ mod tests {
             "int a[5] = { [2] = 7, 8 }; struct s { int a; int b; int c; }; struct s v = { .b = 4, 5 }; int f(void) { return a[2] + v.b; }",
         )
         .unwrap();
-        let array = artifact.data.iter().find(|object| object.name == "a").unwrap();
+        let array = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "a")
+            .unwrap();
         assert_eq!(&array.bytes[0..8], &[0; 8]);
         assert_eq!(&array.bytes[8..12], &7i32.to_le_bytes());
         assert_eq!(&array.bytes[12..16], &8i32.to_le_bytes());
-        let value = artifact.data.iter().find(|object| object.name == "v").unwrap();
+        let value = artifact
+            .data
+            .iter()
+            .find(|object| object.name == "v")
+            .unwrap();
         assert_eq!(&value.bytes[0..4], &[0; 4]);
         assert_eq!(&value.bytes[4..8], &4i32.to_le_bytes());
         assert_eq!(&value.bytes[8..12], &5i32.to_le_bytes());
     }
-
 }
