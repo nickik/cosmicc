@@ -465,13 +465,10 @@ impl PureAnalyzer {
         location: Location,
     ) -> Expr {
         // the idea is to desugar to `base + sizeof(base)*index`
-        let offset = Expr {
-            lval: false,
-            location: index.location,
-            expr: ExprType::Cast(Box::new(index)),
-            ctype: base.ctype.clone(),
-        }
-        .rval();
+        // Keep the index in its integer domain. Older lowering cast the
+        // integer index to the pointer type before multiplying by sizeof(T),
+        // which later forced an invalid pointer-to-integer implicit cast.
+        let offset = index.rval();
         let size = match pointee.sizeof() {
             Ok(s) => s,
             Err(_) => {
@@ -483,12 +480,8 @@ impl PureAnalyzer {
             }
         };
         let size_literal = literal(LiteralValue::UnsignedInt(size), offset.location);
-        let size_cast = Expr {
-            lval: false,
-            location: offset.location,
-            ctype: offset.ctype.clone(),
-            expr: ExprType::Cast(Box::new(size_literal)),
-        };
+        let size_cast = size_literal
+            .implicit_cast(&offset.ctype, &mut self.error_handler);
         let offset = Expr {
             lval: false,
             location: offset.location,
