@@ -8,7 +8,7 @@ description = "Cosmic C lowering from typed C HIR to SIA32 machine code"
 path = "lib.rs"
 
 [dependencies]
-cranelift-codegen = { git = "https://github.com/nickik/crainlift", rev = "a974f1e131091e3dc384148d3dbf9cdb7dbd82a8", features = ["std", "sia32"] }
-cranelift-frontend = { git = "https://github.com/nickik/crainlift", rev = "a974f1e131091e3dc384148d3dbf9cdb7dbd82a8" }
+cranelift-codegen = { git = "https://github.com/nickik/crainlift", rev = "5f10ca72f671d13a429203b51d2e98ba3a3c4c0e", features = ["std", "sia32"] }
+cranelift-frontend = { git = "https://github.com/nickik/crainlift", rev = "5f10ca72f671d13a429203b51d2e98ba3a3c4c0e" }
 saltwater-parser = { path = "../saltwater-parser", version = "0.11.0" }
-target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "a974f1e131091e3dc384148d3dbf9cdb7dbd82a8", package = "target-lexicon" }
+target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "5f10ca72f671d13a429203b51d2e98ba3a3c4c0e", package = "target-lexicon" }
