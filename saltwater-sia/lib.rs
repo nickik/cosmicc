@@ -4663,4 +4663,34 @@ mod tests {
         assert!(artifact.functions.iter().all(|function| !function.code.is_empty()));
     }
 
+    #[test]
+    fn compiles_brace_elided_nested_struct_array_initializers() {
+        let artifact = compile_source(
+            "struct inner { int x; int y; }; struct outer { struct inner p; int a[2]; int z; }; int f(void) { struct outer o = {1, 2, 3, 4, 5}; return o.p.y + o.a[1] + o.z; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_scalar_braces_inside_aggregate_initializers() {
+        let artifact = compile_source(
+            "struct pair { int a; int b; }; int f(void) { struct pair p = {{1}, {{2}}}; int a[2] = {{3}, {4}}; return p.a + p.b + a[0] + a[1]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_partial_nested_aggregate_initializers_with_zero_fill() {
+        let artifact = compile_source(
+            "struct inner { int x; int y; }; struct outer { struct inner p; int a[3]; }; int f(void) { struct outer o = {{7}, {8}}; return o.p.x + o.p.y + o.a[0] + o.a[2]; }",
+        )
+        .unwrap();
+        assert_eq!(artifact.functions.len(), 1);
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
 }
