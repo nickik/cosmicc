@@ -1,5 +1,44 @@
 # Native ext2 integration
 
+## Minimal working example
+
+Run from this workspace:
+
+```sh
+sh scripts/check-ext2-minimal.sh
+```
+
+The script creates a fresh disposable 256 KiB ext2 image with 1 KiB blocks,
+128-byte inodes, no optional filesystem features, and a preallocated 32-byte
+`/note.txt`. cosmicc compiles `minimal-write.c` into SIA32 instructions. The
+LightingMachine guest configures PLIO DMA and QDX-B queues, reads the ext2
+superblock/group descriptor/root directory/inode to locate the file, verifies
+its original bytes, overwrites its existing allocation with
+`Hello from Lighting via QDX-B!!\n`, flushes, and reads back. FileDisk is attached
+as QDX-B namespace 1; guest transfers use the physical PLIO-TX/QIC/QLI-16/QDX-A/
+QDX-B card path. Host filesystem tools only prepare the fixture and independently
+verify the final image. `cmp` checks all 32 bytes and `e2fsck -fn` checks structure.
+
+Acceptance: 14,163 guest instructions; independent bytes and e2fsck passed on
+`/tmp/ext2-minimal-final-verified/disk.img`. This is the regular LightingMachine
+simulator path. The existing standalone Bluespec board-runner bridge was not
+used for acceptance. No 64-bit arithmetic, e2fsprogs linking, libc, allocator,
+file creation, size change, or block allocation is required by this example.
+
+The guest is deliberately limited to this fixture layout and the existing file.
+It polls the last DMA-written CQ word and drains the local QLI completion tail
+before acknowledging CQ entries; active-transfer worker polling is not yet
+accepted by this simulator composition. This is a minimal integration example,
+not a general ext2 driver.
+
+Coordinated changes are validated locally. `tools/l21-execution/Cargo.toml`
+currently patches the compiler backend and LightingSimulation to sibling
+checkouts. Replace these development patches with exact published Git revisions
+when the default-branch publication is approved. QDX-B capacity/flush fixes are
+committed in LightingSimulation's vendor submodule; the long-branch fix is
+committed in crainlift3. The test creates a new image and refuses to overwrite
+an existing output image.
+
 ## Current evidence
 
 The e2fsprogs 1.47.2 `alloc.c` GNU named variadic macro blocker is fixed.

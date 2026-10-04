@@ -1781,7 +1781,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         } else {
             return Err(unsupported(
                 location,
-                "SIA32 symbol address has no translation-unit declaration",
+                format!(
+                    "SIA32 symbol address has no translation-unit declaration: {:?}",
+                    symbol.get()
+                ),
             ));
         };
         let external = self
@@ -2874,6 +2877,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
                 self.compile_expr(lvalue)
             }
+            ExprType::Noop(inner) if matches!(&inner.ctype, Type::Pointer(pointee, _) if **pointee == lvalue.ctype) => {
+                self.compile_expr(inner)
+            }
             ExprType::Noop(inner) | ExprType::Cast(inner) => self.compile_lvalue_address(inner),
             ExprType::StaticRef(inner) => self.compile_lvalue_address(inner),
             _ => Err(unsupported(
@@ -3229,7 +3235,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                     }
                 }
-                ExprType::Member(_, _) | ExprType::Noop(_) | ExprType::Cast(_) => {
+                ExprType::Member(_, _) => {
                     let address = self.compile_lvalue_address(pointer)?;
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                 }
@@ -3375,6 +3381,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let mut assignment_left = left;
                     while let ExprType::Noop(inner) | ExprType::Cast(inner) = &assignment_left.expr
                     {
+                        if matches!(&inner.ctype, Type::Pointer(pointee, _) if **pointee == assignment_left.ctype)
+                        {
+                            break;
+                        }
                         assignment_left = inner;
                     }
 

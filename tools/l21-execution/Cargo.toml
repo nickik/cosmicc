@@ -11,3 +11,11 @@ default-run = "cosmicc-l21-execution"
 saltwater-sia = { path = "../../saltwater-sia" }
 lighting-simulation = { git = "https://github.com/nickik/LightingSimulation", rev = "93a565c687f61d4e758af81bbde59ce5c4770996" }
 
+# Coordinated local validation; replace with published exact Git revisions after approval.
+[patch."https://github.com/nickik/LightingSimulation"]
+lighting-simulation = { path = "../../../LightingSimulation" }
+
+[patch."https://github.com/nickik/crainlift"]
+cranelift-codegen = { path = "../../../crainlift3/cranelift/codegen" }
+cranelift-frontend = { path = "../../../crainlift3/cranelift/frontend" }
+target-lexicon = { path = "../../../crainlift3/vendor/target-lexicon-sia" }
