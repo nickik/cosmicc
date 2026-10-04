@@ -3,6 +3,6 @@
 set -eu
 
 cargo fmt --all -- --check
-cargo test -p saltwater-sia --locked
-cargo check --bin cosmicc --locked
+cargo test --workspace --locked
+cargo build --locked
 cargo check --workspace --locked

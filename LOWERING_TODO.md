@@ -30,7 +30,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 - [x] **L18 — Aggregate arguments:** lower structs/unions passed by value through caller-owned ABI copy slots and callee-local copies, preserving C by-value isolation for struct/union parameters including odd-sized objects.
 - [x] **L19 — Aggregate scalar/brace-elided initialization:** audited the frontend-normalized recursive initializer path and cover brace-elided nested struct/array forms, recursively lower scalar sub-braces inside aggregate elements, and cover partial nested initialization and zero-fill behavior.
 - [x] **L20 — Designated aggregate initialization:** AST/parser support member/index designators and nested paths; analyzer normalizes them into positional HIR with explicit sparse `Initializer::Zero` gaps, continuation resumes after the designated subobject, and repeated/backward designators replace prior values with last-initializer-wins semantics. Local and global SIA32 lowering regressions cover sparse arrays and struct member designators.
-- [ ] **L21 — Non-fixed arrays:** frontend and SIA32 backend now preserve and lower integral runtime bound expressions, including identifier and arithmetic forms such as `int a[n]` and `int a[n + 3]`, through aligned `stack_alloc_dynamic` storage. `sizeof(VLA)` lowering is now implemented for direct variable-length array types by evaluating the preserved runtime bound and multiplying by the element size. Multidimensional VLA addressing now covers runtime outer bounds with fixed inner dimensions and adds runtime inner stride lowering for `int a[n][m]` pointer arithmetic. Nested VLA allocation now recursively computes runtime total sizes for fully runtime shapes such as `int a[n][m]`; runtime inner pointer strides are preserved by the analyzer. Scope-lifetime reclamation is now implemented for normally exited compound scopes: Cosmic C tracks dynamic allocation sizes and emits generic `stack_free_dynamic`, with SIA32 lowering restoring r13 by the matching byte count. Return-path cleanup is now implemented by releasing all outstanding dynamic VLA allocations before scalar, void, and aggregate returns. `break` and `continue` now release dynamic VLA allocations from every scope exited by the transfer before branching to their loop/switch targets. `goto` now records lexical VLA depth for labels, releases allocations when transferring out of VLA scopes, preserves allocations for same-depth transfers, and rejects transfers into scopes with active VLAs. Non-local cleanup lowering is complete; execution-level validation follows. Incomplete `T a[]` remains distinct.
+- [x] **L21 — Non-fixed arrays:** frontend and SIA32 backend now preserve and lower integral runtime bound expressions, including identifier and arithmetic forms such as `int a[n]` and `int a[n + 3]`, through aligned `stack_alloc_dynamic` storage. `sizeof(VLA)` lowering is now implemented for direct variable-length array types by evaluating the preserved runtime bound and multiplying by the element size. Multidimensional VLA addressing now covers runtime outer bounds with fixed inner dimensions and adds runtime inner stride lowering for `int a[n][m]` pointer arithmetic. Nested VLA allocation now recursively computes runtime total sizes for fully runtime shapes such as `int a[n][m]`; runtime inner pointer strides are preserved by the analyzer. Scope-lifetime reclamation is now implemented for normally exited compound scopes: Cosmic C tracks dynamic allocation sizes and emits generic `stack_free_dynamic`, with SIA32 lowering restoring r13 by the matching byte count. Return-path cleanup is now implemented by releasing all outstanding dynamic VLA allocations before scalar, void, and aggregate returns. `break` and `continue` now release dynamic VLA allocations from every scope exited by the transfer before branching to their loop/switch targets. `goto` now records lexical VLA depth for labels, releases allocations when transferring out of VLA scopes, preserves allocations for same-depth transfers, and rejects transfers into scopes with active VLAs. Non-local cleanup lowering and local execution validation are complete. `scripts/check-l21-execution.sh` passes 15 VLA cases through the real SoftwareCpuBoard → MainboardFPGA → RAM path, checking return values, intermediate allocation-address reuse, outer-VLA lifetime, and exact final r13 restoration for normal exit, return, break, continue, and goto. It also passes 48 comparison cases, bounded-failure diagnostics, and rejection of goto into an active VLA scope. Local completion checks passed on 2026-10-04 (formatting, workspace tests, and build); the ext2 probe boundary is recorded below. Coordinated backend and Lighting fixes are landed on remote main and exact Git pins replace all local overrides; clean-checkout validation is recorded below. See `tools/l21-execution/README.md`. Incomplete `T a[]` remains distinct.
 
 ## Complete partial lowering families
 
@@ -38,7 +38,7 @@ This checklist tracks lowering work that remains after the ext2-compile-compat m
 - [x] **L23 — Assignment completion:** audited assignable HIR shapes; direct locals/globals retain optimized handling, aggregate-by-value assignment uses object-copy lowering, and all remaining scalar dereference/member/index/wrapped lvalues lower through the common `compile_lvalue_address` path with assignment values preserved for chaining.
 - [x] **L24 — Increment/decrement completion:** audited post-`++`/`--` HIR lowering; direct SSA locals retain the fast path while globals, stack/address-taken locals, dereferences, members, array/index pointer arithmetic, and wrapped legal lvalues store through the common lvalue-address path with declared-width stores and pointer-size scaling.
 - [x] **L25 — Address-of completion:** audited `StaticRef`/address HIR; globals, statics, functions, locals, nested members, array/index lvalues and wrapped legal lvalues use the common address path, while dereference operands preserve the C identity `&*p == p` without a load.
-- [x] **L26 — Aggregate initializer completion:** audited local/global array/struct/union recursion, brace elision, scalar sub-braces, partial/zero-filled objects, unions, and excess-element diagnostics. Designated forms remain separately blocked by L20 because frontend AST/HIR does not preserve designators.
+- [x] **L26 — Aggregate initializer completion:** audited local/global array/struct/union recursion, brace elision, scalar sub-braces, partial/zero-filled objects, unions, and excess-element diagnostics. Designated forms are implemented by L20: the analyzer normalizes member/index designators into positional HIR, including sparse zero-fill and last-initializer-wins behavior.
 - [x] **L27 — Control-flow completion:** exhaustively enumerate every current `StmtType` variant and audit lowering for compound/decl/expr/return, if, while/do/for, switch/case/default/fallthrough, goto/labels, break and continue. No generic legal-statement fallback remains; an exhaustive statement-kind guard forces future HIR variants to be handled explicitly.
 - [x] **L28 — Binary-operator completion:** exhaustively audit every current `BinaryOp`; cover integer arithmetic/div/rem/bitwise/shifts/comparisons with promotions and signedness, short-circuit logical operators, assignment, pointer add/sub/difference/comparisons, and FP arithmetic/comparisons. An exhaustive enum regression forces future operators to be classified explicitly. Pointer arithmetic HIR now preserves the integer index domain instead of casting the index to pointer type before scaling, and pointer-pointer subtraction is typed as a signed integer (`long`/ptrdiff representation) rather than incorrectly retaining pointer type.
 - [x] **L29 — Type lowering completion:** `ir_type()` now exhaustively enumerates every frontend `Type` variant: integer/enum/pointer/function scalars map explicitly, FP maps to CLIF FP types, arrays/structs/unions are explicitly address-only/aggregate-ABI types, and void/va_list/error receive deliberate diagnostics. No wildcard/generic type-lowering fallback remains.
@@ -49,11 +49,48 @@ L1–L9 were reconciled after the completion pass: their implementations and foc
 
 Each lowering item should land as its own commit with focused regression tests. Before marking an item complete:
 
-- [ ] `cargo fmt --all -- --check`
-- [ ] `cargo test --workspace`
-- [ ] `cargo build`
-- [ ] Add positive tests for the new lowering.
-- [ ] Add negative/diagnostic tests where the C construct is invalid or intentionally unsupported.
-- [ ] Re-run the e2fsprogs/ext2 compile probe and record the next concrete boundary.
-- [ ] Avoid weakening existing float rejection until the floating-point slices themselves are implemented.
-- [ ] Avoid host-only fallback lowering; generated code must remain on the C → HIR → CLIF → Cranelift SIA32 → COSMIC-SIA path.
+- [x] `cargo fmt --all -- --check`
+- [x] `cargo test --workspace`
+- [x] `cargo build`
+- [x] Add positive tests for the new lowering.
+- [x] Add negative/diagnostic tests where the C construct is invalid or intentionally unsupported.
+- [x] Re-run the e2fsprogs/ext2 compile probe and record the next concrete boundary.
+- [x] Avoid weakening existing float rejection until the floating-point slices themselves are implemented.
+- [x] Avoid host-only fallback lowering; generated code must remain on the C → HIR → CLIF → Cranelift SIA32 → COSMIC-SIA path.
+
+## L21 local completion evidence — 2026-10-04
+
+`cargo fmt --all -- --check`, `cargo test --workspace`, and `cargo build`
+passed. Workspace tests: 131 parser unit tests, 15 preprocessor profile tests,
+132 lowering tests, and 5 doctests passed (2 existing doctests ignored).
+The native gate passed all 15 VLA cases, 48 comparison cases, bounded execution
+and architectural-fault diagnostics, and rejection of a goto into an active VLA
+scope. Nested VLAs and repeated loop allocations verify intermediate address
+reuse as well as final stack restoration. Float rejection is retained; execution
+uses the real SIA32/mainboard path.
+
+The historical ext2 probe source/configuration was unavailable locally, so the
+probe was reconstructed against the unmodified upstream e2fsprogs **1.47.2**
+release. Archive SHA-256:
+`08242e64ca0e8194d9c1caad49762b19209a06318199b63ce74ae4ef2d74e63c`.
+Reproduce after `cargo build` with:
+
+```sh
+sh scripts/probe-ext2.sh /path/to/e2fsprogs-1.47.2 /tmp/cosmicc-ext2-probe
+cat /tmp/cosmicc-ext2-probe/compile.log
+```
+
+The script requires Python 3 and `compile_et`; it generates SIA32-width type
+headers and a minimal target configuration, without host libc headers or host
+code execution. This is a translation-unit compatibility probe, not a complete
+ext2 library build or validated OS port.
+
+Next actual boundary: `lib/ext2fs/alloc.c:36`, GNU named variadic macro
+`# define dbg_printf(f, a...)`. Compilation exits 1 with `invalid macro: missing
+',' or ')' in macro parameter list`, followed by `expected ',' or ')', got ...`,
+`expected identifier or ')', got )`, and cascading undeclared `dbg_printf`
+diagnostics. No ext2 source rewrite was used to bypass this failure.
+
+- [x] Land coordinated backend/Lighting changes, replace local Cargo overrides
+  with exact merged Git pins, and update the supported CI gate to workspace tests
+  and compiler build. Native validation requires Bluespec and repository read access.

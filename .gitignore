@@ -5,3 +5,6 @@
 /fuzz/afl/inputs
 /fuzz/afl/outputs
 /tests/*
+
+/tools/l21-execution/target/
+!/tools/l21-execution/Cargo.lock

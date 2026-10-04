@@ -372,10 +372,10 @@ impl Artifact {
 
     /// Prepare one scalar SystemV SIA32 call for an external Lighting harness.
     ///
-    /// The initial compiler subset has no relocations, globals, calls, or
-    /// stack locals. Therefore a function can be loaded verbatim at an aligned
+    /// Functions without relocations can be loaded verbatim at an aligned
     /// address. `lr` is set immediately past the code so a normal return gives
-    /// the harness one explicit return boundary.
+    /// the harness one explicit return boundary. The caller must initialize
+    /// r13 to valid board RAM before executing functions that use the stack.
     pub fn prepare_integer_call(
         &self,
         name: &str,
@@ -713,6 +713,126 @@ fn collect_string_literals_stmt(statement: &Stmt, strings: &mut HashMap<Vec<u8>,
             for declaration in declarations {
                 if let Some(initializer) = &declaration.data.init {
                     collect_string_literals_initializer(initializer, strings);
+                }
+            }
+        }
+        StmtType::Goto(_) | StmtType::Continue | StmtType::Break => {}
+    }
+}
+
+fn mark_addressed_lvalue(expression: &Expr, locals: &mut HashSet<Symbol>) {
+    match &expression.expr {
+        ExprType::Id(symbol) => {
+            locals.insert(*symbol);
+        }
+        ExprType::Noop(value) | ExprType::Cast(value) | ExprType::Member(value, _) => {
+            mark_addressed_lvalue(value, locals);
+        }
+        _ => {}
+    }
+}
+
+fn collect_addressed_locals_expr(expression: &Expr, locals: &mut HashSet<Symbol>) {
+    if let ExprType::StaticRef(value) = &expression.expr {
+        mark_addressed_lvalue(value, locals);
+    }
+    match &expression.expr {
+        ExprType::FuncCall(function, arguments) => {
+            collect_addressed_locals_expr(function, locals);
+            for argument in arguments {
+                collect_addressed_locals_expr(argument, locals);
+            }
+        }
+        ExprType::Member(value, _)
+        | ExprType::PostIncrement(value, _)
+        | ExprType::Cast(value)
+        | ExprType::Deref(value)
+        | ExprType::Negate(value)
+        | ExprType::BitwiseNot(value)
+        | ExprType::StaticRef(value)
+        | ExprType::Noop(value) => collect_addressed_locals_expr(value, locals),
+        ExprType::Binary(_, left, right) | ExprType::Comma(left, right) => {
+            collect_addressed_locals_expr(left, locals);
+            collect_addressed_locals_expr(right, locals);
+        }
+        ExprType::Ternary(condition, yes, no) => {
+            collect_addressed_locals_expr(condition, locals);
+            collect_addressed_locals_expr(yes, locals);
+            collect_addressed_locals_expr(no, locals);
+        }
+        ExprType::Id(_) | ExprType::Literal(_) | ExprType::Sizeof(_) => {}
+    }
+}
+
+fn collect_addressed_locals_initializer(initializer: &Initializer, locals: &mut HashSet<Symbol>) {
+    match initializer {
+        Initializer::Scalar(expression) => {
+            // Hidden pointer temporaries used by compound assignment contain
+            // the original lvalue directly, rather than a StaticRef node.
+            if expression.lval {
+                mark_addressed_lvalue(expression, locals);
+            }
+            collect_addressed_locals_expr(expression, locals);
+        }
+        Initializer::InitializerList(items) => {
+            for item in items {
+                collect_addressed_locals_initializer(item, locals);
+            }
+        }
+        Initializer::Zero => {}
+        Initializer::FunctionBody(statements) => {
+            for statement in statements {
+                collect_addressed_locals_stmt(statement, locals);
+            }
+        }
+    }
+}
+
+fn collect_addressed_locals_stmt(statement: &Stmt, locals: &mut HashSet<Symbol>) {
+    match &statement.data {
+        StmtType::Compound(statements) => {
+            for statement in statements {
+                collect_addressed_locals_stmt(statement, locals);
+            }
+        }
+        StmtType::If(condition, yes, no) => {
+            collect_addressed_locals_expr(condition, locals);
+            collect_addressed_locals_stmt(yes, locals);
+            if let Some(no) = no {
+                collect_addressed_locals_stmt(no, locals);
+            }
+        }
+        StmtType::Do(body, condition) | StmtType::While(condition, body) => {
+            collect_addressed_locals_stmt(body, locals);
+            collect_addressed_locals_expr(condition, locals);
+        }
+        StmtType::For(init, condition, step, body) => {
+            collect_addressed_locals_stmt(init, locals);
+            if let Some(condition) = condition {
+                collect_addressed_locals_expr(condition, locals);
+            }
+            if let Some(step) = step {
+                collect_addressed_locals_expr(step, locals);
+            }
+            collect_addressed_locals_stmt(body, locals);
+        }
+        StmtType::Switch(expression, body) => {
+            collect_addressed_locals_expr(expression, locals);
+            collect_addressed_locals_stmt(body, locals);
+        }
+        StmtType::Label(_, body) | StmtType::Case(_, body) | StmtType::Default(body) => {
+            collect_addressed_locals_stmt(body, locals);
+        }
+        StmtType::Expr(expression) => collect_addressed_locals_expr(expression, locals),
+        StmtType::Return(value) => {
+            if let Some(value) = value {
+                collect_addressed_locals_expr(value, locals);
+            }
+        }
+        StmtType::Decl(declarations) => {
+            for declaration in declarations {
+                if let Some(initializer) = &declaration.data.init {
+                    collect_addressed_locals_initializer(initializer, locals);
                 }
             }
         }
@@ -1427,6 +1547,9 @@ fn compile_function(
                 string_indices,
                 aggregate_return_address,
             );
+            for statement in body {
+                collect_addressed_locals_stmt(statement, &mut lowerer.addressed_locals);
+            }
             for (parameter, value) in parameters.iter().zip(parameter_values.iter()) {
                 let parameter_ctype = &parameter.get().ctype;
                 if is_by_value_aggregate(parameter_ctype) {
@@ -1441,6 +1564,9 @@ fn compile_function(
                 lowerer.builder.def_var(variable, *value);
                 lowerer.variables.insert(*parameter, variable);
                 lowerer.variable_types.insert(*parameter, parameter_ty);
+                if lowerer.addressed_locals.contains(parameter) {
+                    lowerer.address_of_local(*parameter, location)?;
+                }
             }
             lowerer.record_label_dynamic_depths(body);
             for statement in body {
@@ -1586,6 +1712,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     variables: HashMap<Symbol, Variable>,
     variable_types: HashMap<Symbol, cranelift_codegen::ir::Type>,
     stack_locals: HashMap<Symbol, StackSlot>,
+    addressed_locals: HashSet<Symbol>,
     vla_bases: HashMap<Symbol, Variable>,
     function_indices: &'c HashMap<Symbol, u32>,
     global_indices: &'c HashMap<Symbol, u32>,
@@ -1620,6 +1747,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             variables: HashMap::new(),
             variable_types: HashMap::new(),
             stack_locals: HashMap::new(),
+            addressed_locals: HashSet::new(),
             vla_bases: HashMap::new(),
             function_indices,
             global_indices,
@@ -1772,7 +1900,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     }
 
     fn release_all_dynamic_stack(&mut self) {
-        for bytes in self.dynamic_stack_bytes.drain(..).rev() {
+        // A return ends this runtime path, not sibling branches still being
+        // compiled. Lexical scope exit owns removal of allocation metadata.
+        for bytes in self.dynamic_stack_bytes.iter().rev().copied() {
             self.builder.ins().stack_free_dynamic(bytes);
         }
     }
@@ -2141,12 +2271,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     self.labels.insert(*label, block);
                     block
                 };
-                let dynamic_depth = self.label_dynamic_depths.get(label).copied().ok_or_else(|| {
-                    unsupported(
-                        statement.location,
-                        "forward goto requires VLA scope-depth prepass",
-                    )
-                })?;
+                let dynamic_depth =
+                    self.label_dynamic_depths
+                        .get(label)
+                        .copied()
+                        .ok_or_else(|| {
+                            unsupported(
+                                statement.location,
+                                "forward goto requires VLA scope-depth prepass",
+                            )
+                        })?;
                 if dynamic_depth > self.dynamic_stack_bytes.len() {
                     return Err(unsupported(
                         statement.location,
@@ -2416,11 +2550,33 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         let variable = self.builder.declare_var(ty);
         self.variables.insert(declaration.symbol, variable);
         self.variable_types.insert(declaration.symbol, ty);
+        if self.addressed_locals.contains(&declaration.symbol) {
+            let size = u32::from(ty.bytes());
+            let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+                StackSlotKind::ExplicitSlot,
+                size,
+                size.trailing_zeros() as u8,
+            ));
+            self.stack_locals.insert(declaration.symbol, slot);
+        }
 
         match &declaration.init {
             Some(Initializer::Scalar(expression)) => {
-                let initial = self.compile_expr(expression)?;
-                self.builder.def_var(variable, initial);
+                // Compound assignment's hidden pointer temporary is
+                // initialized with an HIR lvalue, meaning its address rather
+                // than its current scalar value.
+                let initial = if expression.lval
+                    && matches!(&metadata.ctype, Type::Pointer(pointee, _) if pointee.as_ref() == &expression.ctype)
+                {
+                    self.compile_lvalue_address(expression)?
+                } else {
+                    self.compile_expr(expression)?
+                };
+                if let Some(slot) = self.stack_locals.get(&declaration.symbol).copied() {
+                    self.builder.ins().stack_store(types::I32, initial, slot, 0);
+                } else {
+                    self.builder.def_var(variable, initial);
+                }
             }
             Some(_) => {
                 return Err(unsupported(
@@ -3082,7 +3238,30 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     lvalue = inner;
                 }
 
-                let old = self.compile_expr(lvalue)?;
+                let old = if let ExprType::Id(symbol) = &lvalue.expr {
+                    if self.variables.contains_key(symbol) || self.stack_locals.contains_key(symbol)
+                    {
+                        self.compile_expr(lvalue)?
+                    } else {
+                        let address = self.compile_lvalue_address(lvalue)?;
+                        self.builder.ins().load(
+                            ir_type(&lvalue.ctype, lvalue.location)?,
+                            MemFlagsData::new(),
+                            address,
+                            0,
+                        )
+                    }
+                } else {
+                    // Indexed lvalues are HIR byte-address expressions. Load
+                    // the element, rather than incrementing that address.
+                    let address = self.compile_lvalue_address(lvalue)?;
+                    self.builder.ins().load(
+                        ir_type(&lvalue.ctype, lvalue.location)?,
+                        MemFlagsData::new(),
+                        address,
+                        0,
+                    )
+                };
                 let value_ty = self.builder.func.dfg.value_type(old);
                 let step = match &lvalue.ctype {
                     Type::Pointer(pointee, _) => {
@@ -3348,40 +3527,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         }
                         _ => None,
                     };
-                    if let Some((pointer_expr, index_expr, pointee, subtract)) = pointer_side {
+                    if let Some((pointer_expr, index_expr, _pointee, subtract)) = pointer_side {
                         let base = self.compile_expr(pointer_expr)?;
                         let index = self.compile_expr(index_expr)?;
                         let index = self.coerce_integer_value(index, types::I32, &index_expr.ctype);
-                        let scale = if let Type::Array(
-                            element,
-                            saltwater_parser::data::types::ArrayType::Variable(bound_expression),
-                        ) = pointee
-                        {
-                            let bound = self.compile_expr(bound_expression)?;
-                            let bound = self.coerce_integer_value(
-                                bound,
-                                types::I32,
-                                &bound_expression.ctype,
-                            );
-                            let element_size = element.sizeof().map_err(|_| {
-                                unsupported(
-                                    expression.location,
-                                    "nested VLA pointer arithmetic requires a complete innermost element type",
-                                )
-                            })?;
-                            let element_size =
-                                self.builder.ins().iconst(types::I32, element_size as i64);
-                            self.builder.ins().imul(bound, element_size)
-                        } else {
-                            let element_size = pointee.sizeof().map_err(|_| {
-                                unsupported(
-                                    expression.location,
-                                    "SIA32 pointer arithmetic requires a complete pointee type",
-                                )
-                            })?;
-                            self.builder.ins().iconst(types::I32, element_size as i64)
-                        };
-                        let delta = self.builder.ins().imul(index, scale);
+                        // Saltwater HIR already multiplies the integer index
+                        // by the (possibly runtime) pointee size. Scale once.
+                        let delta = index;
                         return Ok(if subtract {
                             self.builder.ins().isub(base, delta)
                         } else {
@@ -5148,6 +5300,12 @@ mod tests {
         .unwrap();
         assert_eq!(artifact.functions.len(), 1);
         assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn preserves_outer_vla_cleanup_depth_after_conditional_return() {
+        compile_source("int f(int n, int early) { int outer[n]; outer[0] = 11; for (int i = 0; i < 4; i++) { if (early) return outer[0]; { int a[n+2]; a[n+1] = i; } if (i == 2) break; } return outer[0]; }")
+            .unwrap();
     }
 
     #[test]
