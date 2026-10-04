@@ -66,7 +66,9 @@ retains outer cleanup metadata while compiling conditional returns.
   5 doctests passed; 2 existing doctests ignored), and `cargo build` pass.
 - Lighting SoftwareCpuBoard regressions: three tests pass.
 
-These are local workspace results, not remote CI or merged acceptance evidence.
+The integration also passed from an independent clean clone, using these
+merged Git pins and a freshly built bridge. Remote CI results have not been
+verified. See `LOWERING_TODO.md` for clean-checkout acceptance evidence.
 The reconstructed e2fsprogs 1.47.2 probe was rerun separately using
 `scripts/probe-ext2.sh`; it fails on the GNU named variadic macro in
 `lib/ext2fs/alloc.c:36`. See `LOWERING_TODO.md` for inputs and reproduction.

@@ -86,7 +86,7 @@ code execution. This is a translation-unit compatibility probe, not a complete
 ext2 library build or validated OS port.
 
 Next actual boundary: `lib/ext2fs/alloc.c:36`, GNU named variadic macro
-`# define dbg_printf(f, a...)`. Compilation exits 1 with `invalid macro: missing
+`# define dbg_printf(f, a...)`. Compilation exits 2 with `invalid macro: missing
 ',' or ')' in macro parameter list`, followed by `expected ',' or ')', got ...`,
 `expected identifier or ')', got )`, and cascading undeclared `dbg_printf`
 diagnostics. No ext2 source rewrite was used to bypass this failure.
@@ -94,3 +94,29 @@ diagnostics. No ext2 source rewrite was used to bypass this failure.
 - [x] Land coordinated backend/Lighting changes, replace local Cargo overrides
   with exact merged Git pins, and update the supported CI gate to workspace tests
   and compiler build. Native validation requires Bluespec and repository read access.
+
+## L21 integration acceptance — 2026-10-04
+
+Backend fixes landed on remote `crainlift/main` at
+`8ecc42343f0f467b5d0a445ad97f9c4a77590b3f`; Lighting fixes landed on remote
+`LightingSimulation/main` at `93a565c687f61d4e758af81bbde59ce5c4770996`.
+Cosmic C pins those revisions directly, with no local Cargo patches or sibling
+paths. The parser target lexicon uses the same backend revision.
+
+A fresh independent clone at `/tmp/cosmicc-l21-clean` passed
+`cargo fmt --all -- --check`, `cargo test --workspace`, and `cargo build`.
+`BSC=/tmp/cosmicc-l21-bsc/bin/bsc sh scripts/check-l21-execution.sh` built its
+own MainboardFPGA Bluesim bridge from the Git-pinned Lighting/hardware sources
+and passed all 15 VLA cases, 48 comparisons, bounded/fault diagnostics, and
+invalid-scope-entry rejection. Git status remained clean after validation.
+Dependency sources were Cargo Git checkouts, not the sibling workspace repos.
+Backend focused tests passed: 39 unit, 8 encoding, 4 integration, and 13
+production tests. Lighting's three SoftwareCpuBoard regressions passed.
+The clean compiler reproduces the same ext2 GNU variadic macro boundary
+(exit status 2). Logs for this local session are `/tmp/l21-clean-tests.log`,
+`/tmp/l21-clean-build.log`, and `/tmp/l21-clean-native.log`.
+
+These are clean-checkout local acceptance results; remote CI has not been
+verified. The supported CI script now runs workspace tests and compiler build.
+The separate native gate requires BSC and read credentials for Lighting and its
+hardware submodule; see the gate README for SSH fetch configuration.
