@@ -217,6 +217,7 @@ pub enum ExprType {
     // primary
     Id(InternedStr),
     Literal(LiteralValue),
+    LongLongLiteral(LiteralValue),
 
     // postfix
     FuncCall(Box<Expr>, Vec<Expr>),
@@ -641,7 +642,7 @@ impl Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.data {
             ExprType::Comma(left, right) => write!(f, "{}, {}", *left, *right),
-            ExprType::Literal(token) => write!(f, "{}", token),
+            ExprType::Literal(token) | ExprType::LongLongLiteral(token) => write!(f, "{}", token),
             ExprType::Id(symbol) => write!(f, "{}", symbol),
             ExprType::Add(left, right) => write!(f, "({}) + ({})", left, right),
             ExprType::Sub(left, right) => write!(f, "({}) - ({})", left, right),

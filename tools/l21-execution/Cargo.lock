@@ -85,7 +85,7 @@ dependencies = [
 [[package]]
 name = "cranelift-assembler-x64"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "cranelift-assembler-x64-meta",
 ]
@@ -93,7 +93,7 @@ dependencies = [
 [[package]]
 name = "cranelift-assembler-x64-meta"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "cranelift-srcgen",
 ]
@@ -101,7 +101,7 @@ dependencies = [
 [[package]]
 name = "cranelift-bforest"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "cranelift-entity",
  "wasmtime-internal-core",
@@ -110,7 +110,7 @@ dependencies = [
 [[package]]
 name = "cranelift-bitset"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "wasmtime-internal-core",
 ]
@@ -118,7 +118,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "bumpalo",
  "cranelift-assembler-x64",
@@ -144,7 +144,7 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen-meta"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "cranelift-assembler-x64-meta",
  "cranelift-codegen-shared",
@@ -155,17 +155,17 @@ dependencies = [
 [[package]]
 name = "cranelift-codegen-shared"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 
 [[package]]
 name = "cranelift-control"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 
 [[package]]
 name = "cranelift-entity"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "cranelift-bitset",
  "wasmtime-internal-core",
@@ -174,7 +174,7 @@ dependencies = [
 [[package]]
 name = "cranelift-frontend"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "cranelift-codegen",
  "hashbrown 0.17.1",
@@ -186,12 +186,12 @@ dependencies = [
 [[package]]
 name = "cranelift-isle"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 
 [[package]]
 name = "cranelift-srcgen"
 version = "0.137.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 
 [[package]]
 name = "discard"
@@ -728,7 +728,7 @@ dependencies = [
 [[package]]
 name = "target-lexicon"
 version = "0.13.5-sia.1"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "target-lexicon 0.13.5",
 ]
@@ -863,7 +863,7 @@ dependencies = [
 [[package]]
 name = "wasmtime-internal-core"
 version = "50.0.0-dev"
-source = "git+https://github.com/nickik/crainlift?rev=8ecc42343f0f467b5d0a445ad97f9c4a77590b3f#8ecc42343f0f467b5d0a445ad97f9c4a77590b3f"
+source = "git+https://github.com/nickik/crainlift?rev=3cf7afcb6e771e0de539f5cb9bf413574a8f6963#3cf7afcb6e771e0de539f5cb9bf413574a8f6963"
 dependencies = [
  "hashbrown 0.17.1",
  "libm",

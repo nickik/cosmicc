@@ -141,3 +141,29 @@ pointer assignments, missing timeval/limits declarations, and a 30-second
 compile timeout on block.c. The required target runtime, relocatable image
 loader, existing file-backed QDX-B integration, and remaining acceptance steps
 are tracked in `tools/ext2/README.md`. The filesystem integration remains open.
+
+## Native ext2 continuation — 2026-10-04
+
+The width mismatch is fixed: distinct LongLong types have eight-byte size and
+alignment, signedness/rank/promotion support, and preserved LL/ULL literals.
+Malformed suffix combinations are rejected. Native width preflight now reports
+8/4/4. Eight-byte global initializer contents are covered by a regression.
+
+Backend core `3cf7afcb6e771e0de539f5cb9bf413574a8f6963` is merged and pinned,
+with no local Cargo overrides. Native constants, add/subtract carry/borrow,
+bitwise operations, constant shifts across word boundaries, comparisons,
+extension/reduction and load/store are implemented. The native prerequisite
+gate passes 204 cases, including addressed 64-bit compound assignments and
+signed narrow loads, plus the existing L21 cases and diagnostic gate.
+Frontend HIR now preserves address-of explicitly; stack_load uses the correct
+pointer/value argument order and assignment stores retain the original lvalue
+width. Backend verifier diagnostics include the actual failing instructions.
+Formatting, workspace tests, and build pass. Remote CI is not verified.
+
+Ext2 alloc.c, alloc_sb.c, atexit.c, and badblocks.c compile with corrected widths.
+The next allocation-module failures are imul.i64 in alloc_stats.c and udiv.i64
+in alloc_tables.c. Other observed boundaries remain offsetof, assignments to
+pointers-to-const, and missing strtoul/strchr declarations. File integration is
+still incomplete: linking/runtime, full I64 operation coverage, QDX-B attachment,
+native open/read/create/write/close, and independent image verification remain.
+See `tools/ext2/README.md` and `scripts/check-ext2-native.sh`.

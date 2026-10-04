@@ -261,8 +261,20 @@ impl<I: Lexer> Parser<I> {
             loc.map(ExprType::Id)
         } else if let Some(literal) = self.match_literal() {
             let loc = literal.location;
+            let long_long = match &literal.data {
+                crate::data::lex::LiteralToken::Int(raw)
+                | crate::data::lex::LiteralToken::UnsignedInt(raw) => {
+                    let raw = raw.as_str().to_ascii_lowercase();
+                    raw.ends_with("ll") || raw.ends_with("llu")
+                }
+                _ => false,
+            };
             match literal.data.parse() {
-                Ok(literal) => loc.with(literal).map(ExprType::Literal),
+                Ok(literal) => loc.with(literal).map(if long_long {
+                    ExprType::LongLongLiteral
+                } else {
+                    ExprType::Literal
+                }),
                 Err(err) => return Err(loc.with(err)),
             }
         } else {

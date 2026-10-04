@@ -179,17 +179,27 @@ impl Lexer {
             self.consume_float_suffix();
             return Ok(self.slice(span_start)).map(float_literal);
         }
-        let literal = if self.match_next('u') || self.match_next('U') {
+        // Preserve integer suffixes so the analyzer can distinguish long long.
+        let mut unsigned = false;
+        let mut suffix = String::new();
+        while matches!(self.peek(), Some('u' | 'U' | 'l' | 'L')) {
+            unsigned |= matches!(self.peek(), Some('u' | 'U'));
+            suffix.push(self.peek().unwrap());
+            self.next_char();
+        }
+        if !matches!(
+            suffix.to_ascii_lowercase().as_str(),
+            "" | "u" | "l" | "ul" | "lu" | "ll" | "ull" | "llu"
+        ) || suffix.contains("lL")
+            || suffix.contains("Ll")
+        {
+            return Err(LexError::InvalidIntegerSuffix(suffix));
+        }
+        let literal = if unsigned {
             LiteralToken::UnsignedInt(self.slice(span_start))
         } else {
             LiteralToken::Int(self.slice(span_start))
         };
-        // get rid of 'l' and 'll' suffixes, we don't handle them
-        if self.match_next('l') {
-            self.match_next('l');
-        } else if self.match_next('L') {
-            self.match_next('L');
-        }
         if radix == Radix::Binary {
             let span = self.span(span_start);
             self.warn_loc("binary number literals are an extension", span);

@@ -340,8 +340,7 @@ impl PureAnalyzer {
                         ctype = Some(Type::Long(signed));
                     }
                 }
-                // TODO: implement `long long` as a separate type
-                2 => ctype = Some(Type::Long(signed)),
+                2 => ctype = Some(Type::LongLong(signed)),
                 _ => {
                     self.err(SemanticError::TooLong(long_count), location);
                     ctype = Some(Type::Long(signed));
@@ -411,7 +410,7 @@ impl PureAnalyzer {
             match ctype {
                 None => ctype = Some(Type::Int(signed)),
                 // `long int` is valid
-                Some(Type::Short(_)) | Some(Type::Long(_)) => {}
+                Some(Type::Short(_)) | Some(Type::Long(_)) | Some(Type::LongLong(_)) => {}
                 Some(existing) => {
                     self.err(
                         SemanticError::ConflictingType(existing, Type::Int(signed)),
@@ -455,8 +454,11 @@ impl PureAnalyzer {
         if counter.get(&Signed).is_some() || counter.get(&Unsigned).is_some() {
             match &ctype {
                 // unsigned int
-                Some(Type::Char(_)) | Some(Type::Short(_)) | Some(Type::Int(_))
-                | Some(Type::Long(_)) => {}
+                Some(Type::Char(_))
+                | Some(Type::Short(_))
+                | Some(Type::Int(_))
+                | Some(Type::Long(_))
+                | Some(Type::LongLong(_)) => {}
                 // unsigned float
                 Some(other) => {
                     let err = SemanticError::CannotBeSigned(other.clone());
@@ -1510,7 +1512,7 @@ pub(crate) mod test {
         assert!(match_type(decl("signed short i;"), Type::Short(true)));
         assert!(match_type(decl("unsigned short i;"), Type::Short(false)));
         assert!(match_type(decl("long i;"), Type::Long(true)));
-        assert!(match_type(decl("long long i;"), Type::Long(true)));
+        assert!(match_type(decl("long long i;"), Type::LongLong(true)));
         assert!(match_type(decl("long unsigned i;"), Type::Long(false)));
         assert!(match_type(decl("int i;"), Type::Int(true)));
         assert!(match_type(decl("signed i;"), Type::Int(true)));
@@ -1530,7 +1532,7 @@ pub(crate) mod test {
         assert!(match_type(decl("long double d;"), Type::Double));
         assert!(match_type(decl("short int i;"), Type::Short(true)));
         assert!(match_type(decl("long int i;"), Type::Long(true)));
-        assert!(match_type(decl("long long int i;"), Type::Long(true)));
+        assert!(match_type(decl("long long int i;"), Type::LongLong(true)));
     }
     #[test]
     fn test_bad_decl_specs() {

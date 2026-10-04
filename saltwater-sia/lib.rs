@@ -995,6 +995,9 @@ fn static_address_target(
         match &expression.expr {
             ExprType::Noop(inner) | ExprType::Cast(inner) => resolve(inner, symbols),
             ExprType::StaticRef(inner) => match &inner.expr {
+                ExprType::StaticRef(_) | ExprType::Noop(_) | ExprType::Cast(_) => {
+                    resolve(inner, symbols)
+                }
                 ExprType::Id(symbol) => Ok(symbols.get(symbol).cloned().map(|name| (name, 0))),
                 ExprType::Member(base, member) => {
                     if let ExprType::Id(symbol) = &base.expr {
@@ -1599,8 +1602,8 @@ fn compile_function(
     let mut control_plane = ControlPlane::default();
     let compiled = context.compile(isa, &mut control_plane).map_err(|error| {
         Error::Codegen(format!(
-            "SIA32 lowering failed for {name}: {}\nCLIF:\n{clif}",
-            error.inner
+            "SIA32 lowering failed for {name}: {}\nDetails: {:?}\nCLIF:\n{clif}",
+            error.inner, error.inner
         ))
     })?;
     let code = compiled.code_buffer().to_vec();
@@ -1683,6 +1686,7 @@ fn is_by_value_aggregate(ctype: &Type) -> bool {
 
 fn abi_scalar_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
     match ctype {
+        Type::LongLong(_) => Ok(types::I64),
         Type::Float => Ok(types::F32),
         Type::Double => Ok(types::F64),
         other => ir_type(other, location),
@@ -2068,6 +2072,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             | Type::Short(true)
                             | Type::Int(true)
                             | Type::Long(true)
+                            | Type::LongLong(true)
                             | Type::Enum(_, _)
                     );
                     let mut value = self.compile_expr(expression)?;
@@ -2870,6 +2875,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 self.compile_expr(lvalue)
             }
             ExprType::Noop(inner) | ExprType::Cast(inner) => self.compile_lvalue_address(inner),
+            ExprType::StaticRef(inner) => self.compile_lvalue_address(inner),
             _ => Err(unsupported(
                 lvalue.location,
                 format!("SIA32 cannot form address for lvalue {lvalue:?}"),
@@ -3014,7 +3020,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     if is_address_valued_type(&expression.ctype) {
                         Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                     } else if let Some(value_ty) = self.variable_types.get(symbol).copied() {
-                        Ok(self.builder.ins().stack_load(value_ty, types::I32, slot, 0))
+                        {
+                            let storage_ty = ir_type(&symbol.get().ctype, expression.location)?;
+                            let value =
+                                self.builder
+                                    .ins()
+                                    .stack_load(types::I32, storage_ty, slot, 0);
+                            Ok(self.coerce_integer_value(value, value_ty, &symbol.get().ctype))
+                        }
                     } else {
                         Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                     }
@@ -3119,6 +3132,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                             | Type::Short(true)
                             | Type::Int(true)
                             | Type::Long(true)
+                            | Type::LongLong(true)
                             | Type::Enum(_, _)
                     );
 
@@ -3197,7 +3211,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 ExprType::Id(symbol) => {
                     if let Some(slot) = self.stack_locals.get(symbol).copied() {
                         if let Some(value_ty) = self.variable_types.get(symbol).copied() {
-                            Ok(self.builder.ins().stack_load(value_ty, types::I32, slot, 0))
+                            {
+                                let storage_ty = ir_type(&symbol.get().ctype, expression.location)?;
+                                let value =
+                                    self.builder
+                                        .ins()
+                                        .stack_load(types::I32, storage_ty, slot, 0);
+                                Ok(self.coerce_integer_value(value, value_ty, &symbol.get().ctype))
+                            }
                         } else {
                             Ok(self.builder.ins().stack_addr(types::I32, slot, 0))
                         }
@@ -3358,7 +3379,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
 
                     if matches!(
-                        assignment_left.ctype,
+                        left.ctype,
                         Type::Struct(_) | Type::Union(_) | Type::Array(_, _)
                     ) {
                         let destination = self.compile_lvalue_address(assignment_left)?;
@@ -3366,7 +3387,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         self.copy_aggregate_value(
                             destination,
                             source,
-                            &assignment_left.ctype,
+                            &left.ctype,
                             expression.location,
                         )?;
                         return Ok(destination);
@@ -3416,7 +3437,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
 
                     let address = self.compile_lvalue_address(assignment_left)?;
-                    let target_ty = ir_type(&assignment_left.ctype, left.location)?;
+                    let target_ty = ir_type(&left.ctype, left.location)?;
                     let value = self.coerce_integer_value(value, target_ty, &right.ctype);
                     self.builder
                         .ins()
@@ -3860,6 +3881,7 @@ fn is_signed_integer_type(ctype: &Type) -> bool {
             | Type::Short(true)
             | Type::Int(true)
             | Type::Long(true)
+            | Type::LongLong(true)
             | Type::Enum(_, _)
     )
 }
@@ -3873,6 +3895,7 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         | Type::Enum(_, _)
         | Type::Pointer(_, _)
         | Type::Function(_) => Ok(types::I32),
+        Type::LongLong(_) => Ok(types::I64),
         Type::Float => Ok(types::F32),
         Type::Double => Ok(types::F64),
         Type::Void => Err(unsupported(
@@ -5244,6 +5267,10 @@ mod tests {
         assert_eq!(ir_type(&Type::Short(true), location).unwrap(), types::I16);
         assert_eq!(ir_type(&Type::Int(true), location).unwrap(), types::I32);
         assert_eq!(ir_type(&Type::Long(true), location).unwrap(), types::I32);
+        assert_eq!(
+            ir_type(&Type::LongLong(true), location).unwrap(),
+            types::I64
+        );
         assert_eq!(ir_type(&Type::Float, location).unwrap(), types::F32);
         assert_eq!(ir_type(&Type::Double, location).unwrap(), types::F64);
         for ty in [
@@ -5397,5 +5424,30 @@ mod tests {
         assert_eq!(&value.bytes[0..4], &[0; 4]);
         assert_eq!(&value.bytes[4..8], &4i32.to_le_bytes());
         assert_eq!(&value.bytes[8..12], &5i32.to_le_bytes());
+    }
+    #[test]
+    fn long_long_globals_preserve_all_eight_initializer_bytes() {
+        let artifact = compile_default(
+            "unsigned long long wide = 0x123456789abcdef0ULL; int f(void) { return sizeof(wide); }",
+        )
+        .unwrap();
+        let object = artifact
+            .data
+            .iter()
+            .find(|item| item.name == "wide")
+            .unwrap();
+        assert_eq!(object.bytes, 0x123456789abcdef0u64.to_le_bytes());
+        assert_eq!(object.align, 8);
+    }
+
+    #[test]
+    fn unsupported_i64_division_retains_backend_diagnostic() {
+        let error = compile_default(
+            "unsigned long long f(unsigned long long x, unsigned long long y) { return x / y; }",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("udiv.i64"), "{error}");
+        assert!(error.contains("implemented in ISLE"), "{error}");
     }
 }

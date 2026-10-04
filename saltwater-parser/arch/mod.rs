@@ -109,6 +109,7 @@ impl Type {
             Short(_) => Ok(SHORT_SIZE.into()),
             Int(_) => Ok(INT_SIZE.into()),
             Long(_) => Ok(LONG_SIZE.into()),
+            LongLong(_) => Ok(8),
             Float => Ok(FLOAT_SIZE.into()),
             Double => Ok(DOUBLE_SIZE.into()),
             Pointer(_, _) => Ok(PTR_SIZE.into()),
@@ -149,6 +150,7 @@ impl Type {
             | Short(_)
             | Int(_)
             | Long(_)
+            | LongLong(_)
             | Float
             | Double
             | Pointer(_, _)

@@ -157,7 +157,13 @@ mod codegen_impls {
             match self {
                 // Integers
                 Bool => types::B1,
-                Char(_) | Short(_) | Int(_) | Long(_) | Pointer(_, _) | Enum(_, _) => {
+                Char(_)
+                | Short(_)
+                | Int(_)
+                | Long(_)
+                | LongLong(_)
+                | Pointer(_, _)
+                | Enum(_, _) => {
                     let int_size = SIZE_T::from(CHAR_BIT)
                         * self
                             .sizeof()

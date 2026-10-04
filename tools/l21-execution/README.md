@@ -17,7 +17,7 @@ The compiler release used locally was BSC 2026.01, archive SHA-256
 The gate resolves LightingSimulation from its exact Git revision using Cargo
 metadata, including its pinned hardware submodule. No sibling checkout or
 local Cargo override is needed. Backend revision:
-`8ecc42343f0f467b5d0a445ad97f9c4a77590b3f`; Lighting revision:
+`3cf7afcb6e771e0de539f5cb9bf413574a8f6963`; Lighting revision:
 `93a565c687f61d4e758af81bbde59ce5c4770996`. Both landed on remote main.
 The parser and lowering crate use the same backend/target-lexicon revision.
 Fetching Lighting and its submodule requires repository read access. For an

@@ -23,7 +23,7 @@ for key, value in {'ASM_TYPES_HEADER': '', 'PUBLIC_CONFIG_HEADER': '',
     .replace('@E2FSPROGS_VERSION@', '1.47.2'))
 PY
 (cd "$output_dir" && compile_et ext2_err.et)
-cp "$output_dir/ext2_err.h" "$output_dir/ext2fs/ext2_err.h"
+cp -f "$output_dir/ext2_err.h" "$output_dir/ext2fs/ext2_err.h"
 compiler=${COSMICC:-./target/debug/cosmicc}
 "$compiler" -I "$output_dir" -I "$source_dir/lib" \
     -I "$source_dir/lib/ext2fs" -I "$source_dir/lib/et" \

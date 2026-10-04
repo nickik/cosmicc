@@ -6,11 +6,14 @@ The e2fsprogs 1.47.2 `alloc.c` GNU named variadic macro blocker is fixed.
 Standard `__VA_ARGS__`, named argument tails, rescanning, empty arguments,
 GNU omitted-argument comma elision, and invalid parameter placement are tested.
 Target-owned `fcntl.h` declarations and `atexit` declaration remove the next
-header/declaration failures. `alloc.c`, `alloc_sb.c`, `alloc_stats.c`,
-`alloc_tables.c`, and `atexit.c` compile to COSMIC-SIA bundles.
+header/declaration failures. `alloc.c`, `alloc_sb.c`, `atexit.c`, and `badblocks.c` compile with correct
+64-bit types. Earlier successful alloc_stats/alloc_tables compilation used the
+incorrect 32-bit long-long model; with corrected types those modules now expose
+unsupported native I64 multiply/divide.
 
-Compilation alone does not validate the on-disk ABI. The frontend currently
-maps `long long` to `Type::Long`, whose SIA32 width is four bytes. e2fsprogs
+Compilation alone does not validate the on-disk ABI. The original frontend mapped `long long` to four-byte `Type::Long`. This is
+now corrected: LongLong has eight-byte size/alignment, its own arithmetic rank,
+and preserved LL/ULL literal suffixes. e2fsprogs
 `ext2_types.h` selects `unsigned long long` for `__u64`. The native preflight
 checks __u64/long/pointer widths and exits 2 unless they are 8/4/4:
 
@@ -57,8 +60,13 @@ an ext2-specific MMIO ABI or intercepting guest block requests on the host.
 
 ## Acceptance still to implement
 
-- [ ] Correct frontend 64-bit integer types/layout and native SIA32 arithmetic,
-  comparisons, conversions, calls, loads/stores; pass the ABI preflight.
+- [x] Correct frontend long long width/rank/signedness and LL/ULL literals;
+  pass the native 8/4/4 width preflight.
+- [x] Native word-pair constants, add/subtract with carry/borrow, bitwise
+  operations, fixed shifts, signed/unsigned comparisons, extension/reduction,
+  and little-endian loads/stores: 204 native cases pass.
+- [ ] Complete variable shifts, multiplication/division/remainder, remaining
+  I64 operations, and cross-function/register-spill ABI execution coverage.
 - [ ] Compile the ext2 read/write dependency closure and resolve all externs.
 - [ ] Native allocator/memory/error runtime and relocatable image loader.
 - [ ] Attach file-backed QDX-B storage to the native board runner.
@@ -68,3 +76,26 @@ an ext2-specific MMIO ABI or intercepting guest block requests on the host.
 - [ ] Independent debugfs byte comparison and e2fsck verify the resulting image.
 
 No native filesystem operation or successful file integration is claimed yet.
+
+## Native prerequisite gate
+
+```sh
+BSC=/path/to/bsc sh scripts/check-ext2-native.sh
+```
+
+This runs the L21 regression gate, native width preflight, and I64 execution
+suite. It is deliberately labelled a prerequisite gate: passing it does not
+validate disk structure offsets, a linked ext2 runtime, or file operations.
+Backend core revision: `3cf7afcb6e771e0de539f5cb9bf413574a8f6963` (remote main).
+No local backend override remains. Unsupported I64 division retains an explicit
+backend diagnostic rather than falling back to host arithmetic.
+
+## Latest ext2 boundaries
+
+With the exact merged backend pin, alloc.c and alloc_sb.c pass. alloc_stats.c
+fails on `imul.i64` in ext2fs_block_alloc_stats2; alloc_tables.c fails on
+`udiv.i64` in ext2fs_allocate_group_table. bb_inode.c still encounters offsetof
+member-address lowering. fileio.c and namei.c reject valid assignments to
+pointers to const data. openfs.c needs strtoul/strchr declarations and the same
+const-pointer fix. These diagnostics are compilation boundaries, not filesystem
+execution results. No disk image has been opened or written by native ext2 yet.

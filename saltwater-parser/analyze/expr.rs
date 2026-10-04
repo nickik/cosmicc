@@ -12,6 +12,12 @@ impl PureAnalyzer {
         match expr.data {
             // 1 | "str" | 'a'
             Literal(lit) => literal(lit, expr.location),
+            LongLongLiteral(lit) => {
+                let signed = matches!(lit, LiteralValue::Int(_));
+                let mut value = literal(lit, expr.location);
+                value.ctype = Type::LongLong(signed);
+                value
+            }
             // x
             Id(id) => self.parse_id(id, expr.location),
             // (int)x
@@ -120,7 +126,7 @@ impl PureAnalyzer {
                         lval: false,
                         location: expr.location,
                         ctype: Type::Pointer(Box::new(inner.ctype.clone()), Qualifiers::default()),
-                        expr: inner.expr,
+                        expr: ExprType::StaticRef(Box::new(inner)),
                     },
                     _ => {
                         self.err(SemanticError::InvalidAddressOf("value"), expr.location);
@@ -967,7 +973,11 @@ pub(super) fn literal(literal: LiteralValue, location: Location) -> Expr {
 
     let ctype = match &literal {
         LiteralValue::Char(_) => Type::Char(true),
+        LiteralValue::Int(value) if *value > u32::MAX as i64 || *value < i32::MIN as i64 => {
+            Type::LongLong(true)
+        }
         LiteralValue::Int(_) => Type::Long(true),
+        LiteralValue::UnsignedInt(value) if *value > u32::MAX as u64 => Type::LongLong(false),
         LiteralValue::UnsignedInt(_) => Type::Long(false),
         LiteralValue::Float(_) => Type::Double,
         LiteralValue::Str(s) => {
@@ -1035,7 +1045,7 @@ impl Type {
     fn sign(&self) -> Result<bool, ()> {
         use Type::*;
         match self {
-            Char(sign) | Short(sign) | Int(sign) | Long(sign) => Ok(*sign),
+            Char(sign) | Short(sign) | Int(sign) | Long(sign) | LongLong(sign) => Ok(*sign),
             Bool => Ok(false),
             // TODO: allow enums with values of UINT_MAX
             Enum(_, _) => Ok(true),
@@ -1065,7 +1075,7 @@ impl Type {
             Short(_) => 2,
             Int(_) => 3,
             Long(_) => 4,
-            // don't make this 5 in case we add `long long` at some point
+            LongLong(_) => 5,
             _ => usize::MAX,
         }
     }
@@ -1529,6 +1539,22 @@ mod test {
         assert_type(
             "(int*)(int)4.2",
             Type::Pointer(Box::new(Type::Int(true)), Qualifiers::default()),
+        );
+    }
+    #[test]
+    fn long_long_width_rank_and_suffixes_are_preserved() {
+        assert_eq!(Type::LongLong(true).sizeof().unwrap(), 8);
+        assert_eq!(Type::LongLong(false).alignof().unwrap(), 8);
+        assert!(Type::LongLong(true).rank() > Type::Long(false).rank());
+        assert_type("1LL", Type::LongLong(true));
+        assert_type("1ULL", Type::LongLong(false));
+        assert_type("1LLU", Type::LongLong(false));
+        assert_type("4294967296", Type::LongLong(true));
+        assert_type("18446744073709551615ULL", Type::LongLong(false));
+        assert_type("(long long)1 + (unsigned)2", Type::LongLong(true));
+        assert_type(
+            "(unsigned long long)1 + (long long)2",
+            Type::LongLong(false),
         );
     }
 }

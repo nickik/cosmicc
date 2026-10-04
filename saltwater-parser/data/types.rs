@@ -141,6 +141,8 @@ pub enum Type {
     Short(bool),
     Int(bool),
     Long(bool),
+    /// C signed/unsigned 64-bit long long.
+    LongLong(bool),
     Float,
     Double,
     // TODO: separate Qualifiers into LvalQualifiers and FunctionQualifiers
@@ -204,7 +206,13 @@ impl Type {
     pub fn is_signed(&self) -> bool {
         use Type::*;
         match self {
-            Bool | Char(true) | Short(true) | Int(true) | Long(true) | Enum(_, _) => true,
+            Bool
+            | Char(true)
+            | Short(true)
+            | Int(true)
+            | Long(true)
+            | LongLong(true)
+            | Enum(_, _) => true,
             _ => false,
         }
     }
@@ -212,7 +220,7 @@ impl Type {
     pub fn is_integral(&self) -> bool {
         use Type::*;
         match self {
-            Bool | Char(_) | Short(_) | Int(_) | Long(_) | Enum(_, _) => true,
+            Bool | Char(_) | Short(_) | Int(_) | Long(_) | LongLong(_) | Enum(_, _) => true,
             _ => false,
         }
     }
@@ -375,7 +383,7 @@ pub(super) fn print_type(
 
     let final_type = unrolled_type[unrolled_type.len() - 1];
     match final_type {
-        Char(signed) | Short(signed) | Int(signed) | Long(signed) => {
+        Char(signed) | Short(signed) | Int(signed) | Long(signed) | LongLong(signed) => {
             write!(
                 f,
                 "{}{}",
@@ -385,6 +393,7 @@ pub(super) fn print_type(
                     Short(_) => "short",
                     Int(_) => "int",
                     Long(_) => "long",
+                    LongLong(_) => "long long",
                     _ => unreachable!(),
                 }
             )?;
