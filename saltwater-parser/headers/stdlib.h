@@ -9,5 +9,6 @@ void *realloc(void *ptr, size_t size);
 void free(void *ptr);
 void abort(void);
 void exit(int status);
+int atexit(void (*function)(void));
 
 #endif

@@ -344,6 +344,7 @@ impl<'a> PreProcessor<'a> {
             .entry("__attribute__".into())
             .or_insert_with(|| Definition::Function {
                 params: vec!["__cosmic_attribute".into()],
+                variadic: false,
                 body: Vec::new(),
             });
         definitions
@@ -852,8 +853,9 @@ impl<'a> PreProcessor<'a> {
     // after:
     // #define f(a, b, c) a + b + c
     //                   ^
-    fn fn_args(&mut self, start: u32) -> Result<Vec<InternedStr>, Locatable<Error>> {
+    fn fn_args(&mut self, start: u32) -> Result<(Vec<InternedStr>, bool), Locatable<Error>> {
         let mut arguments = Vec::new();
+        let mut variadic = false;
         loop {
             match self.file_processor.next_non_whitespace() {
                 None => {
@@ -872,9 +874,8 @@ impl<'a> PreProcessor<'a> {
                     data: Token::Ellipsis,
                     ..
                 })) => {
-                    let location = self.lexer().span(start);
-                    self.error_handler
-                        .warn(crate::data::error::Warning::IgnoredVariadic, location);
+                    variadic = true;
+                    arguments.push("__VA_ARGS__".into());
                 }
                 Some(Ok(Locatable {
                     data: Token::Id(id),
@@ -894,9 +895,15 @@ impl<'a> PreProcessor<'a> {
             )?;
             // either `,` or `)`
             if self.lexer_mut().match_next(')') {
-                return Ok(arguments);
+                return Ok((arguments, variadic));
             }
             if self.lexer_mut().match_next(',') {
+                if variadic {
+                    return Err(CompileError::new(
+                        CppError::Expected(")", "variadic macro parameter list").into(),
+                        self.lexer().span(start),
+                    ));
+                }
                 continue;
             }
             // some other token
@@ -908,6 +915,22 @@ impl<'a> PreProcessor<'a> {
                     ))
                 }
                 Some(Err(err)) => return Err(err),
+                Some(Ok(Locatable {
+                    data: Token::Ellipsis,
+                    ..
+                })) if !arguments.is_empty() && !variadic => {
+                    self.consume_whitespace_oneline(
+                        start,
+                        CppError::Expected(")", "macro parameter list"),
+                    )?;
+                    if self.lexer_mut().match_next(')') {
+                        return Ok((arguments, true));
+                    }
+                    return Err(CompileError::new(
+                        CppError::Expected(")", "macro parameter list").into(),
+                        self.lexer().span(start),
+                    ));
+                }
                 Some(Ok(other)) => self.error_handler.error(
                     CppError::UnexpectedToken("',' or ')'", other.data),
                     other.location,
@@ -941,14 +964,21 @@ impl<'a> PreProcessor<'a> {
                 self.file_processor.offset(),
                 CppError::Expected(")", "macro parameter list"),
             )?;
-            let params = if !self.lexer_mut().match_next(')') {
+            let (params, variadic) = if !self.lexer_mut().match_next(')') {
                 self.fn_args(start)?
             } else {
-                Vec::new()
+                (Vec::new(), false)
             };
             let body = body(self)?;
-            self.define_macro(id.data, Definition::Function { params, body })
-                .map_err(|e| self.span(start).with(e))?;
+            self.define_macro(
+                id.data,
+                Definition::Function {
+                    params,
+                    body,
+                    variadic,
+                },
+            )
+            .map_err(|e| self.span(start).with(e))?;
             Ok(())
         } else {
             // object macro
@@ -1215,7 +1245,7 @@ macro_rules! built_in_headers {
 // [(filename, contents)]
 // TODO: this could probably use a perfect-hashmap,
 // but it's so small that it's not worth it
-const PRECOMPILED_HEADERS: [(&str, &str); 12] = built_in_headers! {
+const PRECOMPILED_HEADERS: [(&str, &str); 13] = built_in_headers! {
     "errno.h",
     "inttypes.h",
     "stdarg.h",
@@ -1228,6 +1258,7 @@ const PRECOMPILED_HEADERS: [(&str, &str); 12] = built_in_headers! {
     "sys/types.h",
     "time.h",
     "unistd.h",
+    "fcntl.h",
 };
 
 fn get_builtin_header(expected: impl AsRef<str>) -> Option<&'static str> {

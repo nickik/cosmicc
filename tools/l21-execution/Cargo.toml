@@ -3,6 +3,7 @@ name = "cosmicc-l21-execution"
 version = "0.1.0"
 edition = "2021"
 publish = false
+default-run = "cosmicc-l21-execution"
 
 [workspace]
 

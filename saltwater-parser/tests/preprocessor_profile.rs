@@ -236,3 +236,62 @@ fn same_macro_expands_at_each_independent_occurrence() {
     assert!(!rendered.contains("FLAG"));
     assert!(!rendered.contains("ID"));
 }
+
+#[test]
+fn named_and_standard_variadic_macros_preserve_argument_tokens() {
+    let rendered = tokens(
+        r#"
+#define VALUE 7
+#define NAMED(first, rest...) first, rest
+#define STANDARD(...) __VA_ARGS__
+NAMED(1, VALUE, (2, 3))
+STANDARD(4, VALUE)
+"#,
+        Opt::default(),
+    )
+    .join("");
+    assert_eq!(rendered, "1,7,(2,3)4,7");
+}
+
+#[test]
+fn gnu_variadic_comma_elision_distinguishes_omitted_and_empty() {
+    let rendered = tokens(
+        r#"
+#define CALL(first, rest...) fn(first, ## rest)
+CALL(1)
+CALL(2,)
+CALL(3, 4, 5)
+"#,
+        Opt::default(),
+    )
+    .join("");
+    assert_eq!(rendered, "fn(1)fn(2,)fn(3,4,5)");
+}
+
+#[test]
+fn ext2_disabled_debug_macro_accepts_variadic_calls() {
+    let rendered = tokens(
+        r#"
+#define dbg_printf(f, a...)
+dbg_printf("%d", 3);
+int x;
+"#,
+        Opt::default(),
+    )
+    .join("");
+    assert_eq!(rendered, ";intx;");
+}
+
+#[test]
+fn variadic_parameter_must_be_last_and_fixed_arguments_are_required() {
+    for source in [
+        "#define BAD(..., x) x\nBAD(1, 2)\n",
+        "#define BAD(x..., y) y\nBAD(1, 2)\n",
+        "#define NEED(a, b, rest...) a\nNEED(1)\n",
+    ] {
+        assert!(
+            preprocess(source, Opt::default()).result.is_err(),
+            "{source}"
+        );
+    }
+}

@@ -67,12 +67,13 @@ pub enum Definition {
         ///
         /// In the example above, `a` is a function parameter.
         /// A macro may have 0 or more parameters.
-        /// Variadic macros (`__VA_ARGS__`) are not yet implemented.
+        /// The final parameter holds the comma-separated variadic token sequence.
         ///
         /// Note that function macros may be called with an empty replacement list for any parameter.
         /// For example, `f()` is valid and exapands to `+ 1`.
         /// Similarly, for `#define g(a, b) a + b`, `g(,)` is valid and expands to `+`.
         params: Vec<InternedStr>,
+        variadic: bool,
         /// The body for a function macro.
         ///
         /// The function body itself undergoes recursive macro replacement.
@@ -392,8 +393,12 @@ fn replace_function(
         current_arg.push(next.data);
     }
 
-    let (params, body) = match definitions.get(&id) {
-        Some(Definition::Function { params, body }) => (params, body),
+    let (params, body, variadic) = match definitions.get(&id) {
+        Some(Definition::Function {
+            params,
+            body,
+            variadic,
+        }) => (params, body, *variadic),
         // TODO: it would be nice to pass in `params` and `body` directly, but that runs into borrow errors
         _ => unreachable!("checked above"),
     };
@@ -409,6 +414,24 @@ fn replace_function(
         body: macro_body.clone(),
     };
 
+    let omitted_variadic = variadic && args.len() < params.len();
+    if variadic {
+        let fixed = params.len() - 1;
+        if args.len() < fixed {
+            return vec![Err(
+                location.with(CppError::TooFewArguments(fixed, args.len()).into())
+            )];
+        }
+        let tail = args.split_off(fixed);
+        let mut rest = Vec::new();
+        for (index, argument) in tail.into_iter().enumerate() {
+            if index != 0 {
+                rest.push(Token::Comma);
+            }
+            rest.extend(argument);
+        }
+        args.push(rest);
+    }
     let mut replacements = Vec::new();
     if args.len() != params.len() {
         // There is no way to distinguish between a macro-function taking one empty argument
@@ -449,6 +472,18 @@ fn replace_function(
                     }
                     token => vec![token],
                 };
+                // GNU comma elision applies only to an omitted variadic argument.
+                if variadic
+                    && matches!(replacements.last(), Some(Token::Comma))
+                    && matches!(body[right], Token::Id(id) if Some(&id) == params.last())
+                {
+                    if omitted_variadic {
+                        replacements.pop();
+                    }
+                    replacements.extend(right_tokens);
+                    i = right + 1;
+                    continue;
+                }
                 if right_tokens.is_empty() {
                     i = right + 1;
                     continue;

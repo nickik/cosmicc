@@ -120,3 +120,24 @@ These are clean-checkout local acceptance results; remote CI has not been
 verified. The supported CI script now runs workspace tests and compiler build.
 The separate native gate requires BSC and read credentials for Lighting and its
 hardware submodule; see the gate README for SSH fetch configuration.
+
+## Native ext2 follow-up — 2026-10-04
+
+GNU named variadic macros and standard __VA_ARGS__ expansion are implemented,
+including comma preservation/elision and diagnostic coverage (19 preprocessor
+profile tests). Target-owned fcntl and atexit declarations remove the next
+header/declaration boundaries. e2fsprogs 1.47.2 alloc.c, alloc_sb.c,
+alloc_stats.c, alloc_tables.c, and atexit.c now compile.
+
+Native ABI preflight (`--bin ext2-abi` in the L21 execution tool) executes
+compiler bytes through the real board and reports **__u64=4, long=4, pointer=4**,
+then exits 2. The frontend maps long long to Type::Long (4 bytes), so ext2's
+required 8-byte __u64 and disk structure layouts are not yet correct. Successful
+source compilation must not be treated as ext2 execution acceptance. No disk
+writes or native file operations have been performed.
+
+Other observed boundaries include offsetof address lowering, const-qualified
+pointer assignments, missing timeval/limits declarations, and a 30-second
+compile timeout on block.c. The required target runtime, relocatable image
+loader, existing file-backed QDX-B integration, and remaining acceptance steps
+are tracked in `tools/ext2/README.md`. The filesystem integration remains open.
