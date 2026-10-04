@@ -350,9 +350,9 @@ fn test_for_loop() {
 #[test]
 fn integer_suffixes_reject_malformed_combinations() {
     for input in ["1UU", "1LLL", "1ULU", "1lL", "1Ll"] {
-        assert!(lex(input).unwrap().is_err(), "{input}");
+        assert!(lex(input).unwrap().is_err(), "{}", input);
     }
     for input in ["1ULL", "1LLU", "1ull", "1llu", "1uL", "1Lu"] {
-        assert!(lex(input).unwrap().is_ok(), "{input}");
+        assert!(lex(input).unwrap().is_ok(), "{}", input);
     }
 }

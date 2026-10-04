@@ -291,7 +291,8 @@ fn variadic_parameter_must_be_last_and_fixed_arguments_are_required() {
     ] {
         assert!(
             preprocess(source, Opt::default()).result.is_err(),
-            "{source}"
+            "{}",
+            source
         );
     }
 }
