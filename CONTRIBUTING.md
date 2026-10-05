@@ -1,6 +1,6 @@
 # Contributing to Cosmic C
 
-Cosmic C is a freestanding C-to-SIA32 compiler. The maintained product path is
+Cosmic C has a freestanding SIA32 target and an AMD64 Linux target. The maintained product path is
 `C -> typed HIR -> CLIF -> Cranelift SIA32 -> COSMIC-SIA`. Contributions must
 preserve that path and its explicit unsupported-feature diagnostics.
 
@@ -23,15 +23,16 @@ Byte-generation and `CallPlan` tests do **not** prove code execution.
 
 ## Acceptance rules
 
-- Do not add a host executable, host JIT, reference interpreter, or direct SIA
-  encoder as acceptance evidence.
+- SIA acceptance must execute emitted guest instructions on Lighting architectural
+  or production RTL paths, without host runtime callbacks or a private encoder.
+  AMD64 acceptance uses native output and GCC/Clang differential and ABI checks.
 - Do not add an LLVM product pipeline. SIA has no FPU: floating-point support
   must use documented software legalization and integer-only target runtime
   helpers. Until implemented, retain explicit unsupported emission diagnostics.
-- Keep target output SIA32-only. The host runs the compiler, not the compiled
-  program.
-- State which Lighting machine path supplied execution evidence. Composed board
-  acceptance uses the public SoftwareCpuBoard/MainboardFPGA runner; architectural
+- Keep SIA and AMD64 output/ABI contracts separate. SIA uses the versioned
+  COSMIC-SIA bundle; AMD64 emits ELF64 and uses the system linker.
+- State which Lighting machine path supplied execution evidence. Production board
+  acceptance uses HardwareCpuBoard/MainboardFPGA RTL; architectural
   LightingMachine execution is a separately labelled integration result.
 - Use [PORTABILITY_TODO.md](PORTABILITY_TODO.md) for the active portability work.
 
