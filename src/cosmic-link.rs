@@ -1,6 +1,6 @@
 //! Static multi-bundle image builder. It emits raw SIA RAM bytes, not an OS
 //! executable or a host binary. Address/entry metadata is printed explicitly.
-use saltwater_sia::Artifact;
+use saltwater_sia::{Artifact, StaticArchive};
 use std::{env, fs, process};
 
 fn fatal(message: impl std::fmt::Display) -> ! {
@@ -27,7 +27,7 @@ fn main() {
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
-                println!("Usage: cosmic-link --base ADDRESS --entry SYMBOL --max-bytes SIZE -o IMAGE.bin BUNDLE.sia... [--container] [--gc-sections]\n\nResolves Abs4 relocations across COSMIC-SIA v4 bundles. Numbers are decimal\nor 0x-prefixed hexadecimal. --gc-sections retains the entry relocation closure. Default output is raw RAM bytes; --container adds versioned image metadata.\nLoader protection,\ndynamic imports, archives and ELF inputs are unsupported.");
+                println!("Usage: cosmic-link --base ADDRESS --entry SYMBOL --max-bytes SIZE -o IMAGE.bin BUNDLE.sia... [--container] [--gc-sections]\n\nResolves Abs4 relocations across COSMIC-SIA v4 bundles. Numbers are decimal\nor 0x-prefixed hexadecimal. --gc-sections retains the entry relocation closure. Default output is raw RAM bytes; --container adds versioned image metadata.\nLoader protection,\ndynamic imports and ELF inputs are unsupported. Ordinary ar archives of v4 SIA bundles are selected lazily after explicit objects, in archive command order; archive groups are unsupported.");
                 return;
             }
             "--container" => container = true,
@@ -66,13 +66,29 @@ fn main() {
     if std::path::Path::new(&output).exists() {
         fatal("output exists; choose a new path");
     }
-    let artifacts = inputs
-        .iter()
-        .map(|input| {
-            let bytes = fs::read(input).unwrap_or_else(|error| fatal(error));
-            Artifact::from_bytes(&bytes).unwrap_or_else(|error| fatal(error))
-        })
-        .collect::<Vec<_>>();
+    let entry = entry.unwrap_or_else(|| fatal("missing --entry"));
+    let mut artifacts = Vec::new();
+    let mut archives = Vec::new();
+    for input in &inputs {
+        let bytes = fs::read(input).unwrap_or_else(|error| fatal(error));
+        if bytes.starts_with(b"!<arch>\n") || bytes.starts_with(b"!<thin>\n") {
+            archives.push((
+                input,
+                StaticArchive::from_bytes(&bytes, 64 * 1024 * 1024)
+                    .unwrap_or_else(|error| fatal(error)),
+            ));
+        } else {
+            artifacts.push(Artifact::from_bytes(&bytes).unwrap_or_else(|error| fatal(error)));
+        }
+    }
+    for (path, archive) in archives {
+        for member in archive
+            .extract_needed(&mut artifacts, &entry)
+            .unwrap_or_else(|error| fatal(error))
+        {
+            println!("archive={path} member={member}");
+        }
+    }
     let link = if gc_sections {
         Artifact::link_reachable_images
     } else {
@@ -81,7 +97,7 @@ fn main() {
     let image = link(
         &artifacts,
         base.unwrap_or_else(|| fatal("missing --base")),
-        &entry.unwrap_or_else(|| fatal("missing --entry")),
+        &entry,
         max_bytes.unwrap_or_else(|| fatal("missing --max-bytes")),
     )
     .unwrap_or_else(|error| fatal(error));
@@ -115,6 +131,8 @@ fn main() {
                 "code"
             } else if region.read_only {
                 "rodata"
+            } else if region.zero_fill {
+                "bss"
             } else {
                 "data"
             },

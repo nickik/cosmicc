@@ -7,7 +7,9 @@ mod image;
 mod integer;
 mod softfloat;
 mod varargs;
-pub use image::{ImageRegion, LinkedImage};
+pub use image::{ImageRegion, LinkedImage, StartupState};
+mod archive;
+pub use archive::StaticArchive;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{TryFrom, TryInto};

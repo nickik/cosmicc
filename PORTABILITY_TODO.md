@@ -535,3 +535,16 @@ results/2026-10-05-sia-generic-final/execution-summary.json.
 - [ ] Physical FPGA and full Cosmic boot qualification remain outstanding.
 
 See INTERPROJECT_DEPENDENCIES.md and the clean release result directory.
+
+## SIA freestanding startup and simulator zlib continuation
+
+- [x] Public validated RAM loader with entry, aligned stack, return trap and
+  explicit BSS zeroing; reject bad layouts before writes.
+- [x] CSIAIMG v2 zero-fill metadata with v1 reader compatibility.
+- [x] Ordinary ar static SIA libraries with lazy extraction and GNU/BSD names.
+- [x] GCC-built zlib oracle: eight simulator cases compare compressed bytes,
+  checksums, round trips and corrupt-header rejection using the CLI archive image.
+- [ ] Protected OS loading, hosted startup, archive groups and weak/common rules.
+
+Simulator execution is the primary software acceptance gate. Hardware
+implementation qualification remains separate. See saltwater-sia/LINKING_LOADING_STATUS.md.

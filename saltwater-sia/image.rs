@@ -1,6 +1,8 @@
 //! Bounded static linking with explicit translation-unit-local binding metadata.
 mod format;
+mod startup;
 use crate::{Artifact, Error, RelocationArtifact};
+pub use startup::StartupState;
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
@@ -11,6 +13,8 @@ pub struct ImageRegion {
     pub size: u32,
     pub read_only: bool,
     pub executable: bool,
+    /// Writable zero-initialized storage; the loader explicitly clears it.
+    pub zero_fill: bool,
 }
 
 /// A fully relocated, flat target image. Permissions describe the intended
@@ -280,6 +284,7 @@ impl Artifact {
                     .map_err(|_| fail("function exceeds SIA32 size"))?,
                 read_only: true,
                 executable: true,
+                zero_fill: false,
             });
         }
         for object in &self.data {
@@ -292,6 +297,9 @@ impl Artifact {
                     .map_err(|_| fail("data exceeds SIA32 size"))?,
                 read_only: object.read_only,
                 executable: false,
+                zero_fill: !object.read_only
+                    && object.relocations.is_empty()
+                    && object.bytes.iter().all(|byte| *byte == 0),
             });
         }
         let length = usize::try_from(cursor - u64::from(base))

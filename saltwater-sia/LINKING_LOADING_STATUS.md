@@ -88,3 +88,55 @@ python3 tools/sia/check-zlib.py /path/to/zlib-1.3.2 /tmp/sia-zlib-new
 The optional --board mode uses the public board-call API and explicitly relayouts
 objects to put main first, because that API loads payload at entry. It does not
 execute the exact CLI image container. Architectural default mode does.
+
+## Simulator startup, static archives and GCC zlib comparison
+
+`LinkedImage::load_into` validates the complete image/RAM/stack/return-trap
+layout before any RAM mutation. It copies relocated storage, clears explicit
+zero-fill regions, and returns the aligned stack, entry PC and SIA registers
+(r13 stack top; r14 exit trap). The exit trap is an aligned sentinel outside
+image and stack. The simulator stops when C returns to it and checks r1 and
+stack restoration. This is zero-argument freestanding C startup; hosted
+argc/argv, environment, constructors and OS protection are separate work.
+
+CSIAIMG v2 adds region flag bit 2 for writable zero-initialized storage. Fully
+zero-valued writable objects without relocations use this storage class,
+including explicitly zero-initialized C objects. Code and read-only data cannot
+be zero-fill. Nonzero payload bytes in zero-fill regions are rejected. Payload
+still includes zero-filled bytes; compact BSS encoding is not implied. The
+reader remains compatible with v1. Existing COSMIC-SIA v4 objects are unchanged.
+
+`StaticArchive` reads ordinary Unix ar files with short, GNU long and BSD
+embedded names, skipping their symbol indexes. Members must be v4 SIA bundles;
+ELF and thin archives are rejected. `cosmic-link` first includes explicit
+objects, then selects archive members satisfying unresolved externals, in
+archive command order. It repeats within each archive to resolve backwards
+dependencies. Archive groups and weak/common coalescing remain unsupported.
+
+```sh
+ar crs libhelpers.a helper.sia other.sia
+cosmic-link --base 0x10000 --entry main --max-bytes 0xc0000 \
+  --container -o program.csia main.sia libhelpers.a
+python3 tools/sia/check-zlib.py /path/to/zlib-1.3.2 /tmp/zlib-new-run
+```
+
+The zlib gate builds GCC's byte oracle from the same unchanged Z_SOLO sources,
+then builds nine SIA library objects and a guest harness. It makes an actual ar
+library and links the guest plus that library through the CLI. Lazy extraction
+leaves unused infback out. The exact CLI container runs on LightingMachine,
+loaded through the public startup API into RAM initially filled with 0xa5.
+`main` need not be the first function. The guest uses its own aligned bounded
+allocator, with no host C services.
+
+Eight cases cover empty/one-byte input, repetitive and pseudorandom inputs,
+levels 0/1/6/9, default/fixed/Huffman/RLE strategies, and corrupt header errors.
+Every compressed byte, CRC32 and Adler32 is compared to the GCC oracle; every
+decompressed byte is compared to input. Simulator acceptance is the primary
+software gate. RTL and physical FPGA qualification are independent checks.
+
+Acceptance: all eight cases pass, with 2,998 compressed bytes compared. The
+final simulator run executes 27,413,176 guest instructions from a 503,592-byte
+image and restores the initial stack. The complete supported gate and 161 SIA
+tests pass. Raw GCC oracle, generated expected bytes, archive selection/layout,
+source/binary hashes and execution logs are saved in
+`tools/sia/results/2026-10-05-startup-zlib/`.

@@ -10,7 +10,7 @@ fn main() {
         assert_eq!(paths.len(), 2, "--image expects one container");
         let bytes = std::fs::read(&paths[1]).unwrap();
         (
-            saltwater_sia::LinkedImage::from_image_bytes(&bytes, 0x800000, 0x60000).unwrap(),
+            saltwater_sia::LinkedImage::from_image_bytes(&bytes, 0x800000, 0xc0000).unwrap(),
             0,
         )
     } else {
@@ -37,11 +37,11 @@ fn main() {
             .unwrap();
         objects[0].functions.swap(0, index);
         (
-            Artifact::link_images(&objects, 0x10000, "main", 0x60000).unwrap(),
+            Artifact::link_images(&objects, 0x10000, "main", 0xc0000).unwrap(),
             objects.len(),
         )
     };
-    let return_address = 0x80000;
+    let return_address = 0xd0000;
     let stack = 0xf0000;
     let instructions = if board {
         assert_eq!(image.base,image.entry,"board-call transport requires entry at image base; use architectural --image or explicit object relayout");
@@ -77,10 +77,14 @@ fn main() {
     } else {
         use lighting_simulation::isa::machine::LightingMachine;
         let mut machine = LightingMachine::new(1024 * 1024, &[]).unwrap();
-        machine.load_ram(image.base, &image.bytes).unwrap();
-        machine.cpu_mut().core_mut().set_pc_for_test(image.entry);
-        machine.cpu_mut().core_mut().write_reg(13, stack);
-        machine.cpu_mut().core_mut().write_reg(14, return_address);
+        // Dirty RAM makes zero-initialization independent of simulator defaults.
+        let mut ram = vec![0xa5; 1024 * 1024];
+        let startup = image.load_into(&mut ram, 0xe0000, stack, return_address).unwrap();
+        machine.load_ram(0, &ram).unwrap();
+        for register in 1..15 {
+            machine.cpu_mut().core_mut().write_reg(register, startup.registers[register]);
+        }
+        machine.cpu_mut().core_mut().set_pc_for_test(startup.entry);
         let mut completed = None;
         let mut trace = std::collections::VecDeque::new();
         for count in 1..=30_000_000 {

@@ -4,7 +4,7 @@ use crate::Error;
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 const MAGIC: &[u8; 8] = b"CSIAIMG\0";
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 fn word(out: &mut Vec<u8>, value: u32) {
     out.extend_from_slice(&value.to_le_bytes());
 }
@@ -72,6 +72,16 @@ impl LinkedImage {
             if r.executable && (!r.read_only || r.address % 4 != 0 || r.size == 0) {
                 return Err(fail("invalid executable region"));
             }
+            if r.zero_fill
+                && (r.read_only
+                    || r.executable
+                    || self.bytes
+                        [(r.address - self.base) as usize..(r_end - u64::from(self.base)) as usize]
+                        .iter()
+                        .any(|b| *b != 0))
+            {
+                return Err(fail("invalid zero-fill storage"));
+            }
             if r.size != 0 {
                 if spans
                     .iter()
@@ -122,7 +132,9 @@ impl LinkedImage {
             word(&mut out, r.size);
             word(
                 &mut out,
-                u32::from(r.read_only) | (u32::from(r.executable) << 1),
+                u32::from(r.read_only)
+                    | (u32::from(r.executable) << 1)
+                    | (u32::from(r.zero_fill) << 2),
             );
             name(&mut out, &r.name)?;
         }
@@ -144,8 +156,12 @@ impl LinkedImage {
             return Err(fail("container exceeds budget"));
         }
         let mut input = Reader { bytes, cursor: 0 };
-        if input.take(8)? != MAGIC || input.word()? != VERSION {
+        if input.take(8)? != MAGIC {
             return Err(fail("unknown image magic/version"));
+        }
+        let version = input.word()?;
+        if version != 1 && version != VERSION {
+            return Err(fail("unknown image version"));
         }
         let base = input.word()?;
         let entry = input.word()?;
@@ -171,7 +187,7 @@ impl LinkedImage {
             let address = input.word()?;
             let size = input.word()?;
             let flags = input.word()?;
-            if flags & !3 != 0 {
+            if flags & !(if version == 1 { 3 } else { 7 }) != 0 {
                 return Err(fail("unknown region flags"));
             }
             image.regions.push(ImageRegion {
@@ -180,6 +196,7 @@ impl LinkedImage {
                 size,
                 read_only: flags & 1 != 0,
                 executable: flags & 2 != 0,
+                zero_fill: flags & 4 != 0,
             });
         }
         for _ in 0..symbols {
@@ -212,6 +229,7 @@ mod tests {
                 size: 8,
                 read_only: true,
                 executable: true,
+                zero_fill: false,
             }],
         }
     }
@@ -245,9 +263,29 @@ mod tests {
         );
     }
     #[test]
+    fn retains_v1_reading_and_rejects_forged_zero_fill() {
+        let image = fixture();
+        let mut legacy = image.to_image_bytes().unwrap();
+        legacy[8..12].copy_from_slice(&1u32.to_le_bytes());
+        assert_eq!(
+            LinkedImage::from_image_bytes(&legacy, legacy.len(), 8).unwrap(),
+            image
+        );
+        let mut image = crate::compile_default("int bss[4]; int main(void){return bss[0];}")
+            .unwrap()
+            .link_image(0x1000, "main", 0x1000)
+            .unwrap();
+        let offset = (image.symbols["bss"] - image.base) as usize;
+        image.bytes[offset] = 1;
+        assert!(image.to_image_bytes().is_err());
+        let mut ram = vec![0xa5; 0x10000];
+        assert!(image.load_into(&mut ram, 0x8000, 0xf000, 0x7000).is_err());
+        assert!(ram.iter().all(|b| *b == 0xa5));
+    }
+    #[test]
     fn malformed_metadata_rejected() {
         let bytes = fixture().to_image_bytes().unwrap();
-        for (offset, value) in [(8, 2u32), (24, u32::MAX), (40, 4), (16, 0x10008)] {
+        for (offset, value) in [(8, 3u32), (24, u32::MAX), (40, 8), (16, 0x10008)] {
             let mut bad = bytes.clone();
             bad[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
             assert!(LinkedImage::from_image_bytes(&bad, bad.len(), 8).is_err());
