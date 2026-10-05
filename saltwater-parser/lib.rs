@@ -60,6 +60,7 @@ impl<T, E> Program<T, E> {
 }
 
 pub use analyze::{Analyzer, PureAnalyzer};
+pub use arch::TargetDataModel;
 pub use data::*;
 // https://github.com/rust-lang/rust/issues/64762
 #[allow(unreachable_pub)]
@@ -149,6 +150,8 @@ impl RecursionGuard {
 
 #[derive(Clone, Default)]
 pub struct Opt {
+    /// Explicit target data model, defaulting to Cosmic SIA32.
+    pub target: TargetDataModel,
     /// If set, print all tokens found by the lexer in addition to compiling.
     pub debug_lex: bool,
 
@@ -194,7 +197,14 @@ pub struct Opt {
 /// Preprocess the source and return the tokens.
 pub fn preprocess(buf: &str, opt: Opt) -> Program<VecDeque<Locatable<Token>>> {
     let path = opt.search_path.iter().map(|p| p.into());
-    let mut cpp = PreProcessor::new(buf, opt.filename, opt.debug_lex, path, opt.definitions);
+    let mut cpp = PreProcessor::new_for_target(
+        buf,
+        opt.filename,
+        opt.debug_lex,
+        path,
+        opt.definitions,
+        opt.target,
+    );
 
     let mut tokens = VecDeque::new();
     let mut errs = VecDeque::new();
@@ -219,12 +229,23 @@ pub fn preprocess(buf: &str, opt: Opt) -> Program<VecDeque<Locatable<Token>>> {
 /// Perform semantic analysis, including type checking and constant folding.
 pub fn check_semantics(buf: &str, opt: Opt) -> Program<Vec<Locatable<hir::Declaration>>> {
     let path = opt.search_path.iter().map(|p| p.into());
-    let mut cpp = PreProcessor::new(buf, opt.filename, opt.debug_lex, path, opt.definitions);
+    let mut cpp = PreProcessor::new_for_target(
+        buf,
+        opt.filename,
+        opt.debug_lex,
+        path,
+        opt.definitions,
+        opt.target,
+    );
 
     let mut errs = VecDeque::new();
 
     let mut hir = vec![];
-    let mut parser = Analyzer::new(Parser::new(&mut cpp, opt.debug_ast), opt.debug_hir);
+    let mut parser = Analyzer::new_for_target(
+        Parser::new(&mut cpp, opt.debug_ast),
+        opt.debug_hir,
+        opt.target,
+    );
     for res in &mut parser {
         match res {
             Ok(decl) => hir.push(decl),

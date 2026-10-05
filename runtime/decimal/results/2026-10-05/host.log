@@ -1,0 +1,34 @@
+{
+  "status": "passed",
+  "seed": 20261006,
+  "parse_bit_and_end_checks": 16200,
+  "format_byte_and_length_checks": 93196,
+  "truncation_boundary_checks": 28,
+  "rounding_modes": 4,
+  "reference": "glibc C locale; NaN payload implementation-defined (classification compared)",
+  "command": [
+    "cc",
+    "-std=c99",
+    "-O2",
+    "-fno-builtin",
+    "-fPIC",
+    "-shared",
+    "-Wl,-Bsymbolic",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/decimal/parse.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/decimal/format.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/context.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-add.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary64.c",
+    "-o",
+    "/tmp/cosmic-decimal-source-final/decimal.so"
+  ],
+  "source_hashes": {
+    "runtime/decimal/parse.c": "3581a14de341ad363611d71211afef9dff111cea6abf2c59bb1aeba75b043368",
+    "runtime/decimal/format.c": "5c8758390fd080c9f7800e7fa49b00ab191cff863925cb085b5bcd0b8e4dccbb",
+    "runtime/softfloat/context.c": "8a1871952d6a6cc6de2bb79acfc5fd2e78d232fdbe4bdf7e40764618f83ba731",
+    "runtime/softfloat/binary32-add.c": "313262cb944fd7dbd016028da7e82818ed91d323c0ad5da73a73be60881569a2",
+    "runtime/softfloat/binary64.c": "c2af4a0ba05271ffc24d8cac57f4895966b37461e3681f45cb07618cc99377f4",
+    "runtime/decimal/bigint.h": "75ca9b2ea4422b345ae04cf8039fc4396c2bf8630665dff2085696f8490f15a9"
+  },
+  "host_reference": "Host text conversion is used only as validation, never as guest implementation."
+}

@@ -1,0 +1,150 @@
+
+/tmp/cosmic-laptop-benchmark-ssa-final/gcc-O2.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <bench_hash>:
+   0:	f3 0f 1e fa          	endbr64
+   4:	48 b8 83 03 9d 73 b0 	movabs $0x14650fb0739d0383,%rax
+   b:	0f 65 14 
+   e:	48 85 f6             	test   %rsi,%rsi
+  11:	74 27                	je     3a <bench_hash+0x3a>
+  13:	48 b9 b3 01 00 00 00 	movabs $0x100000001b3,%rcx
+  1a:	01 00 00 
+  1d:	48 8d 34 b7          	lea    (%rdi,%rsi,4),%rsi
+  21:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+  28:	8b 17                	mov    (%rdi),%edx
+  2a:	48 83 c7 04          	add    $0x4,%rdi
+  2e:	48 31 d0             	xor    %rdx,%rax
+  31:	48 0f af c1          	imul   %rcx,%rax
+  35:	48 39 fe             	cmp    %rdi,%rsi
+  38:	75 ee                	jne    28 <bench_hash+0x28>
+  3a:	c3                   	ret
+  3b:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+
+0000000000000040 <bench_branch>:
+  40:	f3 0f 1e fa          	endbr64
+  44:	45 31 c0             	xor    %r8d,%r8d
+  47:	48 85 ff             	test   %rdi,%rdi
+  4a:	74 48                	je     94 <bench_branch+0x54>
+  4c:	31 c9                	xor    %ecx,%ecx
+  4e:	eb 12                	jmp    62 <bench_branch+0x22>
+  50:	48 89 f0             	mov    %rsi,%rax
+  53:	48 31 c8             	xor    %rcx,%rax
+  56:	48 83 c1 01          	add    $0x1,%rcx
+  5a:	49 01 c0             	add    %rax,%r8
+  5d:	48 39 cf             	cmp    %rcx,%rdi
+  60:	74 32                	je     94 <bench_branch+0x54>
+  62:	48 89 f2             	mov    %rsi,%rdx
+  65:	48 c1 e2 0d          	shl    $0xd,%rdx
+  69:	48 31 f2             	xor    %rsi,%rdx
+  6c:	48 89 d0             	mov    %rdx,%rax
+  6f:	48 c1 e8 07          	shr    $0x7,%rax
+  73:	48 31 d0             	xor    %rdx,%rax
+  76:	48 89 c6             	mov    %rax,%rsi
+  79:	48 c1 e6 11          	shl    $0x11,%rsi
+  7d:	48 31 c6             	xor    %rax,%rsi
+  80:	a8 01                	test   $0x1,%al
+  82:	75 cc                	jne    50 <bench_branch+0x10>
+  84:	48 8d 04 0e          	lea    (%rsi,%rcx,1),%rax
+  88:	48 83 c1 01          	add    $0x1,%rcx
+  8c:	49 31 c0             	xor    %rax,%r8
+  8f:	48 39 cf             	cmp    %rcx,%rdi
+  92:	75 ce                	jne    62 <bench_branch+0x22>
+  94:	4c 89 c0             	mov    %r8,%rax
+  97:	c3                   	ret
+  98:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+  9f:	00 
+
+00000000000000a0 <bench_divide>:
+  a0:	f3 0f 1e fa          	endbr64
+  a4:	49 89 f9             	mov    %rdi,%r9
+  a7:	31 ff                	xor    %edi,%edi
+  a9:	4d 85 c9             	test   %r9,%r9
+  ac:	74 43                	je     f1 <bench_divide+0x51>
+  ae:	49 bb 2d 7f 95 4c 2d 	movabs $0x5851f42d4c957f2d,%r11
+  b5:	f4 51 58 
+  b8:	45 31 c0             	xor    %r8d,%r8d
+  bb:	49 ba 4f 81 67 f7 7e 	movabs $0x14057b7ef767814f,%r10
+  c2:	7b 05 14 
+  c5:	0f 1f 00             	nopl   (%rax)
+  c8:	49 0f af f3          	imul   %r11,%rsi
+  cc:	31 d2                	xor    %edx,%edx
+  ce:	49 83 c0 01          	add    $0x1,%r8
+  d2:	4c 01 d6             	add    %r10,%rsi
+  d5:	48 89 f1             	mov    %rsi,%rcx
+  d8:	48 89 f0             	mov    %rsi,%rax
+  db:	48 c1 e9 25          	shr    $0x25,%rcx
+  df:	48 83 c9 03          	or     $0x3,%rcx
+  e3:	48 f7 f1             	div    %rcx
+  e6:	48 01 c7             	add    %rax,%rdi
+  e9:	48 31 d7             	xor    %rdx,%rdi
+  ec:	4d 39 c1             	cmp    %r8,%r9
+  ef:	75 d7                	jne    c8 <bench_divide+0x28>
+  f1:	48 89 f8             	mov    %rdi,%rax
+  f4:	c3                   	ret
+  f5:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+  fc:	00 00 00 00 
+
+0000000000000100 <bench_matrix>:
+ 100:	f3 0f 1e fa          	endbr64
+ 104:	48 85 c9             	test   %rcx,%rcx
+ 107:	0f 84 a4 00 00 00    	je     1b1 <bench_matrix+0xb1>
+ 10d:	49 89 fb             	mov    %rdi,%r11
+ 110:	48 8d 3c 8d 00 00 00 	lea    0x0(,%rcx,4),%rdi
+ 117:	00 
+ 118:	41 57                	push   %r15
+ 11a:	4d 8d 04 3b          	lea    (%r11,%rdi,1),%r8
+ 11e:	41 56                	push   %r14
+ 120:	4c 8d 34 cd 00 00 00 	lea    0x0(,%rcx,8),%r14
+ 127:	00 
+ 128:	41 55                	push   %r13
+ 12a:	45 31 ed             	xor    %r13d,%r13d
+ 12d:	41 54                	push   %r12
+ 12f:	49 89 f4             	mov    %rsi,%r12
+ 132:	55                   	push   %rbp
+ 133:	48 89 cd             	mov    %rcx,%rbp
+ 136:	53                   	push   %rbx
+ 137:	48 89 d3             	mov    %rdx,%rbx
+ 13a:	66 0f 1f 44 00 00    	nopw   0x0(%rax,%rax,1)
+ 140:	4d 89 e1             	mov    %r12,%r9
+ 143:	45 31 d2             	xor    %r10d,%r10d
+ 146:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+ 14d:	00 00 00 
+ 150:	4c 89 c9             	mov    %r9,%rcx
+ 153:	4c 89 d8             	mov    %r11,%rax
+ 156:	31 f6                	xor    %esi,%esi
+ 158:	0f 1f 84 00 00 00 00 	nopl   0x0(%rax,%rax,1)
+ 15f:	00 
+ 160:	48 63 10             	movslq (%rax),%rdx
+ 163:	4c 63 39             	movslq (%rcx),%r15
+ 166:	48 83 c0 04          	add    $0x4,%rax
+ 16a:	48 01 f9             	add    %rdi,%rcx
+ 16d:	49 0f af d7          	imul   %r15,%rdx
+ 171:	48 01 d6             	add    %rdx,%rsi
+ 174:	49 39 c0             	cmp    %rax,%r8
+ 177:	75 e7                	jne    160 <bench_matrix+0x60>
+ 179:	49 8d 42 01          	lea    0x1(%r10),%rax
+ 17d:	4a 89 34 d3          	mov    %rsi,(%rbx,%r10,8)
+ 181:	49 83 c1 04          	add    $0x4,%r9
+ 185:	48 39 c5             	cmp    %rax,%rbp
+ 188:	74 05                	je     18f <bench_matrix+0x8f>
+ 18a:	49 89 c2             	mov    %rax,%r10
+ 18d:	eb c1                	jmp    150 <bench_matrix+0x50>
+ 18f:	49 8d 45 01          	lea    0x1(%r13),%rax
+ 193:	4c 01 f3             	add    %r14,%rbx
+ 196:	49 01 fb             	add    %rdi,%r11
+ 199:	49 01 f8             	add    %rdi,%r8
+ 19c:	4d 39 d5             	cmp    %r10,%r13
+ 19f:	74 05                	je     1a6 <bench_matrix+0xa6>
+ 1a1:	49 89 c5             	mov    %rax,%r13
+ 1a4:	eb 9a                	jmp    140 <bench_matrix+0x40>
+ 1a6:	5b                   	pop    %rbx
+ 1a7:	5d                   	pop    %rbp
+ 1a8:	41 5c                	pop    %r12
+ 1aa:	41 5d                	pop    %r13
+ 1ac:	41 5e                	pop    %r14
+ 1ae:	41 5f                	pop    %r15
+ 1b0:	c3                   	ret
+ 1b1:	c3                   	ret

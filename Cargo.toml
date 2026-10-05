@@ -4,16 +4,16 @@ version = "0.12.0"
 authors = ["Nick K <nickik@users.noreply.github.com>"]
 edition = "2018"
 rust-version = "1.98.1"
-description = "A C compiler for Cosmic OS that emits SIA32 machine code."
+description = "A C compiler for Cosmic OS with SIA32 and amd64 targets."
 repository = "https://github.com/nickik/cosmicc"
 readme = "README.md"
 categories = ["development-tools", "parser-implementations"]
 license = "BSD-3-Clause"
 keywords = ["C", "compiler", "recursive-descent", "cranelift"]
 default-run = "cosmicc"
-# The only build target in the maintained product is declared below.  The
-# inherited host compiler remains in `src/main.rs` as historical reference,
-# not as a Cargo target.
+# Maintained compiler/image-linker binaries are declared below.
+# The inherited host CLI in src/main.rs remains historical reference;
+# amd64 support uses the maintained compiler and current backend.
 autobins = false
 autotests = false
 autobenches = false
@@ -26,6 +26,7 @@ color-backtrace = { version = "0.4", default-features = false, optional = true }
 atty = { version = "0.2", default-features = false }
 git-testament = { version = "0.1", optional = true }
 saltwater-sia = { path = "saltwater-sia" }
+saltwater-amd64 = { path = "saltwater-amd64" }
 
 [features]
 default = ["color-backtrace"]
@@ -57,3 +58,7 @@ overflow-checks = false
 all-features = true
 # opt-out of non-default targets
 targets = []
+
+[[bin]]
+name = "cosmic-link"
+path = "src/cosmic-link.rs"

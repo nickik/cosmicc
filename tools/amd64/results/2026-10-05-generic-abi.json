@@ -1,0 +1,211 @@
+{
+  "compiler_sha256": "ff5de80019013a5315083698fc3a09290f787ffcb3be7145abbcd3a385ec5f0e",
+  "optimization": "O2",
+  "target": "x86_64-unknown-linux-gnu",
+  "commands": [
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/compiler-snapshot",
+        "-O2",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/cosmic.c",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/cosmic.o"
+      ],
+      "returncode": 0,
+      "log": "compile-cosmic.log"
+    },
+    {
+      "command": [
+        "readelf",
+        "-h",
+        "-s",
+        "-r",
+        "/tmp/cosmic-native-generic-abi/cosmic.o"
+      ],
+      "returncode": 0,
+      "log": "readelf-cosmic.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/compiler-snapshot",
+        "-O2",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/helper.c",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/helper.o"
+      ],
+      "returncode": 0,
+      "log": "compile-helper.log"
+    },
+    {
+      "command": [
+        "readelf",
+        "-h",
+        "-s",
+        "-r",
+        "/tmp/cosmic-native-generic-abi/helper.o"
+      ],
+      "returncode": 0,
+      "log": "readelf-helper.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/compiler-snapshot",
+        "-O2",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/reviewed-target.c",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/reviewed-target.o"
+      ],
+      "returncode": 0,
+      "log": "compile-reviewed-target.log"
+    },
+    {
+      "command": [
+        "readelf",
+        "-h",
+        "-s",
+        "-r",
+        "/tmp/cosmic-native-generic-abi/reviewed-target.o"
+      ],
+      "returncode": 0,
+      "log": "readelf-reviewed-target.log"
+    },
+    {
+      "command": [
+        "cc",
+        "-no-pie",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/harness.c",
+        "/tmp/cosmic-native-generic-abi/cosmic.o",
+        "/tmp/cosmic-native-generic-abi/helper.o",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/native"
+      ],
+      "returncode": 0,
+      "log": "link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/native"
+      ],
+      "returncode": 0,
+      "log": "execute.log"
+    },
+    {
+      "command": [
+        "cc",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/harness.c",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/harness.o"
+      ],
+      "returncode": 0,
+      "log": "host-harness.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/compiler-snapshot",
+        "-O2",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/cosmic.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/helper.c",
+        "/tmp/cosmic-native-generic-abi/harness.o",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/driver-pie"
+      ],
+      "returncode": 0,
+      "log": "driver-pie-link.log"
+    },
+    {
+      "command": [
+        "readelf",
+        "-h",
+        "/tmp/cosmic-native-generic-abi/driver-pie"
+      ],
+      "returncode": 0,
+      "log": "readelf-driver-pie.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/driver-pie"
+      ],
+      "returncode": 0,
+      "log": "execute-driver-pie.log"
+    },
+    {
+      "command": [
+        "ar",
+        "rcs",
+        "/tmp/cosmic-native-generic-abi/libhelper.a",
+        "/tmp/cosmic-native-generic-abi/helper.o"
+      ],
+      "returncode": 0,
+      "log": "archive-helper.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/compiler-snapshot",
+        "-O2",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "/tmp/cosmic-native-generic-abi/cosmic.o",
+        "/tmp/cosmic-native-generic-abi/harness.o",
+        "-L",
+        "/tmp/cosmic-native-generic-abi",
+        "-l",
+        "helper",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/driver-archive"
+      ],
+      "returncode": 0,
+      "log": "driver-archive-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/driver-archive"
+      ],
+      "returncode": 0,
+      "log": "execute-driver-archive.log"
+    },
+    {
+      "command": [
+        "cc",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/reviewed-target-harness.c",
+        "/tmp/cosmic-native-generic-abi/reviewed-target.o",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/reviewed-native"
+      ],
+      "returncode": 0,
+      "log": "reviewed-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-generic-abi/reviewed-native"
+      ],
+      "returncode": 0,
+      "log": "reviewed-execute.log"
+    },
+    {
+      "command": [
+        "cc",
+        "-no-pie",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/harness.c",
+        "/tmp/cosmic-native-generic-abi/cosmic.o",
+        "-o",
+        "/tmp/cosmic-native-generic-abi/missing-helper"
+      ],
+      "returncode": 1,
+      "log": "missing-helper.log"
+    }
+  ],
+  "evidence": "native host execution; not Lighting",
+  "status": "passed"
+}

@@ -2,6 +2,7 @@ use crate::arch::CHAR_BIT;
 use crate::data::hir::LiteralValue::*;
 use crate::data::hir::*;
 use crate::data::*;
+use crate::TargetDataModel;
 use std::ops::{Add, Div, Mul, Sub};
 
 macro_rules! fold_int_bin_op {
@@ -45,8 +46,8 @@ fn fold_scalar_bin_op(
 }
 
 macro_rules! fold_compare_op {
-($left: expr, $right: expr, $constructor: ident, $op: tt, $compare: expr) => {{
-        let (left, right) = ($left.const_fold()?, $right.const_fold()?);
+($left: expr, $right: expr, $constructor: ident, $op: tt, $compare: expr, $target: expr) => {{
+        let (left, right) = ($left.const_fold_for($target)?, $right.const_fold_for($target)?);
         match (&left.expr, &right.expr) {
             (ExprType::Literal(a), ExprType::Literal(b)) => {
                 match (a, b) {
@@ -95,8 +96,11 @@ impl Expr {
             _ => Err(self),
         }
     }
-    pub(crate) fn constexpr(self) -> CompileResult<Locatable<(LiteralValue, Type)>> {
-        let folded = self.const_fold()?;
+    pub(crate) fn constexpr_for(
+        self,
+        target: TargetDataModel,
+    ) -> CompileResult<Locatable<(LiteralValue, Type)>> {
+        let folded = self.const_fold_for(target)?;
         match folded.expr {
             ExprType::Literal(token) => Ok(Locatable {
                 data: (token, folded.ctype),
@@ -106,6 +110,10 @@ impl Expr {
         }
     }
     pub fn const_fold(self) -> CompileResult<Expr> {
+        self.const_fold_for(TargetDataModel::Sia32)
+    }
+    /// Fold with an explicit target data model, without changing global state.
+    pub fn const_fold_for(self, target: TargetDataModel) -> CompileResult<Expr> {
         let location = self.location;
         let folded = match self.expr {
             ExprType::Literal(_) => self.expr,
@@ -120,13 +128,22 @@ impl Expr {
                 _ => self.expr,
             },
             ExprType::Sizeof(ctype) => {
-                let sizeof = ctype.sizeof().map_err(|data| Locatable {
+                if matches!(
+                    &ctype,
+                    Type::Array(_, crate::data::types::ArrayType::Variable(_))
+                ) {
+                    return Ok(Expr {
+                        expr: ExprType::Sizeof(ctype),
+                        ..self
+                    });
+                }
+                let sizeof = ctype.sizeof_for(target).map_err(|data| Locatable {
                     data: data.to_string(),
                     location,
                 })?;
                 ExprType::Literal(UnsignedInt(sizeof))
             }
-            ExprType::Negate(expr) => expr.const_fold()?.map_literal(
+            ExprType::Negate(expr) => expr.const_fold_for(target)?.map_literal(
                 &location,
                 |token| match token {
                     Int(i) => {
@@ -146,7 +163,7 @@ impl Expr {
                 },
                 ExprType::Negate,
             )?,
-            ExprType::BitwiseNot(expr) => expr.const_fold()?.map_literal(
+            ExprType::BitwiseNot(expr) => expr.const_fold_for(target)?.map_literal(
                 &location,
                 |token| match token {
                     Int(i) => Ok(Int(!i)),
@@ -157,10 +174,10 @@ impl Expr {
                 ExprType::BitwiseNot,
             )?,
             ExprType::Binary(op, left, right) => {
-                fold_binary(*left, *right, op, &self.ctype, location)?
+                fold_binary(*left, *right, op, &self.ctype, location, target)?
             }
             ExprType::Comma(left, right) => {
-                let (left, right) = (left.const_fold()?, right.const_fold()?);
+                let (left, right) = (left.const_fold_for(target)?, right.const_fold_for(target)?);
                 // check if we can ignore left or it has side effects
                 if left.is_constexpr() {
                     right.expr
@@ -169,11 +186,11 @@ impl Expr {
                 }
             }
             ExprType::Noop(inner) => {
-                let inner = inner.const_fold()?;
+                let inner = inner.const_fold_for(target)?;
                 ExprType::Noop(Box::new(inner))
             }
             ExprType::Deref(expr) => {
-                let folded = expr.const_fold()?;
+                let folded = expr.const_fold_for(target)?;
                 if let ExprType::Literal(Int(0)) = folded.expr {
                     return Err(Locatable::new(
                         SemanticError::NullPointerDereference.into(),
@@ -183,25 +200,23 @@ impl Expr {
                 ExprType::Deref(Box::new(folded))
             }
             ExprType::Ternary(condition, then, otherwise) => {
-                let (condition, then, otherwise) = (
-                    condition.const_fold()?,
-                    then.const_fold()?,
-                    otherwise.const_fold()?,
-                );
-                match condition.expr {
-                    ExprType::Literal(Int(0)) => otherwise.expr,
-                    ExprType::Literal(Int(_)) => then.expr,
-                    _ => {
-                        ExprType::Ternary(Box::new(condition), Box::new(then), Box::new(otherwise))
-                    }
+                let condition = condition.const_fold_for(target)?;
+                match literal_truth(&condition) {
+                    Some(false) => otherwise.const_fold_for(target)?.expr,
+                    Some(true) => then.const_fold_for(target)?.expr,
+                    None => ExprType::Ternary(
+                        Box::new(condition),
+                        Box::new(then.const_fold_for(target)?),
+                        Box::new(otherwise.const_fold_for(target)?),
+                    ),
                 }
             }
             ExprType::FuncCall(func, params) => {
-                let func = func.const_fold()?;
+                let func = func.const_fold_for(target)?;
                 #[rustfmt::skip]
                 let params: Vec<Expr> = params
                     .into_iter()
-                    .map(Self::const_fold)
+                    .map(|expr| expr.const_fold_for(target))
                     .collect::<CompileResult<_>>()?;
                 // function calls are always non-constant
                 // TODO: if we have access to the full source of a function, could we try to
@@ -209,16 +224,30 @@ impl Expr {
                 ExprType::FuncCall(Box::new(func), params)
             }
             ExprType::Member(expr, member) => {
-                let expr = expr.const_fold()?;
+                let expr = expr.const_fold_for(target)?;
                 ExprType::Member(Box::new(expr), member)
             }
             ExprType::PostIncrement(expr, increase) => {
-                let expr = expr.const_fold()?;
+                let expr = expr.const_fold_for(target)?;
                 // this isn't constant for the same reason assignment isn't constant
                 ExprType::PostIncrement(Box::new(expr), increase)
             }
-            ExprType::Cast(expr) => cast(*expr, &self.ctype)?,
-            ExprType::StaticRef(inner) => ExprType::StaticRef(Box::new(inner.const_fold()?)),
+            ExprType::Cast(expr) => cast(*expr, &self.ctype, target)?,
+            ExprType::StaticRef(inner) => {
+                ExprType::StaticRef(Box::new(inner.const_fold_for(target)?))
+            }
+        };
+        // Round each binary32 constant operation/conversion at its C type,
+        // rather than retaining an accidental binary64 intermediate.
+        let folded = if self.ctype == Type::Float {
+            match folded {
+                ExprType::Literal(Float(value)) => {
+                    ExprType::Literal(Float(f64::from(value as f32)))
+                }
+                other => other,
+            }
+        } else {
+            folded
         };
         Ok(Expr {
             expr: folded,
@@ -237,6 +266,7 @@ impl Expr {
         location: &Location,
         fold_func: F,
         op: BinaryOp,
+        target: TargetDataModel,
     ) -> CompileResult<ExprType>
     where
         F: FnOnce(
@@ -245,7 +275,7 @@ impl Expr {
             &Type,
         ) -> Result<Option<LiteralValue>, SemanticError>,
     {
-        let (left, right) = (self.const_fold()?, other.const_fold()?);
+        let (left, right) = (self.const_fold_for(target)?, other.const_fold_for(target)?);
         let literal: Option<ExprType> = match (&left.expr, &right.expr) {
             (ExprType::Literal(left_token), ExprType::Literal(right_token)) => {
                 match fold_func(left_token, right_token, &left.ctype) {
@@ -279,18 +309,34 @@ impl Expr {
     }
 }
 
+fn literal_truth(expr: &Expr) -> Option<bool> {
+    match &expr.expr {
+        ExprType::Literal(Int(n)) => Some(*n != 0),
+        ExprType::Literal(UnsignedInt(n)) => Some(*n != 0),
+        ExprType::Literal(Char(n)) => Some(*n != 0),
+        ExprType::Literal(Float(n)) => Some(*n != 0.0),
+        _ => None,
+    }
+}
+
 fn fold_binary(
     left: Expr,
     right: Expr,
     op: BinaryOp,
     parent_type: &Type,
     location: Location,
+    target: TargetDataModel,
 ) -> CompileResult<ExprType> {
     use lex::ComparisonToken::*;
     use BinaryOp::*;
 
-    let left = left.const_fold()?;
-    let right = right.const_fold()?;
+    let left = left.const_fold_for(target)?;
+    if (op == LogicalAnd && literal_truth(&left) == Some(false))
+        || (op == LogicalOr && literal_truth(&left) == Some(true))
+    {
+        return Ok(ExprType::Literal(Int(i64::from(op == LogicalOr))));
+    }
+    let right = right.const_fold_for(target)?;
 
     match op {
         Add => left.literal_bin_op(
@@ -303,6 +349,7 @@ fn fold_binary(
                 u8::wrapping_add,
             ),
             Add,
+            target,
         ),
         Sub => left.literal_bin_op(
             right,
@@ -314,6 +361,7 @@ fn fold_binary(
                 u8::wrapping_sub,
             ),
             Sub,
+            target,
         ),
         Mul => left.literal_bin_op(
             right,
@@ -325,6 +373,7 @@ fn fold_binary(
                 u8::wrapping_mul,
             ),
             Mul,
+            target,
         ),
         Div => {
             if right.ctype.is_integral() && right.is_zero() {
@@ -340,6 +389,7 @@ fn fold_binary(
                     u8::wrapping_div,
                 ),
                 Div,
+                target,
             )
         }
         Mod => {
@@ -365,13 +415,16 @@ fn fold_binary(
                     (_, _) => Ok(None),
                 },
                 Mod,
+                target,
             )
         }
-        Xor => left.literal_bin_op(right, &location, fold_int_bin_op!(^), Xor),
-        BitwiseAnd => left.literal_bin_op(right, &location, fold_int_bin_op!(&), BitwiseAnd),
-        BitwiseOr => left.literal_bin_op(right, &location, fold_int_bin_op!(|), BitwiseOr),
-        Shl => shift_left(left, right, parent_type, &location),
-        Shr => shift_right(left, right, parent_type, &location),
+        Xor => left.literal_bin_op(right, &location, fold_int_bin_op!(^), Xor, target),
+        BitwiseAnd => {
+            left.literal_bin_op(right, &location, fold_int_bin_op!(&), BitwiseAnd, target)
+        }
+        BitwiseOr => left.literal_bin_op(right, &location, fold_int_bin_op!(|), BitwiseOr, target),
+        Shl => shift_left(left, right, parent_type, &location, target),
+        Shr => shift_right(left, right, parent_type, &location, target),
         LogicalAnd => left.literal_bin_op(
             right,
             &location,
@@ -381,6 +434,7 @@ fn fold_binary(
                 _ => Ok(None),
             },
             LogicalAnd,
+            target,
         ),
         LogicalOr => left.literal_bin_op(
             right,
@@ -391,6 +445,7 @@ fn fold_binary(
                 _ => Ok(None),
             },
             LogicalOr,
+            target,
         ),
         Assign => {
             // TODO: could we propagate this information somehow?
@@ -401,12 +456,14 @@ fn fold_binary(
                 Box::new(right),
             ))
         }
-        Compare(Less) => Ok(fold_compare_op!(left, right, Compare, <, Less)),
-        Compare(LessEqual) => Ok(fold_compare_op!(left, right, Compare, <=, LessEqual)),
-        Compare(Greater) => Ok(fold_compare_op!(left, right, Compare, >, Greater)),
-        Compare(GreaterEqual) => Ok(fold_compare_op!(left, right, Compare, >=, GreaterEqual)),
-        Compare(EqualEqual) => Ok(fold_compare_op!(left, right, Compare, ==, EqualEqual)),
-        Compare(NotEqual) => Ok(fold_compare_op!(left, right, Compare, !=, NotEqual)),
+        Compare(Less) => Ok(fold_compare_op!(left, right, Compare, <, Less, target)),
+        Compare(LessEqual) => Ok(fold_compare_op!(left, right, Compare, <=, LessEqual, target)),
+        Compare(Greater) => Ok(fold_compare_op!(left, right, Compare, >, Greater, target)),
+        Compare(GreaterEqual) => {
+            Ok(fold_compare_op!(left, right, Compare, >=, GreaterEqual, target))
+        }
+        Compare(EqualEqual) => Ok(fold_compare_op!(left, right, Compare, ==, EqualEqual, target)),
+        Compare(NotEqual) => Ok(fold_compare_op!(left, right, Compare, !=, NotEqual, target)),
     }
 }
 
@@ -421,8 +478,8 @@ impl LiteralValue {
     }
 }
 
-fn cast(expr: Expr, ctype: &Type) -> CompileResult<ExprType> {
-    let expr = expr.const_fold()?;
+fn cast(expr: Expr, ctype: &Type, target: TargetDataModel) -> CompileResult<ExprType> {
+    let expr = expr.const_fold_for(target)?;
     Ok(if let ExprType::Literal(ref token) = expr.expr {
         if let Some(token) = const_cast(token, ctype) {
             ExprType::Literal(token)
@@ -441,25 +498,33 @@ fn cast(expr: Expr, ctype: &Type) -> CompileResult<ExprType> {
 fn const_cast(token: &LiteralValue, ctype: &Type) -> Option<LiteralValue> {
     let token = match (token, ctype) {
         (Int(i), Type::Bool) => Int((*i != 0).into()),
-        (Int(i), Type::Char(_)) => Char(*i as u8),
-        (Int(i), Type::Double) | (Int(i), Type::Float) => Float(*i as f64),
+        (Int(i), Type::Char(_) | Type::SignedChar) => Char(*i as u8),
+        (Int(i), Type::Double) | (Int(i), Type::LongDouble) | (Int(i), Type::Float) => {
+            Float(*i as f64)
+        }
         (Int(i), ty) if ty.is_integral() && ty.is_signed() => Int(*i),
         (Int(i), ty) if ty.is_integral() => UnsignedInt(*i as u64),
 
         (UnsignedInt(u), Type::Bool) => Int((*u != 0).into()),
-        (UnsignedInt(u), Type::Char(_)) => Char(*u as u8),
-        (UnsignedInt(u), Type::Double) | (UnsignedInt(u), Type::Float) => Float(*u as f64),
+        (UnsignedInt(u), Type::Char(_) | Type::SignedChar) => Char(*u as u8),
+        (UnsignedInt(u), Type::Double)
+        | (UnsignedInt(u), Type::LongDouble)
+        | (UnsignedInt(u), Type::Float) => Float(*u as f64),
         (UnsignedInt(u), ty) if ty.is_integral() && ty.is_signed() => Int(*u as i64),
         (UnsignedInt(u), ty) if ty.is_integral() => UnsignedInt(*u),
 
         (Float(f), Type::Bool) => Int((*f != 0.0) as i64),
-        (Float(f), Type::Char(_)) => Char(*f as u8),
-        (Float(f), Type::Double) | (Float(f), Type::Float) => Float(*f),
+        (Float(f), Type::Char(_) | Type::SignedChar) => Char(*f as u8),
+        (Float(f), Type::Double) | (Float(f), Type::LongDouble) | (Float(f), Type::Float) => {
+            Float(*f)
+        }
         (Float(f), ty) if ty.is_integral() && ty.is_signed() => Int(*f as i64),
         (Float(f), ty) if ty.is_integral() => UnsignedInt(*f as u64),
 
         (&Char(c), Type::Bool) => Int((c != 0).into()),
-        (&Char(c), Type::Double) | (&Char(c), Type::Float) => Float(c.into()),
+        (&Char(c), Type::Double) | (&Char(c), Type::LongDouble) | (&Char(c), Type::Float) => {
+            Float(c.into())
+        }
         (&Char(c), ty) if ty.is_integral() && ty.is_signed() => Int(c.into()),
         (&Char(c), ty) if ty.is_integral() => UnsignedInt(c.into()),
 
@@ -476,8 +541,9 @@ fn shift_right(
     right: Expr,
     ctype: &Type,
     location: &Location,
+    target: TargetDataModel,
 ) -> CompileResult<ExprType> {
-    let (left, right) = (left.const_fold()?, right.const_fold()?);
+    let (left, right) = (left.const_fold_for(target)?, right.const_fold_for(target)?);
     if let ExprType::Literal(token) = right.expr {
         let shift = match token.non_negative_int() {
             Ok(u) => u,
@@ -485,7 +551,7 @@ fn shift_right(
                 return Err(location.error(SemanticError::NegativeShift { is_left: false }));
             }
         };
-        let sizeof = ctype.sizeof().map_err(|err| Locatable {
+        let sizeof = ctype.sizeof_for(target).map_err(|err| Locatable {
             data: err.to_string(),
             location: *location,
         })?;
@@ -528,8 +594,9 @@ fn shift_left(
     right: Expr,
     ctype: &Type,
     location: &Location,
+    target: TargetDataModel,
 ) -> CompileResult<ExprType> {
-    let (left, right) = (left.const_fold()?, right.const_fold()?);
+    let (left, right) = (left.const_fold_for(target)?, right.const_fold_for(target)?);
     if let ExprType::Literal(token) = right.expr {
         let shift = match token.non_negative_int() {
             Ok(u) => u,
@@ -539,7 +606,7 @@ fn shift_left(
         };
 
         if left.ctype.is_signed() {
-            let size = match left.ctype.sizeof() {
+            let size = match left.ctype.sizeof_for(target) {
                 Ok(s) => s,
                 Err(err) => {
                     return Err(Locatable::new(
@@ -746,21 +813,21 @@ mod tests {
         assert_fold("!5", "0");
         assert_fold("!!5", "1");
         assert_fold("1 + .1", "1.1");
-        assert_fold("1 + (float).1", "1.1");
+        assert_fold("1 + (float).1", "1.1f");
         assert_fold("(int)1", "1");
         assert_fold("(unsigned)1", "1u");
 
         assert_fold("!5u", "0");
         assert_fold("!!5u", "1");
         assert_fold("1u + .1", "1.1");
-        assert_fold("1u+ (float).1", "1.1");
+        assert_fold("1u+ (float).1", "1.1f");
         assert_fold("(short)1u", "1");
         assert_fold("(unsigned long)1u", "1u");
 
         assert_fold("!5.0", "0");
         assert_fold("!!5.0", "1");
         assert_fold("(float)1.0 + .1", "1.1");
-        assert_fold("1.0 + (float).1", "1.1");
+        assert_fold("1.0 + (float).1", "1.1000000014901161");
         assert_fold("(long)1.0", "1");
         assert_fold("(unsigned short)1u", "1u");
 

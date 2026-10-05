@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running `tools/l21-execution/target/debug/sia-float-language runtime/softfloat/environment-test.c --max-instructions 1000000 --board`
+PRODUCTION-BOARD cycles=265601 backend_transactions=38179 minimum_sp=0xefec8
+PASS SIA C software floating-point source runtime/softfloat/environment-test.c; 33779 instructions; board=true

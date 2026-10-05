@@ -1,0 +1,6 @@
+   Compiling saltwater-parser v0.11.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-parser)
+   Compiling saltwater-sia v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-sia)
+   Compiling cosmicc-l21-execution v0.1.0 (/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.49s
+     Running `tools/l21-execution/target/debug/sia-float-language tools/sia/float-language.c`
+PASS SIA C binary32 source tools/sia/float-language.c; 32419 instructions; board=false

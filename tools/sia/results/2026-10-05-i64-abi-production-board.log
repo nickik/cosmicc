@@ -1,0 +1,4 @@
+   Compiling cosmicc-l21-execution v0.1.0 (/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running `tools/l21-execution/target/debug/sia-source-native tools/sia/i64-abi-stress.c --board`
+PASS SIA source tools/sia/i64-abi-stress.c; 7326 instructions; board=true

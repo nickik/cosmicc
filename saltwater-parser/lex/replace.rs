@@ -212,19 +212,56 @@ fn replace_boxed<'a>(
                         // replace_function predates scoped hide sets and consumes a
                         // plain token queue. Temporarily project the pending queue,
                         // then restore the per-token hide sets for anything it leaves.
-                        let mut plain_pending: VecDeque<_> =
-                            pending.drain(..).map(|(token, _)| token).collect();
+                        let saved_pending: Vec<_> = pending.drain(..).collect();
+                        let mut plain_pending: VecDeque<_> = saved_pending
+                            .iter()
+                            .map(|(token, _)| token.clone())
+                            .collect();
                         let func_replacements = replace_function(
                             definitions,
                             id,
                             location,
                             &mut plain_pending,
                             &mut inner,
+                            &disabled_here,
                         );
+                        // Consumption removes a prefix only. Preserve the hide
+                        // sets on untouched siblings; inheriting this invocation's
+                        // set incorrectly suppresses the second DO8 in DO16.
+                        let consumed = saved_pending.len() - plain_pending.len();
+                        // A function invocation hide set is the intersection of
+                        // its name and closing-parenthesis sets. External suffix
+                        // tokens have an empty set: a pasted function name may
+                        // start a fresh invocation after the outer macro ends.
+                        let closing = if consumed > 0 {
+                            saved_pending
+                                .get(consumed - 1)
+                                .filter(|(t, _)| {
+                                    matches!(
+                                        t,
+                                        Ok(Locatable {
+                                            data: Token::RightParen,
+                                            ..
+                                        })
+                                    )
+                                })
+                                .map(|(_, set)| set.clone())
+                                .unwrap_or_default()
+                        } else {
+                            Vec::new()
+                        };
+                        let invocation_disabled: Vec<_> = disabled_here
+                            .iter()
+                            .copied()
+                            .filter(|id| closing.contains(id))
+                            .collect();
                         pending.extend(
-                            plain_pending
-                                .into_iter()
-                                .map(|token| (token, disabled_here.clone())),
+                            plain_pending.into_iter().zip(
+                                saved_pending
+                                    .into_iter()
+                                    .skip(consumed)
+                                    .map(|(_, hide_set)| hide_set),
+                            ),
                         );
                         let mut func_replacements: VecDeque<_> =
                             func_replacements.into_iter().collect();
@@ -241,7 +278,7 @@ fn replace_boxed<'a>(
                             continue;
                         }
 
-                        let mut nested_disabled = disabled_here.clone();
+                        let mut nested_disabled = invocation_disabled;
                         nested_disabled.push(id);
                         let mut queued: VecDeque<_> = func_replacements
                             .into_iter()
@@ -269,6 +306,7 @@ fn replace_function(
     location: Location,
     incoming: &mut VecDeque<CompileResult<Locatable<Token>>>,
     mut inner: impl Iterator<Item = CppResult<Token>> + Peekable,
+    disabled: &[InternedStr],
 ) -> Vec<Result<Locatable<Token>, CompileError>> {
     use std::mem;
 
@@ -569,7 +607,32 @@ fn replace_function(
                     continue;
                 }
 
-                replacements.extend(left_tokens);
+                // Ordinary parameter occurrences are prescanned before the
+                // enclosing replacement list is rescanned. Adjacent ## operands
+                // above deliberately retain their original spelling.
+                if params.iter().any(|&param| param == id) {
+                    let mut argument = left_tokens
+                        .into_iter()
+                        .map(|token| Ok(location.with(token)))
+                        .peekable();
+                    while let Some(token) = argument.next() {
+                        let token = token.expect("argument tokens have already been lexed");
+                        for expanded in replace_boxed(
+                            definitions,
+                            token.data,
+                            Box::new(&mut argument),
+                            location,
+                            disabled,
+                        ) {
+                            match expanded {
+                                Ok(token) => replacements.push(token.data),
+                                Err(error) => errors.push(Err(error)),
+                            }
+                        }
+                    }
+                } else {
+                    replacements.extend(left_tokens);
+                }
             }
             Token::Whitespace(_) => replacements.push(Token::Whitespace(String::from(" "))),
             token => replacements.push(token),

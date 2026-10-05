@@ -1,0 +1,5 @@
+   Compiling cosmicc-l21-execution v0.1.0 (/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running `tools/l21-execution/target/debug/sia-float-language tools/sia/float64-language.c --board`
+PRODUCTION-BOARD cycles=549898 backend_transactions=79040 minimum_sp=0xefbdc
+PASS SIA C software floating-point source tools/sia/float64-language.c; 72249 instructions; board=true

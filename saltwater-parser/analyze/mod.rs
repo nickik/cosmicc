@@ -72,6 +72,10 @@ pub struct PureAnalyzer {
     ///
     /// TODO: this should be a field on `FunctionAnalyzer`, not `Analyzer`
     decl_side_channel: Vec<Locatable<Declaration>>,
+    target: crate::TargetDataModel,
+    anonymous_member_count: usize,
+    compound_literal_count: usize,
+    parameter_declarator_depth: usize,
 }
 
 impl<T: Lexer> Iterator for Analyzer<T> {
@@ -105,10 +109,14 @@ impl<T: Lexer> Iterator for Analyzer<T> {
 
 impl<I: Lexer> Analyzer<I> {
     pub fn new(parser: Parser<I>, debug: bool) -> Self {
+        Self::new_for_target(parser, debug, crate::TargetDataModel::Sia32)
+    }
+    /// Construct an analyzer with an explicit target.
+    pub fn new_for_target(parser: Parser<I>, debug: bool, target: crate::TargetDataModel) -> Self {
         Self {
             declarations: parser,
             debug,
-            inner: PureAnalyzer::new(),
+            inner: PureAnalyzer::new_for_target(target),
         }
     }
 }
@@ -121,6 +129,10 @@ impl Default for PureAnalyzer {
 
 impl PureAnalyzer {
     pub fn new() -> Self {
+        Self::new_for_target(crate::TargetDataModel::Sia32)
+    }
+    /// Construct a semantic analyzer with an explicit target.
+    pub fn new_for_target(target: crate::TargetDataModel) -> Self {
         Self {
             error_handler: ErrorHandler::new(),
             scope: Scope::new(),
@@ -129,6 +141,10 @@ impl PureAnalyzer {
             initialized: HashSet::new(),
             recursion_guard: RecursionGuard::default(),
             decl_side_channel: Vec::new(),
+            target,
+            anonymous_member_count: 0,
+            compound_literal_count: 0,
+            parameter_declarator_depth: 0,
         }
     }
 
@@ -193,9 +209,12 @@ impl PureAnalyzer {
         let sc = original.storage_class.unwrap_or(StorageClass::Auto);
         let mut decls = Vec::new();
         for d in declaration.declarators {
+            let declarator = d.data.declarator.decl.clone();
             let mut ctype =
                 self.parse_declarator(original.ctype.clone(), d.data.declarator.decl, d.location);
 
+            let qualifiers =
+                place_declarator_qualifiers(&mut ctype, &declarator, original.qualifiers);
             if !ctype.is_function() && original.qualifiers.func != FunctionQualifiers::default() {
                 self.err(
                     SemanticError::FuncQualifiersNotAllowed(original.qualifiers.func),
@@ -223,10 +242,29 @@ impl PureAnalyzer {
             } else {
                 None
             };
+            // Complete the outer array before publishing the declaration so
+            // subsequent expressions (especially sizeof) see its actual type.
+            // HIR aggregate lists already account for brace elision and holes
+            // introduced by designators; counting AST entries would not.
+            if let Type::Array(element, bound @ types::ArrayType::Unbounded) = &mut ctype {
+                let length = match init.as_ref() {
+                    Some(Initializer::InitializerList(items)) => Some(items.len() as u64),
+                    Some(Initializer::Scalar(expr)) => match &expr.expr {
+                        ExprType::Literal(LiteralValue::Str(bytes)) => {
+                            Some(bytes.len() as u64 / element.sizeof_for(self.target).unwrap_or(1))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(length) = length {
+                    *bound = types::ArrayType::Fixed(length);
+                }
+            }
             let symbol = Variable {
                 ctype,
                 id,
-                qualifiers: original.qualifiers,
+                qualifiers,
                 storage_class: sc,
             };
             let symbol = self.declare(symbol, init.is_some(), d.location);
@@ -278,7 +316,10 @@ impl PureAnalyzer {
         location: Location,
     ) -> ParsedType {
         let mut specs = self.parse_specifiers(specifiers, location);
+        let qualifier_declarator = declarator.clone();
         specs.ctype = self.parse_declarator(specs.ctype, declarator, location);
+        specs.qualifiers =
+            place_declarator_qualifiers(&mut specs.ctype, &qualifier_declarator, specs.qualifiers);
 
         if !specs.ctype.is_function() && specs.qualifiers.func != FunctionQualifiers::default() {
             self.err(
@@ -329,6 +370,17 @@ impl PureAnalyzer {
             }
         };
         // `long` is special because of `long long` and `long double`
+        if self.target == crate::TargetDataModel::Amd64
+            && counter.contains_key(&Long)
+            && counter.contains_key(&Double)
+        {
+            self.err(
+                SemanticError::from(
+                    "long double is unsupported; its layout cannot be represented as double",
+                ),
+                location,
+            );
+        }
         let mut ctype = None;
         if let Some(&long_count) = counter.get(&Long) {
             match long_count {
@@ -348,7 +400,7 @@ impl PureAnalyzer {
             }
         }
         // 6.7.3 Type qualifiers
-        let qualifiers = Qualifiers {
+        let mut qualifiers = Qualifiers {
             c_const: counter.get(&Const).is_some(),
             volatile: counter.get(&Volatile).is_some(),
             func: FunctionQualifiers {
@@ -380,13 +432,27 @@ impl PureAnalyzer {
         // https://play.rust-lang.org/?gist=0535aa4f749a14cb1b28d658446f3c13
         for (spec, new_ctype) in vec![
             (Bool, Type::Bool),
-            (Char, Type::Char(signed)),
+            (
+                Char,
+                if signed && counter.get(&Signed).is_some() {
+                    Type::SignedChar
+                } else {
+                    Type::Char(signed)
+                },
+            ),
             (Short, Type::Short(signed)),
             // already handled `long` when we handled `long long`
             (Float, Type::Float),
             // NOTE: if we saw `long double` before, we'll set `ctype` to `double` now
             // TODO: make `long double` different from `double`
-            (Double, Type::Double),
+            (
+                Double,
+                if counter.contains_key(&Long) {
+                    Type::LongDouble
+                } else {
+                    Type::Double
+                },
+            ),
             (Void, Type::Void),
             (VaList, Type::VaList),
         ] {
@@ -431,6 +497,8 @@ impl PureAnalyzer {
                         .expect("scope of parser and analyzer should match")
                         .get();
                     assert_eq!(meta.storage_class, StorageClass::Typedef);
+                    qualifiers.c_const |= meta.qualifiers.c_const;
+                    qualifiers.volatile |= meta.qualifiers.volatile;
                     meta.ctype.clone()
                 }
                 Struct(s) => self.struct_specifier(s, true, &mut declared_compound_type, location),
@@ -455,6 +523,7 @@ impl PureAnalyzer {
             match &ctype {
                 // unsigned int
                 Some(Type::Char(_))
+                | Some(Type::SignedChar)
                 | Some(Type::Short(_))
                 | Some(Type::Int(_))
                 | Some(Type::Long(_))
@@ -538,6 +607,31 @@ impl PureAnalyzer {
             .map(|m| self.struct_declarator_list(m, location).into_iter())
             .flatten()
             .collect();
+        fn visible_member_names(members: &[Variable], names: &mut Vec<InternedStr>) {
+            for member in members {
+                if member.id.resolve_and_clone().starts_with("$anonymous") {
+                    if let Type::Struct(st) | Type::Union(st) = &member.ctype {
+                        visible_member_names(&st.members(), names);
+                    }
+                } else {
+                    names.push(member.id);
+                }
+            }
+        }
+        let mut names = Vec::new();
+        visible_member_names(&members, &mut names);
+        let mut seen = HashSet::new();
+        for name in names {
+            if !seen.insert(name) {
+                self.err(
+                    SemanticError::from(format!(
+                        "duplicate member '{}' including anonymous member promotion",
+                        name
+                    )),
+                    location,
+                );
+            }
+        }
         if members.is_empty() {
             self.err(SemanticError::from("cannot have empty struct"), location);
             return Type::Error;
@@ -600,6 +694,29 @@ impl PureAnalyzer {
         }
 
         let mut parsed_members = Vec::new();
+        if members.declarators.is_empty()
+            || members
+                .declarators
+                .iter()
+                .all(|m| m.decl.is_none() && m.bitfield.is_none())
+        {
+            if matches!(
+                &parsed_type.ctype,
+                Type::Struct(StructType::Anonymous(_)) | Type::Union(StructType::Anonymous(_))
+            ) {
+                let id = format!("$anonymous{}", self.anonymous_member_count).into();
+                self.anonymous_member_count += 1;
+                parsed_members.push(Variable {
+                    storage_class: StorageClass::Auto,
+                    qualifiers: parsed_type.qualifiers,
+                    ctype: parsed_type.ctype,
+                    id,
+                });
+            } else {
+                self.err(SemanticError::from("member declaration without a declarator requires an anonymous struct or union"), location);
+            }
+            return parsed_members;
+        }
         // A member of a structure or union may have any complete object type other than a variably modified type.
         for ast::StructDeclarator { decl, bitfield } in members.declarators {
             let decl = match decl {
@@ -608,31 +725,37 @@ impl PureAnalyzer {
                 None => continue,
                 Some(d) => d,
             };
-            let ctype = match self.parse_declarator(parsed_type.ctype.clone(), decl.decl, location)
-            {
-                Type::Void => {
-                    // TODO: catch this error for types besides void?
-                    self.err(SemanticError::VoidType, location);
-                    Type::Error
-                }
-                other => other,
-            };
+            let qualifier_declarator = decl.decl.clone();
+            let mut ctype =
+                match self.parse_declarator(parsed_type.ctype.clone(), decl.decl, location) {
+                    Type::Void => {
+                        // TODO: catch this error for types besides void?
+                        self.err(SemanticError::VoidType, location);
+                        Type::Error
+                    }
+                    other => other,
+                };
+            let qualifiers = place_declarator_qualifiers(
+                &mut ctype,
+                &qualifier_declarator,
+                parsed_type.qualifiers,
+            );
             let mut symbol = Variable {
                 storage_class: StorageClass::Auto,
-                qualifiers: parsed_type.qualifiers,
+                qualifiers,
                 ctype,
                 id: decl.id.expect("struct members should have an id"),
             };
             // struct s { int i: 5 };
             if let Some(bitfield) = bitfield {
-                let bit_size = match Self::const_uint(self.expr(bitfield)) {
+                let bit_size = match Self::const_uint(self.expr(bitfield), self.target) {
                     Ok(e) => e,
                     Err(err) => {
                         self.error_handler.push_back(err);
                         1
                     }
                 };
-                let type_size = symbol.ctype.sizeof().unwrap_or(0);
+                let type_size = symbol.ctype.sizeof_for(self.target).unwrap_or(0);
                 if bit_size == 0 {
                     let err = SemanticError::from(format!(
                         "C does not have zero-sized types. hint: omit the declarator {}",
@@ -732,10 +855,11 @@ impl PureAnalyzer {
         for (name, maybe_value) in ast_members {
             // enum E { A = 5 };
             if let Some(value) = maybe_value {
-                discriminant = Self::const_sint(self.expr(value)).unwrap_or_else(|err| {
-                    self.error_handler.push_back(err);
-                    i64::MIN
-                });
+                discriminant =
+                    Self::const_sint(self.expr(value), self.target).unwrap_or_else(|err| {
+                        self.error_handler.push_back(err);
+                        i64::MIN
+                    });
             }
             members.push((name, discriminant));
             // TODO: this is such a hack
@@ -878,11 +1002,27 @@ impl PureAnalyzer {
                 }
                 Type::Pointer(Box::new(inner), qualifiers)
             }
-            Array { of, size } => {
+            Array {
+                of,
+                size,
+                parameter_qualifiers,
+                static_bound,
+                unspecified_vla,
+            } => {
+                if self.parameter_declarator_depth == 0
+                    && (!parameter_qualifiers.is_empty() || static_bound || unspecified_vla)
+                {
+                    self.err(
+                        SemanticError::from(
+                            "array qualifiers, static bounds and [*] require a function parameter",
+                        ),
+                        location,
+                    );
+                }
                 // int a[5]
                 let size = if let Some(expr) = size {
                     let analyzed = self.expr(*expr).rval();
-                    match Self::const_uint(analyzed.clone()) {
+                    match Self::const_uint(analyzed.clone(), self.target) {
                         Ok(size) => ArrayType::Fixed(size),
                         Err(_error) if analyzed.ctype.is_integral() => {
                             ArrayType::Variable(Box::new(analyzed))
@@ -923,13 +1063,53 @@ impl PureAnalyzer {
                 let mut names = HashSet::new();
                 let mut params = Vec::new();
                 for param in func.params {
+                    let array_qualifiers = match &param.declarator.decl {
+                        ast::DeclaratorType::Array {
+                            parameter_qualifiers,
+                            ..
+                        } => parameter_qualifiers.clone(),
+                        _ => Vec::new(),
+                    };
+                    fn invalid_inner_array(decl: &ast::DeclaratorType, outer: bool) -> bool {
+                        match decl {
+                            ast::DeclaratorType::Array {
+                                of,
+                                parameter_qualifiers,
+                                static_bound,
+                                ..
+                            } => {
+                                (!outer && (!parameter_qualifiers.is_empty() || *static_bound))
+                                    || invalid_inner_array(of, false)
+                            }
+                            ast::DeclaratorType::Pointer { to, .. } => {
+                                invalid_inner_array(to, false)
+                            }
+                            _ => false,
+                        }
+                    }
+                    if invalid_inner_array(&param.declarator.decl, true) {
+                        self.err(SemanticError::from("array parameter qualifiers/static bounds must occur in the outermost array derivation"), location);
+                    }
+                    self.parameter_declarator_depth += 1;
                     // TODO: this location should be that of the param, not of the function
                     let mut param_type =
                         self.parse_type(param.specifiers, param.declarator.decl, location);
+                    self.parameter_declarator_depth -= 1;
 
                     // `int f(int a[])` -> `int f(int *a)`
                     if let Type::Array(to, _) = param_type.ctype {
                         param_type.ctype = Type::Pointer(to, Qualifiers::default());
+                        for qualifier in array_qualifiers {
+                            match qualifier {
+                                ast::DeclarationSpecifier::Unit(UnitSpecifier::Const) => {
+                                    param_type.qualifiers.c_const = true
+                                }
+                                ast::DeclarationSpecifier::Unit(UnitSpecifier::Volatile) => {
+                                    param_type.qualifiers.volatile = true
+                                }
+                                _ => {}
+                            }
+                        }
                     }
 
                     // C11 Standard 6.7.6.3 paragraph 8
@@ -995,18 +1175,23 @@ impl PureAnalyzer {
         }
     }
     // used for arrays like `int a[BUF_SIZE - 1];` and enums like `enum { A = 1 }`
-    fn const_literal(expr: Expr) -> CompileResult<LiteralValue> {
+    fn const_literal(expr: Expr, target: crate::TargetDataModel) -> CompileResult<LiteralValue> {
         let location = expr.location;
-        expr.const_fold()?.into_literal().map_err(|runtime_expr| {
-            Locatable::new(SemanticError::NotConstant(runtime_expr).into(), location)
-        })
+        expr.const_fold_for(target)?
+            .into_literal()
+            .map_err(|runtime_expr| {
+                Locatable::new(SemanticError::NotConstant(runtime_expr).into(), location)
+            })
     }
     /// Return an unsigned integer that can be evaluated at compile time, or an error otherwise.
-    fn const_uint(expr: Expr) -> CompileResult<crate::arch::SIZE_T> {
+    fn const_uint(
+        expr: Expr,
+        target: crate::TargetDataModel,
+    ) -> CompileResult<crate::arch::SIZE_T> {
         use LiteralValue::*;
 
         let location = expr.location;
-        match Self::const_literal(expr)? {
+        match Self::const_literal(expr, target)? {
             UnsignedInt(i) => Ok(i),
             Int(i) => {
                 if i < 0 {
@@ -1026,11 +1211,11 @@ impl PureAnalyzer {
         }
     }
     /// Return a signed integer that can be evaluated at compile time, or an error otherwise.
-    fn const_sint(expr: Expr) -> CompileResult<i64> {
+    fn const_sint(expr: Expr, target: crate::TargetDataModel) -> CompileResult<i64> {
         use LiteralValue::*;
 
         let location = expr.location;
-        match Self::const_literal(expr)? {
+        match Self::const_literal(expr, target)? {
             UnsignedInt(u) => match u.try_into() {
                 Ok(i) => Ok(i),
                 Err(_) => Err(Locatable::new(
@@ -1147,7 +1332,7 @@ impl Type {
     #[inline]
     fn is_char(&self) -> bool {
         match self {
-            Type::Char(true) => true,
+            Type::Char(_) | Type::SignedChar => true,
             _ => false,
         }
     }
@@ -1519,7 +1704,6 @@ pub(crate) mod test {
         assert!(match_type(decl("unsigned i;"), Type::Int(false)));
         assert!(match_type(decl("float f;"), Type::Float));
         assert!(match_type(decl("double d;"), Type::Double));
-        assert!(match_type(decl("long double d;"), Type::Double));
         assert!(match_type(
             decl("void f();"),
             Type::Function(FunctionType {
@@ -1529,7 +1713,6 @@ pub(crate) mod test {
             })
         ));
         assert!(match_type(decl("const volatile int f;"), Type::Int(true)));
-        assert!(match_type(decl("long double d;"), Type::Double));
         assert!(match_type(decl("short int i;"), Type::Short(true)));
         assert!(match_type(decl("long int i;"), Type::Long(true)));
         assert!(match_type(decl("long long int i;"), Type::LongLong(true)));
@@ -1741,13 +1924,7 @@ pub(crate) mod test {
                 Box::new(Array(
                     Box::new(Pointer(
                         Box::new(Function(FunctionType {
-                            return_type: Box::new(Pointer(
-                                Box::new(Char(true)),
-                                Qualifiers {
-                                    volatile: true,
-                                    ..Qualifiers::default()
-                                }
-                            )),
+                            return_type: Box::new(Pointer(Box::new(Char(true)), Qualifiers::NONE)),
                             params: vec![Variable {
                                 ctype: Int(true),
                                 storage_class: Default::default(),
@@ -1761,10 +1938,7 @@ pub(crate) mod test {
                     )),
                     ArrayType::Unbounded,
                 )),
-                Qualifiers {
-                    c_const: true,
-                    ..Qualifiers::default()
-                }
+                Qualifiers::NONE
             )
         ));
         // cdecl: declare foo as pointer to function (void) returning pointer to array 3 of int
@@ -1794,7 +1968,7 @@ pub(crate) mod test {
             Pointer(
                 Box::new(Array(Box::new(Int(true)), ArrayType::Unbounded)),
                 Qualifiers {
-                    volatile: true,
+                    c_const: true,
                     ..Qualifiers::default()
                 }
             )
@@ -1959,5 +2133,34 @@ int main() {
             "int f(void) { return 1; }",
             "extern int f(void) {\n    return (int)(1);\n}\n",
         );
+    }
+}
+
+// Declarator parsing initially attaches * qualifiers to their pointer node.
+// Rotate those qualifiers outward, placing declaration-specifier qualifiers
+// on the base pointee and returning the outer object's qualifiers.
+fn place_declarator_qualifiers(
+    ctype: &mut Type,
+    declarator: &ast::DeclaratorType,
+    base: Qualifiers,
+) -> Qualifiers {
+    // Only visit this declaration's new nodes. A typedef's existing pointer
+    // qualifiers have already been placed and must not be rotated again.
+    match (ctype, declarator) {
+        (Type::Pointer(inner, qualifiers), ast::DeclaratorType::Pointer { to, .. }) => {
+            let pointee = place_declarator_qualifiers(inner, to, base);
+            std::mem::replace(qualifiers, pointee)
+        }
+        (Type::Array(inner, _), ast::DeclaratorType::Array { of, .. }) => {
+            place_declarator_qualifiers(inner, of, base)
+        }
+        (Type::Function(function), ast::DeclaratorType::Function(declaration)) => {
+            place_declarator_qualifiers(&mut function.return_type, &declaration.return_type, base);
+            Qualifiers {
+                func: base.func,
+                ..Qualifiers::NONE
+            }
+        }
+        _ => base,
     }
 }

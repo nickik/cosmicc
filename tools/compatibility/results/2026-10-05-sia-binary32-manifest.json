@@ -1,0 +1,12 @@
+{
+  "compiler_sha256": "d9d225e6f619de1e589c314a51293c424711f09f2b137baec6e94f3a4c377c37",
+  "runtime_objects": {
+    "/tmp/cosmic-sia-float-runtime-objects/context.sia": "1fafb4305a5609fc5c2299b1bf5ef02c73936b0ab128ecb28491569497fd041a",
+    "/tmp/cosmic-sia-float-runtime-objects/binary32-convert.sia": "b3625a5963fd80c6c244e2e4ca33c9c72c3bb016a54afdbf49b7f35b081e1234",
+    "/tmp/cosmic-sia-float-runtime-objects/binary32-add.sia": "ba19cfcba42c000de1de66a80b214d3e9061bb7af40cebea50979e7027a8e1ef"
+  },
+  "execution": "LightingMachine; explicit guest runtime objects; no host callbacks",
+  "passed": 143,
+  "selected": 147,
+  "instructions": 11312916
+}

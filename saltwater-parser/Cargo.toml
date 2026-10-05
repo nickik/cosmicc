@@ -12,7 +12,7 @@ lazy_static = "1"
 arcstr = "0.2.2"
 hexponent = "0.3"
 thiserror = "^1.0.10"
-target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "3cf7afcb6e771e0de539f5cb9bf413574a8f6963", package = "target-lexicon" }
+target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d", package = "target-lexicon" }
 lasso = "0.2"
 codespan = { version = ">=0.9.5", default-features = false }
 counter = "0.4"

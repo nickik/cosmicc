@@ -13,8 +13,8 @@ sh scripts/check-supported.sh
 cargo build --release --bin cosmicc --locked
 ```
 
-The script runs formatting, the focused C-to-SIA test suite, the compiler
-command check, and a check of every maintained workspace package. A lockfile
+The script runs formatting, workspace tests, the compiler build,
+and a check of every maintained workspace package. A lockfile
 change must be intentional: supported commands use `--locked`.
 
 Add focused tests in `saltwater-sia` for a change to C lowering, CLIF shape,
@@ -25,13 +25,15 @@ Byte-generation and `CallPlan` tests do **not** prove code execution.
 
 - Do not add a host executable, host JIT, reference interpreter, or direct SIA
   encoder as acceptance evidence.
-- Do not add LLVM or floating-point support. Floating-point declarations and
-  literals must remain rejected before CLIF lowering.
+- Do not add an LLVM product pipeline. SIA has no FPU: floating-point support
+  must use documented software legalization and integer-only target runtime
+  helpers. Until implemented, retain explicit unsupported emission diagnostics.
 - Keep target output SIA32-only. The host runs the compiler, not the compiled
   program.
-- Real execution evidence requires the public Lighting board-call runner. Its
-  current external blocker and the Cranelift comparison blocker are documented
-  in [`TODO.md`](TODO.md).
+- State which Lighting machine path supplied execution evidence. Composed board
+  acceptance uses the public SoftwareCpuBoard/MainboardFPGA runner; architectural
+  LightingMachine execution is a separately labelled integration result.
+- Use [PORTABILITY_TODO.md](PORTABILITY_TODO.md) for the active portability work.
 
 ## Retained historical material
 

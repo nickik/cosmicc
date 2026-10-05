@@ -1,0 +1,144 @@
+{
+  "status": "passed",
+  "cases": 888576,
+  "guest_vectors": 1432,
+  "operations": [
+    {
+      "width": 32,
+      "operation": "fmod",
+      "cases": 40768
+    },
+    {
+      "width": 32,
+      "operation": "floor",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "ceil",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "trunc",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "round",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "fabs",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "copysign",
+      "cases": 41024
+    },
+    {
+      "width": 32,
+      "operation": "scalbn",
+      "cases": 40320
+    },
+    {
+      "width": 32,
+      "operation": "frexp",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "remquo",
+      "cases": 40768
+    },
+    {
+      "width": 32,
+      "operation": "nextafter",
+      "cases": 41024
+    },
+    {
+      "width": 64,
+      "operation": "fmod",
+      "cases": 40768
+    },
+    {
+      "width": 64,
+      "operation": "floor",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "ceil",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "trunc",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "round",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "fabs",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "copysign",
+      "cases": 41024
+    },
+    {
+      "width": 64,
+      "operation": "scalbn",
+      "cases": 40320
+    },
+    {
+      "width": 64,
+      "operation": "frexp",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "remquo",
+      "cases": 40768
+    },
+    {
+      "width": 64,
+      "operation": "nextafter",
+      "cases": 41024
+    }
+  ],
+  "reference": "host libm finite-input output bits; flags separately tested by directed fixtures",
+  "command": [
+    "cc",
+    "-std=c99",
+    "-O2",
+    "-fno-builtin",
+    "-frounding-math",
+    "-shared",
+    "-fPIC",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/math-reference-test.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/math-bits.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-convert.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-add.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/context.c",
+    "-lm",
+    "-o",
+    "/tmp/cosmic-math-extra-final/oracle.so"
+  ],
+  "source_sha256": {
+    "math-reference-test.c": "bea1793dca649440d516518e5eb04107efd0252c4fca2cd491ec9f59fecd93d7",
+    "math-bits.c": "8f3cab9940f117af962a4e7ecabfc429cb0f1b2b14f23e15b60b350b8872836c",
+    "binary32-convert.c": "3e4dbcb3511abd03cf334b8343b564669a4981365d6c78a30f2c056802d4dc04",
+    "binary32-add.c": "313262cb944fd7dbd016028da7e82818ed91d323c0ad5da73a73be60881569a2",
+    "binary64.c": "c2af4a0ba05271ffc24d8cac57f4895966b37461e3681f45cb07618cc99377f4",
+    "context.c": "8a1871952d6a6cc6de2bb79acfc5fd2e78d232fdbe4bdf7e40764618f83ba731"
+  }
+}

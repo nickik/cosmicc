@@ -1,0 +1,122 @@
+{
+  "status": "passed",
+  "cases": 724992,
+  "guest_vectors": 1192,
+  "operations": [
+    {
+      "width": 32,
+      "operation": "fmod",
+      "cases": 40768
+    },
+    {
+      "width": 32,
+      "operation": "floor",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "ceil",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "trunc",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "round",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "fabs",
+      "cases": 40064
+    },
+    {
+      "width": 32,
+      "operation": "copysign",
+      "cases": 41024
+    },
+    {
+      "width": 32,
+      "operation": "scalbn",
+      "cases": 40320
+    },
+    {
+      "width": 32,
+      "operation": "frexp",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "fmod",
+      "cases": 40768
+    },
+    {
+      "width": 64,
+      "operation": "floor",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "ceil",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "trunc",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "round",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "fabs",
+      "cases": 40064
+    },
+    {
+      "width": 64,
+      "operation": "copysign",
+      "cases": 41024
+    },
+    {
+      "width": 64,
+      "operation": "scalbn",
+      "cases": 40320
+    },
+    {
+      "width": 64,
+      "operation": "frexp",
+      "cases": 40064
+    }
+  ],
+  "reference": "host libm finite-input output bits; flags separately tested by directed fixtures",
+  "command": [
+    "cc",
+    "-std=c99",
+    "-O2",
+    "-fno-builtin",
+    "-frounding-math",
+    "-shared",
+    "-fPIC",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/math-reference-test.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/math-bits.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-add.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/context.c",
+    "-lm",
+    "-o",
+    "/tmp/cosmic-math-bits-final/oracle.so"
+  ],
+  "source_sha256": {
+    "math-reference-test.c": "3b8c121b32ec6233b2824a426a3ecfb21c646aea4fd548945e8c92979d435a5d",
+    "math-bits.c": "b7aac5edab0ab2f9a87979890cc54ec73849159b5b6ff21de1dbd826f5352061",
+    "binary32-add.c": "413375f732af91b7d9c1fffac140a8f978c4eee7753a3cbbbf46ad4ec4155a1e",
+    "binary64.c": "2660ce177d4915d7c28f25576fb878c21ab30e9965e0de7029ea39689730149b",
+    "context.c": "8a1871952d6a6cc6de2bb79acfc5fd2e78d232fdbe4bdf7e40764618f83ba731"
+  }
+}

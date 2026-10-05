@@ -1,0 +1,18 @@
+{
+  "kind": "LightingMachine architectural execution; no composed-board claim",
+  "add32": {
+    "vectors": 754,
+    "instructions": 453343,
+    "return": 0
+  },
+  "sub_mul_div32": {
+    "vectors": 521,
+    "instructions": 1061772,
+    "return": 0
+  },
+  "runner_sha256": "f3617c6a7d581cae231e8a4a5f955763be161799ecfb4c81607ee79e8b231653",
+  "guest_sources": {
+    "add32": "3f158af72fd28c08fafa4ee6c0fbcf5358932c46248e6e20b573b78cf7b0aa15",
+    "sub_mul_div32": "cf688911b4c727d336f132c894325e39c497c9a9fa5a0cb9b7529ace1a848319"
+  }
+}

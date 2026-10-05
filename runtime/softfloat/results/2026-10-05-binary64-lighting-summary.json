@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "kind": "LightingMachine architectural execution; no composed-board claim",
+  "vectors": 1169,
+  "instructions": 1176594,
+  "return": 0,
+  "guest_source_sha256": "8a456e5be00ae29c1a9c773b274550c64b47db09cb8d8c79998adb7267a89c05",
+  "vector_sha256": "25f25d84dd86c3462f28e9e9ce400e77f6cc445566a4c24089e49c2553237b8e",
+  "runner_sha256": "d8184ea0d70ed0ad009fb67d62db42ed063d0439f274d99942a59eab0641f767"
+}

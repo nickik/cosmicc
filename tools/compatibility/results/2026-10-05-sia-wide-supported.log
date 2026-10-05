@@ -1,0 +1,452 @@
+   Compiling saltwater-parser v0.11.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-parser)
+   Compiling saltwater-sia v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-sia)
+   Compiling saltwater-amd64 v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-amd64)
+   Compiling cosmicc v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc)
+warning: panic message contains an unused formatting placeholder
+    --> saltwater-sia/lib.rs:5512:55
+     |
+5512 |             assert!(compile_source(source).is_err(), "{source}");
+     |                                                       ^^^^^^^^
+     |
+     = note: this message is not used as a format string when given without arguments, but will be in Rust 2021
+     = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2021/panic-macro-consistency.html>
+     = note: `#[warn(non_fmt_panics)]` (part of `#[warn(rust_2021_compatibility)]`) on by default
+help: add the missing argument
+     |
+5512 |             assert!(compile_source(source).is_err(), "{source}", ...);
+     |                                                                +++++
+help: or add a "{}" format string to use the message literally
+     |
+5512 |             assert!(compile_source(source).is_err(), "{}", "{source}");
+     |                                                      +++++
+
+warning: panic message contains an unused formatting placeholder
+    --> saltwater-sia/lib.rs:5620:55
+     |
+5620 |             assert!(ir_type(&ty, location).is_err(), "{ty:?}");
+     |                                                       ^^^^^^
+     |
+     = note: this message is not used as a format string when given without arguments, but will be in Rust 2021
+     = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2021/panic-macro-consistency.html>
+help: add the missing argument
+     |
+5620 |             assert!(ir_type(&ty, location).is_err(), "{ty:?}", ...);
+     |                                                              +++++
+help: or add a "{}" format string to use the message literally
+     |
+5620 |             assert!(ir_type(&ty, location).is_err(), "{}", "{ty:?}");
+     |                                                      +++++
+
+warning: `saltwater-sia` (lib test) generated 2 warnings (run `cargo fix --lib -p saltwater-sia --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized] target(s) in 2.38s
+     Running unittests src/cosmic-link.rs (target/debug/deps/cosmic_link-20f3e0d0e923fbc6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/cosmicc.rs (target/debug/deps/cosmicc-4db56b8aa791cac6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests lib.rs (target/debug/deps/saltwater_amd64-5aea90b9706b4b7b)
+
+running 11 tests
+test variadic::tests::aggregate_variadic_arguments_are_not_misclassified_as_pointers ... ok
+test aggregate::tests::small_aggregate_and_aggregate_returns_remain_diagnosed ... ok
+test variadic::tests::outgoing_scalar_variadic_calls_emit_elf ... ok
+test tests::emits_elf64_with_lp64_scalars_and_external_relocations ... ok
+test variadic::tests::incoming_named_only_variadic_definition_emits_elf ... ok
+test tests::unused_unsupported_abi_prototypes_do_not_block_scalar_code ... ok
+test tests::compiles_control_flow_and_native_floating_point ... ok
+test aggregate::tests::fixed_and_variadic_memory_parameters_emit_elf ... ok
+test expr::tests::floating_conversions_to_narrow_integers_do_not_emit_unsupported_x64_widths ... ok
+test tests::links_and_executes_aggregate_copies_with_exact_self_aliasing ... ok
+test tests::scalar_ssa_preserves_control_flow_and_escaped_storage ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running unittests lib.rs (target/debug/deps/saltwater_parser-a0301bae6b9dba35)
+
+running 140 tests
+test analyze::expr::test::narrow_pointer_indices_scale_without_truncation ... ok
+test analyze::expr::test::test_funcall ... ok
+test analyze::expr::test::test_type_errors ... ok
+test analyze::expr::test::test_mul ... ok
+test analyze::stmt::tests::test_expr_stmt ... ok
+test analyze::expr::test::test_primaries ... ok
+test analyze::test::no_name_should_be_syntax_error ... ok
+test analyze::init::test::designated_initializer_continues_at_following_subobject ... ok
+test analyze::expr::test::test_explicit_casts ... ok
+test analyze::init::test::nested_designated_initializers_analyze ... ok
+test analyze::init::test::designated_initializers_override_and_reset_continuation ... ok
+test analyze::test::redefinition_is_err ... ok
+test analyze::expr::test::long_long_width_rank_and_suffixes_are_preserved ... ok
+test analyze::test::extern_redeclaration_of_static_fn_does_not_error ... ok
+test analyze::test::lol ... ok
+test analyze::test::storage_class ... ok
+test analyze::test::bitfields ... ok
+test analyze::test::default_type_specifier_warns ... ok
+test analyze::test::test_functions_array_parameter_static ... ok
+test analyze::test::test_arrays ... ok
+test analyze::test::test_functions ... ok
+test analyze::test::function ... ok
+test analyze::test::test_pointers_and_arrays ... ok
+test analyze::test::test_decl_errors ... ok
+test arch::tests::align_of_non_char_struct ... ok
+test analyze::test::typedef_signed ... ok
+test analyze::test::enum_declaration ... ok
+test arch::tests::char_struct ... ok
+test analyze::test::test_no_specifiers ... ok
+test analyze::test::test_multiple ... ok
+test analyze::expr::test::qualified_pointer_expression_compatibility ... ok
+test analyze::init::test::test_initializers_more ... ok
+test data::error::tests::test_compile_error_display ... ok
+test analyze::test::test_inline_keyword ... ok
+test data::error::tests::test_error_handler_into_iterator ... ok
+test analyze::test::test_pointers ... ok
+test data::error::tests::test_compile_error_is_kind ... ok
+test data::ast::test::test_declaration_display ... ok
+test analyze::test::test_complex ... ok
+test data::lex::test::str_display_escape ... ok
+test analyze::test::test_bad_decl_specs ... ok
+test arch::tests::multiples ... ok
+test analyze::test::void ... ok
+test fold::tests::test_addition ... ok
+test data::lex::test::assignment_display ... ok
+test analyze::test::test_decl_specifiers ... ok
+test data::tests::type_display ... ok
+test data::hir::tests::type_display ... ok
+test fold::tests::test_char ... ok
+test fold::tests::test_left_shift ... ok
+test fold::tests::test_negation ... ok
+test analyze::init::test::test_initializers ... ok
+test fold::tests::test_multiplication ... ok
+test lex::cpp::tests::builtins_file ... ok
+test fold::tests::test_division ... ok
+test fold::tests::test_right_shift ... ok
+test fold::tests::test_modulo ... ok
+test fold::tests::test_subtraction ... ok
+test data::types::tests::test_big_one ... ok
+test lex::cpp::tests::else_directive ... ok
+test lex::cpp::tests::empty_def ... ok
+test lex::cpp::tests::eof_after_macro_call ... ok
+test lex::cpp::tests::elif ... ok
+test lex::cpp::tests::error ... ok
+test lex::cpp::tests::cycle_detection ... ok
+test lex::cpp::tests::argument_prescan_keeps_recursive_ancestor_disabled ... ok
+test lex::cpp::tests::ifndef ... ok
+test lex::cpp::tests::function_body_replacement ... ok
+test lex::cpp::tests::line ... ok
+test lex::cpp::tests::builtins_date_time ... ok
+test lex::cpp::tests::mutually_recursive_function ... ok
+test lex::cpp::tests::ifdef ... ok
+test lex::cpp::tests::pragma ... ok
+test lex::cpp::tests::object_body_replacement ... ok
+test lex::cpp::tests::if_directive ... ok
+test lex::cpp::tests::if_fn_directive ... ok
+test lex::cpp::tests::builtins_line ... ok
+test lex::cpp::tests::invalid_directive ... ok
+test lex::cpp::tests::recursive_function ... ok
+test lex::cpp::tests::pragma_macro_stacks_preserve_nested_definitions ... ok
+test lex::cpp::tests::pragma_macro_stack_rejects_malformed_arguments ... ok
+test arch::tests::proptest_sizeof_multiple_of_alignof ... ok
+test lex::cpp::tests::parens ... ok
+test lex::cpp::tests::object_macros ... ok
+test lex::cpp::tests::pragma_macro_stacks_preserve_undefined_empty_and_function_macros ... ok
+test lex::cpp::tests::str_at_eol ... ok
+test arch::tests::proptest_align_power_of_two ... ok
+test lex::test::test_lexer_slice_parent ... ok
+test lex::cpp::tests::warning ... ok
+test lex::cpp::tests::repeated_nested_function_macros_keep_sibling_hide_sets ... ok
+test lex::cpp::tests::undef ... ok
+test lex::tests::test_ellipses ... ok
+test lex::cpp::tests::space_separated_function_macro ... ok
+test lex::tests::backslashes ... ok
+test lex::cpp::tests::test_comment_newline ... ok
+test lex::cpp::tests::recursive_macros ... ok
+test lex::cpp::tests::redefinition ... ok
+test lex::tests::test_for_loop ... ok
+test lex::tests::test_no_newline ... ok
+test lex::tests::test_num_errors ... ok
+test lex::tests::integer_suffixes_reject_malformed_combinations ... ok
+test lex::tests::test_plus ... ok
+test lex::tests::test_location ... ok
+test parse::decl::test::test_cursed_function_declarator ... ok
+test parse::decl::test::test_array ... ok
+test lex::tests::test_overflow ... ok
+test lex::cpp::tests::preprocess_only ... ok
+test lex::cpp::tests::stringify ... ok
+test lex::tests::test_int_literals ... ok
+test parse::decl::test::test_enum ... ok
+test parse::decl::test::test_precedence ... ok
+test parse::decl::test::test_multiple ... ok
+test lex::cpp::tests::keywords ... ok
+test fold::tests::test_cast ... ok
+test lex::tests::test_lots_of_whitespace ... ok
+test parse::decl::test::test_struct ... ok
+test parse::stmt::tests::test_do_while ... ok
+test parse::stmt::tests::test_expr_stmt ... ok
+test parse::expr::test::parse_casts ... ok
+test parse::stmt::tests::test_goto ... ok
+test lex::tests::test_characters ... ok
+test parse::expr::test::parse_ternary ... ok
+test parse::stmt::tests::test_if ... ok
+test lex::tests::test_float_literals ... ok
+test parse::decl::test::username ... ok
+test parse::expr::test::parse_binary ... ok
+test parse::stmt::tests::test_switch ... ok
+test parse::expr::test::sizeof ... ok
+test parse::expr::test::parse_postfix ... ok
+test tests::empty ... ok
+test parse::stmt::tests::test_for ... ok
+test parse::stmt::tests::test_while ... ok
+test parse::test::test_strings ... ok
+test parse::expr::test::parse_prefix ... ok
+test lex::tests::test_comments ... ok
+test arch::tests::align ... ok
+test arch::tests::first_member ... ok
+test arch::tests::second_member ... ok
+test parse::test::proptest_peek_equals_token ... ok
+test parse::test::proptest_peek_next_equals_2_next_token ... ok
+
+test result: ok. 140 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+
+     Running tests/preprocessor_profile.rs (target/debug/deps/preprocessor_profile-382cc95d2695335b)
+
+running 19 tests
+test ext2_disabled_debug_macro_accepts_variadic_calls ... ok
+test ext4_style_chained_token_pasting_expands_all_identifiers ... ok
+test gnu_variadic_comma_elision_distinguishes_omitted_and_empty ... ok
+test identifier_token_pasting_allows_whitespace_around_hashes ... ok
+test identifier_token_pasting_supports_feature_macros ... ok
+test object_macro_inside_function_macro_output_is_rescanned ... ok
+test named_and_standard_variadic_macros_preserve_argument_tokens ... ok
+test explicit_include_paths_preserve_precedence ... ok
+test preprocessing_errors_keep_a_stable_source_location ... ok
+test quoted_include_uses_the_source_file_directory ... ok
+test ordinary_function_macro_output_is_rescanned_in_outer_engine ... ok
+test token_pasting_relexes_numeric_result ... ok
+test pasted_output_rescans_function_like_macro_with_arguments ... ok
+test identifier_token_pasting_allows_whitespace_between_hashes ... ok
+test if_integer_expression_and_command_line_define_undef_are_selected ... ok
+test object_and_function_macros_are_deterministic ... ok
+test same_macro_expands_at_each_independent_occurrence ... ok
+test variadic_parameter_must_be_last_and_fixed_arguments_are_required ... ok
+test nested_builtin_header_keeps_its_full_path ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/target_models.rs (target/debug/deps/target_models-cd0b04da1c56b8eb)
+
+running 13 tests
+test explicit_layout_api_preserves_default_sia_sizes ... ok
+test padded_member_offsets_follow_each_target ... ok
+test both_targets_reject_unrepresented_long_double_layout ... ok
+test runtime_vla_sizeof_survives_constant_folding ... ok
+test preprocessing_constant_expressions_short_circuit ... ok
+test shifts_promote_operands_independently ... ok
+test argument_prescan_and_macro_line_directives ... ok
+test c_boolean_operators_have_int_result_type ... ok
+test floating_suffixes_preserve_c_literal_types ... ok
+test anonymous_members_preserve_nested_storage_and_initializer_boundaries ... ok
+test compound_literals_have_storage_and_inferred_array_bounds ... ok
+test wide_characters_typedef_shadowing_and_array_parameters ... ok
+test independent_ilp32_and_lp64_sysroots_and_layouts ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests lib.rs (target/debug/deps/saltwater_sia-6c0a7bdc7319f808)
+
+running 151 tests
+test image::format::tests::malformed_metadata_rejected ... ok
+test image::format::tests::deterministic_roundtrip_and_budgets ... ok
+test image::tests::applies_unaligned_abs4_little_endian ... ok
+test image::tests::rejects_invalid_layout_and_relocations ... ok
+test tests::binary_operator_enum_is_exhaustively_audited ... ok
+test image::format::tests::compiler_image_roundtrip ... ok
+test tests::bundle_decoder_rejects_truncated_or_ambiguous_code ... ok
+test tests::aggregate_address_expressions_do_not_require_scalar_ir_types ... ok
+test tests::accepts_pointer_to_float_when_no_float_value_is_lowered ... ok
+test tests::compiles_address_of_array_element_and_post_increment ... ok
+test image::tests::links_compiled_calls_global_addresses_and_function_pointers ... ok
+test tests::compiles_address_of_dereference_identity_for_nested_pointers ... ok
+test tests::compiles_address_of_dereference_and_member_lvalues ... ok
+test tests::compiles_address_of_local_and_member_through_common_lvalue_path ... ok
+test tests::aggregate_argument_is_copied_before_callee_mutation ... ok
+test image::tests::rejects_duplicate_unresolved_and_legacy_bindings ... ok
+test tests::compiles_address_of_globals_statics_and_functions ... ok
+test image::tests::undefined_static_reference_cannot_bind_an_external_definition ... ok
+test image::tests::scopes_static_functions_data_strings_and_resolves_externs ... ok
+test tests::compiles_address_taken_scalar_local_with_stack_storage ... ok
+test tests::compiles_assignment_through_pointer_to_pointer_dereference ... ok
+test tests::compiles_cast_to_void_while_preserving_side_effects ... ok
+test tests::compiles_assignment_to_address_taken_local_hir_deref ... ok
+test tests::compiles_comma_expression_integer_conversion ... ok
+test tests::compiles_call_argument_integer_conversions ... ok
+test tests::compiles_array_of_struct_member_reads_and_writes ... ok
+test tests::compiles_chained_assignment_values ... ok
+test tests::compiles_address_of_nested_member_and_array_lvalues ... ok
+test tests::compiles_assignment_through_nested_wrapped_lvalues ... ok
+test tests::compiles_comma_expression_with_pointer_result ... ok
+test tests::compiles_cast_wrapped_member_and_array_lvalue_assignments ... ok
+test tests::binary64_and_i64_conversions_have_typed_runtime_relocations ... ok
+test tests::compiles_conditional_operator_with_aggregate_addresses ... ok
+test tests::compiles_brace_elided_nested_struct_array_initializers ... ok
+test tests::compiles_direct_read_after_address_taken_scalar_local ... ok
+test tests::compiles_do_while_with_loop_carried_local ... ok
+test tests::c_identity_and_main_fallthrough_regressions ... ok
+test tests::accepts_adding_pointee_qualifiers_and_reassigning_const_pointers ... ok
+test tests::compiles_equal_width_signedness_and_pointer_casts_without_reencoding ... ok
+test tests::compiles_for_and_do_while_control_flow ... ok
+test tests::compiles_conditional_operator_with_integer_conversions ... ok
+test tests::compiles_global_load_store_and_address_relocations ... ok
+test tests::compiles_integer_negation_without_backend_ineg ... ok
+test tests::compiles_integer_function_parameters_to_sia32_bytes ... ok
+test tests::compiles_integer_c_to_real_sia32_bytes ... ok
+test tests::compiles_deeply_nested_partial_aggregate_initializers ... ok
+test tests::compiles_forward_and_backward_goto_labels ... ok
+test tests::compiles_complete_integer_binary_operator_matrix ... ok
+test tests::compiles_integer_function_pointer_calls ... ok
+test tests::compiles_integer_variadic_direct_calls_with_default_promotions ... ok
+test tests::compiles_narrow_integer_unary_promotions ... ok
+test tests::binary32_lowering_uses_integer_runtime_relocations ... ok
+test tests::compiles_mixed_width_bitwise_and_division_operations ... ok
+test tests::compiles_mixed_width_integer_binary_operations ... ok
+test tests::compiles_narrow_local_assignment_conversions ... ok
+test tests::compiles_member_reads_without_double_dereference ... ok
+test tests::compiles_labels_after_terminators_and_switch_fallthrough ... ok
+test tests::compiles_member_and_array_post_increment_through_lvalue_addressing ... ok
+test tests::compiles_narrow_function_return_conversion ... ok
+test tests::compiles_narrow_member_and_pointer_stores ... ok
+test tests::bool_casts_test_full_scalar_width ... ok
+test tests::compiles_integer_pointer_and_function_designator_casts ... ok
+test tests::compiles_compound_assignment_in_control_flow ... ok
+test tests::compiles_narrow_post_increment_stores_at_declared_width ... ok
+test tests::compiles_narrow_uninitialized_local_assigned_before_read ... ok
+test tests::compiles_pointer_arithmetic_lvalue_assignment ... ok
+test tests::compiles_pointer_difference_as_function_result ... ok
+test tests::compiles_pointer_post_increment_and_decrement_with_scaled_steps ... ok
+test tests::compiles_nested_aggregate_local_initializers ... ok
+test tests::compiles_post_increment_of_address_taken_scalar_local ... ok
+test tests::compiles_offsetof_style_null_based_member_addresses ... ok
+test tests::compiles_pointer_equality_and_order_comparisons ... ok
+test tests::compiles_partial_nested_aggregate_initializers_with_zero_fill ... ok
+test tests::compiles_pointer_and_narrow_integer_conditions ... ok
+test tests::compiles_odd_sized_struct_return_by_hidden_address ... ok
+test tests::compiles_post_increment_through_cast_wrapped_member_and_index_lvalues ... ok
+test tests::compiles_post_increment_and_decrement_of_globals ... ok
+test tests::compiles_multiple_struct_and_union_arguments_by_value ... ok
+test tests::compiles_odd_sized_struct_argument_by_value ... ok
+test tests::compiles_pointer_binary_operator_matrix ... ok
+test tests::compiles_post_increment_through_nested_pointer_lvalues ... ok
+test tests::compiles_scalar_post_increment_and_decrement ... ok
+test tests::compiles_struct_pointer_subtraction_by_integer ... ok
+test tests::compiles_signed_and_unsigned_widening_assignments ... ok
+test tests::compiles_signed_narrow_return_conversion ... ok
+test tests::compiles_switch_after_terminated_dispatch_through_compound ... ok
+test tests::compiles_uninitialized_local_assigned_before_read ... ok
+test tests::compiles_scalar_array_and_struct_local_initializers ... ok
+test tests::compiles_signed_and_unsigned_right_shift_and_comparisons ... ok
+test tests::compiles_signed_and_unsigned_integer_division_and_remainder ... ok
+test tests::compiles_scalar_braces_inside_aggregate_initializers ... ok
+test tests::compiles_switch_case_default_break_and_fallthrough ... ok
+test tests::compiles_uninitialized_aggregate_local_stack_storage ... ok
+test tests::cosmic_sia_bundle_round_trips_data_objects ... ok
+test tests::compiles_nested_control_flow_statement_matrix ... ok
+test tests::compiles_union_return_by_value ... ok
+test tests::compiles_union_local_initializers_and_member_access ... ok
+test tests::compiles_wrapped_and_nested_aggregate_member_addresses ... ok
+test tests::compiles_wrapped_member_pointer_dereference_reads ... ok
+test tests::cosmic_sia_bundle_round_trips_before_lighting_load ... ok
+test tests::compiles_scalar_struct_and_union_local_initializers ... ok
+test tests::diagnoses_excess_local_aggregate_initializer_elements ... ok
+test tests::emits_data_relocations_for_global_and_function_addresses ... ok
+test tests::copies_complete_odd_sized_struct_representations ... ok
+test tests::compiles_struct_arguments_and_returns_by_value ... ok
+test tests::compiles_whole_struct_and_union_assignments ... ok
+test tests::copies_nested_struct_and_union_values ... ok
+test tests::completes_initialized_arrays_before_sizeof ... ok
+test tests::compiles_void_direct_call_expression_statement ... ok
+test tests::compiles_struct_return_from_local_and_nested_call ... ok
+test tests::emits_zero_initialized_top_level_objects ... ok
+test tests::emits_recursive_aggregate_global_initializers ... ok
+test tests::emits_unresolved_relocations_for_external_function_calls ... ok
+test tests::long_long_globals_preserve_all_eight_initializer_bytes ... ok
+test tests::emits_scalar_global_initializers ... ok
+test tests::initializes_character_arrays_from_string_literals ... ok
+test tests::lowers_identifier_bound_vla_to_dynamic_stack_allocation ... ok
+test tests::lowers_general_runtime_vla_bound_expression ... ok
+test tests::lowers_goto_out_of_vla_scope_with_stack_cleanup ... ok
+test tests::explicit_short_to_byte_cast_uses_native_word_reduction ... ok
+test tests::maps_float_and_double_to_cranelift_scalar_types ... ok
+test tests::function_designator_types_are_pointer_width_on_sia32 ... ok
+test tests::infers_unbounded_array_sizes_from_initializers ... ok
+test tests::local_aggregate_ids_lower_as_addresses ... ok
+test tests::lowers_sizeof_vla_to_runtime_size ... ok
+test tests::lowers_global_designated_initializers_to_data ... ok
+test tests::lowers_return_across_vla_scope_with_stack_cleanup ... ok
+test tests::nested_aggregate_members_remain_address_valued ... ok
+test tests::lowers_vla_with_runtime_inner_stride ... ok
+test tests::prepares_systemv_register_state_for_external_lighting_execution ... ok
+test tests::pools_string_literals_into_read_only_data ... ok
+test tests::narrow_local_initializers_match_promoted_ssa_storage ... ok
+test tests::lowers_static_locals_into_translation_unit_data ... ok
+test tests::lowers_vla_with_fixed_inner_dimension ... ok
+test tests::lowers_vla_in_nested_scope_before_following_stack_use ... ok
+test tests::lowers_break_and_continue_across_vla_scopes_with_stack_cleanup ... ok
+test tests::rejects_an_unaligned_or_unknown_lighting_entry_plan ... ok
+test tests::lowers_local_designated_initializers_to_sia32 ... ok
+test tests::type_lowering_explicitly_classifies_every_frontend_type_family ... ok
+test tests::rejects_goto_into_active_vla_scope ... ok
+test tests::rejects_too_few_fixed_arguments_to_variadic_call ... ok
+test tests::preserves_vla_for_goto_within_same_dynamic_scope ... ok
+test tests::static_array_designators_in_struct_pointer_initializers_relocate ... ok
+test varargs::tests::nonvariadic_va_start_is_rejected ... ok
+test varargs::tests::wrong_named_va_start_parameter_is_rejected ... ok
+test tests::preserves_outer_vla_cleanup_depth_after_conditional_return ... ok
+test tests::rejects_discarding_qualifiers_and_writes_to_const_objects ... ok
+test tests::ordinary_i64_division_is_legalized ... ok
+test tests::ordinary_i64_remainder_uses_integer_only_legalization ... ok
+test tests::compiles_and_links_integer_only_runtime_foundations ... ok
+test varargs::tests::aggregate_and_variadic_c_fixture_compiles ... ok
+
+test result: ok. 151 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+   Doc-tests saltwater_amd64
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests saltwater_parser
+
+running 7 tests
+test saltwater-parser/analyze/expr.rs - analyze::expr::Type::rank (line 1419) ... ignored
+test saltwater-parser/macros.rs - macros::map (line 5) ... ignored
+test saltwater-parser/data/types.rs - data::types::struct_ref::StructRef::update (line 81) - compile fail ... ok
+test saltwater-parser/macros.rs - macros::vec_deque (line 23) ... ok
+test saltwater-parser/data/types.rs - data::types::struct_ref::StructRef::get (line 59) ... ok
+test saltwater-parser/lex/cpp.rs - lex::cpp::PreProcessorBuilder (line 47) ... ok
+test saltwater-parser/lex/cpp.rs - lex::cpp::PreProcessor (line 131) ... ok
+
+test result: ok. 5 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+   Doc-tests saltwater_sia
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling saltwater-parser v0.11.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-parser)
+   Compiling saltwater-amd64 v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-amd64)
+   Compiling saltwater-sia v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-sia)
+   Compiling cosmicc v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.86s
+    Checking saltwater-parser v0.11.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-parser)
+    Checking saltwater-amd64 v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-amd64)
+    Checking saltwater-sia v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc/saltwater-sia)
+    Checking cosmicc v0.12.0 (/home/nick/alltech/DigitalEquipment/cosmicc)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.13s

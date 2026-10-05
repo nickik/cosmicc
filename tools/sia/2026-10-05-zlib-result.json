@@ -1,0 +1,201 @@
+{
+  "compiler_sha256": "15df5f16be9eeba36abe1eb5940f7fd8697dfe957262dc5e9a1a1a54ac5862e1",
+  "linker_sha256": "10ca6181ef3b41050fa93fd1a4a506ba23044ef05b90511939aecc01ad5d4d31",
+  "sources": {
+    "guest": "9cdc7716c5b4b104583fbcebe10fc5afa820d2fb281616d9315fb32fc515906e",
+    "adler32": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+    "crc32": "da37f3483e77c20f64c28cf55d62d7bed9d62af33eb401be906835d84539b9c9",
+    "deflate": "ea9ca4eb51b1a71aaf214b99f4a9fab177253d6268cae8e4c26d44d1812e52c2",
+    "infback": "bf9788af31e08a4242fc9d36bc0ce1a7a667bbfd9edc51ff26146195ee2e528a",
+    "inffast": "f96787a11bb7131ffd2221fb40db27f6a5a1dfb12f59c0bc388807010749c34a",
+    "inflate": "90221ea7d762e7044057f6ad5013e969086c6ba3d3051716b7aa786d7a6362ec",
+    "inftrees": "f7ee9ce5925fc9d1579c76e574feed85f5ca4ccddc446a7795578854bbc65743",
+    "trees": "a16217d5ea6d8342ff08afe5207b1dab620f05610e121dda55b4f9aae9de4f68",
+    "zutil": "1279908a15580224a2c1f377555ffdd150327fed71801aa77fc35978dcb741c8"
+  },
+  "commands": [
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/zlib-roundtrip.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/guest.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/adler32.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/crc32.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/deflate.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/infback.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/inffast.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/inflate.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/inftrees.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/trees.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/compiler-snapshot",
+        "-D",
+        "Z_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/zutil.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-sia-zlib-source-frozen/linker-snapshot",
+        "--base",
+        "0x10000",
+        "--entry",
+        "main",
+        "--max-bytes",
+        "0x60000",
+        "--container",
+        "-o",
+        "/tmp/cosmic-sia-zlib-source-frozen/image.csia",
+        "/tmp/cosmic-sia-zlib-source-frozen/guest.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/adler32.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/crc32.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/deflate.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/infback.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/inffast.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/inflate.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/inftrees.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/trees.sia",
+        "/tmp/cosmic-sia-zlib-source-frozen/zutil.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "run",
+        "--offline",
+        "--quiet",
+        "--bin",
+        "multi-object-native",
+        "--",
+        "--image",
+        "/tmp/cosmic-sia-zlib-source-frozen/image.csia"
+      ],
+      "returncode": 0
+    }
+  ],
+  "status": "passed",
+  "objects_sha256": {
+    "inffast.sia": "e46082ba42b567205bbd225cc1e4f83adb6d053fdc0956a8621dfe9508026a9e",
+    "infback.sia": "0a6212098ec5c2d95e3fe94243730935e5060f6a2c37b8f0837611f5e1eed048",
+    "guest.sia": "99379828cc6a9dd7fa6bb0e7ada0c9d8693a11097a14ffbbbfd958277711b999",
+    "inflate.sia": "47930f1fa669e62549eccea901aa7dabe042098ca1d3f3d9972d10e14014051a",
+    "deflate.sia": "1d6715e96d06c652201eb67a50f4241dc69d1679c0f72ddef380f0c4899f6a74",
+    "crc32.sia": "1d78b80ab7a7d779c7b01095506ef266bdc109e52c27b4975228e3c156bfb211",
+    "trees.sia": "3dfdceec46371d84ec065dec99ff86e858e1480c25792ffde5a8472e02d92ae9",
+    "adler32.sia": "2c3bcf981255d749e66d7b8bec93122a6402cc5ddfe5e8ce1ed901c49cba9941",
+    "zutil.sia": "59dfb05ad628ab4894b927fddf516b0fd0744abcede5bb298f7b273a46faf63b",
+    "inftrees.sia": "1563ca4e1d0dbd7f6fa1a80c05aba75db62aba0f5c6c21d1824cf931dc1ad9ec"
+  },
+  "image_sha256": "591385461c3896dfbb3040a98c566151a7a77890870f5bbee9962c2a7d14887e"
+}

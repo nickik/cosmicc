@@ -53,6 +53,11 @@ mod struct_ref {
             })
         }
 
+        /// Nominal identity, without structural comparison of tag contents.
+        pub(crate) fn same_identity(self, other: Self) -> bool {
+            self.0 == other.0
+        }
+
         /// Returns the definition for a given struct.
         ///
         /// Examples:
@@ -137,7 +142,8 @@ mod struct_ref {
 pub enum Type {
     Void,
     Bool,
-    Char(bool), // signed or unsigned
+    Char(bool), // plain char (true) or unsigned char (false)
+    SignedChar, // distinct C type, signed 8-bit storage like plain char
     Short(bool),
     Int(bool),
     Long(bool),
@@ -145,7 +151,10 @@ pub enum Type {
     LongLong(bool),
     Float,
     Double,
-    // TODO: separate Qualifiers into LvalQualifiers and FunctionQualifiers
+    /// SIA long double: distinct C type, binary64 precision and 8-byte storage.
+    LongDouble,
+    // Pointer qualifiers describe the immediate pointee; Variable.qualifiers
+    // describes the pointer object itself. Nested pointee types retain qualifiers.
     Pointer(Box<Type>, super::hir::Qualifiers),
     Array(Box<Type>, ArrayType),
     Function(FunctionType),
@@ -208,6 +217,7 @@ impl Type {
         match self {
             Bool
             | Char(true)
+            | SignedChar
             | Short(true)
             | Int(true)
             | Long(true)
@@ -220,14 +230,21 @@ impl Type {
     pub fn is_integral(&self) -> bool {
         use Type::*;
         match self {
-            Bool | Char(_) | Short(_) | Int(_) | Long(_) | LongLong(_) | Enum(_, _) => true,
+            Bool
+            | Char(_)
+            | SignedChar
+            | Short(_)
+            | Int(_)
+            | Long(_)
+            | LongLong(_)
+            | Enum(_, _) => true,
             _ => false,
         }
     }
     #[inline]
     pub fn is_floating(&self) -> bool {
         match self {
-            Type::Float | Type::Double => true,
+            Type::Float | Type::Double | Type::LongDouble => true,
             _ => false,
         }
     }
@@ -260,21 +277,23 @@ impl PartialEq for FunctionType {
             || other.params.is_empty()
             || self.varargs == other.varargs
             && self.return_type == other.return_type
+            && self.params.len() == other.params.len()
             // don't require parameter names and storage_class to match
             && self.params
                 .iter()
                 .zip(other.params.iter())
                 .all(|(a, b)| {
                     let (this_param, other_param) = (a.get(), b.get());
+                    // Top-level parameter qualifiers affect the parameter
+                    // object in a definition, not function type compatibility.
                     this_param.ctype == other_param.ctype
-                        && this_param.qualifiers == other_param.qualifiers
                 })
     }
 }
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        print_type(self, None, f)
+        print_type(self, None, super::hir::Qualifiers::NONE, f)
     }
 }
 
@@ -297,6 +316,7 @@ fn write_struct_type(struct_type: &StructType, f: &mut Formatter) -> fmt::Result
 pub(super) fn print_type(
     ctype: &Type,
     name: Option<InternedStr>,
+    object_qualifiers: super::hir::Qualifiers,
     f: &mut Formatter,
 ) -> fmt::Result {
     fn unroll_type(ctype: &Type) -> Vec<&Type> {
@@ -319,6 +339,7 @@ pub(super) fn print_type(
 
     let unrolled_type = unroll_type(ctype);
 
+    let mut qualifiers = object_qualifiers;
     let mut prefixes = Vec::new();
     let mut postfixes = Vec::new();
 
@@ -364,13 +385,14 @@ pub(super) fn print_type(
                 prefixes.push(format!(
                     "{}*{}",
                     if needs_parens { "(" } else { "" },
-                    if *qs != Default::default() {
-                        format!("{} ", qs)
+                    if qualifiers != Default::default() {
+                        format!("{} ", qualifiers)
                     } else {
                         String::new()
                     }
                 ));
 
+                qualifiers = *qs;
                 if needs_parens {
                     postfixes.push(")".to_string());
                 } else {
@@ -381,8 +403,12 @@ pub(super) fn print_type(
         }
     }
 
+    if qualifiers != Default::default() {
+        write!(f, "{} ", qualifiers)?;
+    }
     let final_type = unrolled_type[unrolled_type.len() - 1];
     match final_type {
+        SignedChar => write!(f, "signed char")?,
         Char(signed) | Short(signed) | Int(signed) | Long(signed) | LongLong(signed) => {
             write!(
                 f,
@@ -401,6 +427,7 @@ pub(super) fn print_type(
         Bool => write!(f, "_Bool")?,
         Float => write!(f, "float")?,
         Double => write!(f, "double")?,
+        LongDouble => write!(f, "long double")?,
         Void => write!(f, "void")?,
         Enum(Some(ident), _) => write!(f, "enum {}", ident)?,
         Enum(None, _) => write!(f, "<anonymous enum>")?,
@@ -451,6 +478,7 @@ pub(crate) mod tests {
             Just(Type::Void),
             Just(Type::Bool),
             any::<bool>().prop_map(Type::Char),
+            Just(Type::SignedChar),
             any::<bool>().prop_map(Type::Short),
             any::<bool>().prop_map(Type::Int),
             any::<bool>().prop_map(Type::Long),

@@ -1,0 +1,7250 @@
+{
+  "prepare": {
+    "machine": {
+      "platform": "Linux-7.1.5-76070105-generic-x86_64-with-glibc2.39",
+      "cpu_model": "AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics",
+      "logical_cpus": 16,
+      "original_allowed_cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "measurement_cpu": 0,
+      "affinity": [
+        0
+      ],
+      "cpufreq": {
+        "scaling_governor": "powersave",
+        "scaling_driver": "amd-pstate-epp",
+        "cpuinfo_min_freq": "419175",
+        "cpuinfo_max_freq": "5134889",
+        "scaling_cur_freq": "3933323"
+      },
+      "boost": "1",
+      "loadavg": [
+        10.15869140625,
+        11.54833984375,
+        8.8251953125
+      ],
+      "no_system_settings_changed": true
+    },
+    "versions": {
+      "cosmic": "cosmicc 0.12.0 (SIA32, amd64 Linux)",
+      "gcc": "gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    "tool_hashes": {
+      "cosmic": "7e7f64f3bd7f6bf2794b2b82d2639f7adfc7dd09fd24cab66652fbff4fc631d3",
+      "gcc": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+      "clang": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "system_component_hashes": {
+      "cc1": {
+        "path": "/usr/libexec/gcc/x86_64-linux-gnu/13/cc1",
+        "sha256": "5d1679131184e2de4435b426eb264bf13472fe026db8e5c6bc97445814e8e2f4"
+      },
+      "collect2": {
+        "path": "/usr/libexec/gcc/x86_64-linux-gnu/13/collect2",
+        "sha256": "4d1f341ae5b763b513258ee2812422a45e063c30a2f1924a0cf63d3699f3a158"
+      },
+      "ld": {
+        "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+        "sha256": "e9ceb054c12207970f2726dfc07e9a66b411602748628baf27399f02a9bbb31b"
+      }
+    },
+    "sources": {
+      "kernels.c": "94d5aecb49c1c891fe04b786f6c72e2dfc52228c05f19e26f2c7bad4134a4c44",
+      "harness.c": "26d6bb4ca7508d6c8eb482a059d1041d91636bf0fb6b7dfeb30fd345911f5bc0",
+      "compare.py": "8b4581920c1134f8863b8276de474a61d917791f134c275b71bf6a461c07894d",
+      "zlib": {
+        "adler32": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "crc32": "da37f3483e77c20f64c28cf55d62d7bed9d62af33eb401be906835d84539b9c9",
+        "deflate": "ea9ca4eb51b1a71aaf214b99f4a9fab177253d6268cae8e4c26d44d1812e52c2",
+        "infback": "bf9788af31e08a4242fc9d36bc0ce1a7a667bbfd9edc51ff26146195ee2e528a",
+        "inffast": "f96787a11bb7131ffd2221fb40db27f6a5a1dfb12f59c0bc388807010749c34a",
+        "inflate": "90221ea7d762e7044057f6ad5013e969086c6ba3d3051716b7aa786d7a6362ec",
+        "inftrees": "f7ee9ce5925fc9d1579c76e574feed85f5ca4ccddc446a7795578854bbc65743",
+        "trees": "a16217d5ea6d8342ff08afe5207b1dab620f05610e121dda55b4f9aae9de4f68",
+        "zutil": "1279908a15580224a2c1f377555ffdd150327fed71801aa77fc35978dcb741c8"
+      }
+    },
+    "compiler_sha256": "7e7f64f3bd7f6bf2794b2b82d2639f7adfc7dd09fd24cab66652fbff4fc631d3",
+    "cosmic_generated_optimization": {
+      "O0": "Cranelift none",
+      "O2": "Cranelift speed (not equivalent optimization pipeline to GCC/Clang O2)"
+    },
+    "iterations": 20000,
+    "variants": [
+      {
+        "name": "cosmic-O0",
+        "tool": "cosmic",
+        "level": "O0",
+        "executable": "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot"
+      },
+      {
+        "name": "cosmic-O2",
+        "tool": "cosmic",
+        "level": "O2",
+        "executable": "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot"
+      },
+      {
+        "name": "gcc-O0",
+        "tool": "gcc",
+        "level": "O0",
+        "executable": "/usr/bin/gcc-13"
+      },
+      {
+        "name": "gcc-O2",
+        "tool": "gcc",
+        "level": "O2",
+        "executable": "/usr/bin/gcc-13"
+      },
+      {
+        "name": "clang-O0",
+        "tool": "clang",
+        "level": "O0",
+        "executable": "/usr/bin/clang-18"
+      },
+      {
+        "name": "clang-O2",
+        "tool": "clang",
+        "level": "O2",
+        "executable": "/usr/bin/clang-18"
+      }
+    ],
+    "commands": [
+      {
+        "command": [
+          "gcc-13",
+          "-O2",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/harness.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o"
+        ],
+        "log": "harness-build.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+          "--target",
+          "amd64",
+          "-O0",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+        ],
+        "log": "cosmic-O0-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "gcc-13",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+        ],
+        "log": "cosmic-O0-link-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+          "20000"
+        ],
+        "log": "cosmic-O0-validate.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+          "--target",
+          "amd64",
+          "-O2",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+        ],
+        "log": "cosmic-O2-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "gcc-13",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+        ],
+        "log": "cosmic-O2-link-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+          "20000"
+        ],
+        "log": "cosmic-O2-validate.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/usr/bin/gcc-13",
+          "-fPIC",
+          "-O0",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+        ],
+        "log": "gcc-O0-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "gcc-13",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+        ],
+        "log": "gcc-O0-link-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+          "20000"
+        ],
+        "log": "gcc-O0-validate.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/usr/bin/gcc-13",
+          "-fPIC",
+          "-O2",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+        ],
+        "log": "gcc-O2-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "gcc-13",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+        ],
+        "log": "gcc-O2-link-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+          "20000"
+        ],
+        "log": "gcc-O2-validate.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/usr/bin/clang-18",
+          "-fPIC",
+          "-O0",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+        ],
+        "log": "clang-O0-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "gcc-13",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+        ],
+        "log": "clang-O0-link-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+          "20000"
+        ],
+        "log": "clang-O0-validate.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/usr/bin/clang-18",
+          "-fPIC",
+          "-O2",
+          "-c",
+          "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+        ],
+        "log": "clang-O2-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "gcc-13",
+          "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+          "-o",
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+        ],
+        "log": "clang-O2-link-prepare.log",
+        "timeout_seconds": 120
+      },
+      {
+        "command": [
+          "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+          "20000"
+        ],
+        "log": "clang-O2-validate.log",
+        "timeout_seconds": 120
+      }
+    ],
+    "validation": {
+      "cosmic-O0": {
+        "validation": {
+          "hash": 4628935535685827459,
+          "branch": 11863772229687728815,
+          "divide": 562949860355754,
+          "matrix": 6523820685074985805
+        },
+        "aggregate": {
+          "hash": 12948951842019170912,
+          "branch": 176039915778805902,
+          "divide": 11258996867221378514,
+          "matrix": 18446744073709545791
+        }
+      },
+      "cosmic-O2": {
+        "validation": {
+          "hash": 4628935535685827459,
+          "branch": 11863772229687728815,
+          "divide": 562949860355754,
+          "matrix": 6523820685074985805
+        },
+        "aggregate": {
+          "hash": 12948951842019170912,
+          "branch": 176039915778805902,
+          "divide": 11258996867221378514,
+          "matrix": 18446744073709545791
+        }
+      },
+      "gcc-O0": {
+        "validation": {
+          "hash": 4628935535685827459,
+          "branch": 11863772229687728815,
+          "divide": 562949860355754,
+          "matrix": 6523820685074985805
+        },
+        "aggregate": {
+          "hash": 12948951842019170912,
+          "branch": 176039915778805902,
+          "divide": 11258996867221378514,
+          "matrix": 18446744073709545791
+        }
+      },
+      "gcc-O2": {
+        "validation": {
+          "hash": 4628935535685827459,
+          "branch": 11863772229687728815,
+          "divide": 562949860355754,
+          "matrix": 6523820685074985805
+        },
+        "aggregate": {
+          "hash": 12948951842019170912,
+          "branch": 176039915778805902,
+          "divide": 11258996867221378514,
+          "matrix": 18446744073709545791
+        }
+      },
+      "clang-O0": {
+        "validation": {
+          "hash": 4628935535685827459,
+          "branch": 11863772229687728815,
+          "divide": 562949860355754,
+          "matrix": 6523820685074985805
+        },
+        "aggregate": {
+          "hash": 12948951842019170912,
+          "branch": 176039915778805902,
+          "divide": 11258996867221378514,
+          "matrix": 18446744073709545791
+        }
+      },
+      "clang-O2": {
+        "validation": {
+          "hash": 4628935535685827459,
+          "branch": 11863772229687728815,
+          "divide": 562949860355754,
+          "matrix": 6523820685074985805
+        },
+        "aggregate": {
+          "hash": 12948951842019170912,
+          "branch": 176039915778805902,
+          "divide": 11258996867221378514,
+          "matrix": 18446744073709545791
+        }
+      }
+    },
+    "reference_checksums": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    },
+    "artifact_hashes": {
+      "harness.o": "abf66152327e48095948559f0073d9110fab0d6da70fe02011a9120e67f7f726",
+      "cosmic-O0": "0c3f24eb32294c92ac8fff07732d444d1fd10ecb53afc465da5a2bef2b9d463f",
+      "cosmic-O0.o": "0d7bd7a5358cae05b563d4c30d79ebc198c49bc183c772fe2c0c8007d9aee0ca",
+      "cosmic-O2": "d38ef68859708e90967b03bb56238e84067e3c1a60a084dd4e2460ade8d02526",
+      "cosmic-O2.o": "d62f6beb26d5b145e9af1f4431ae33809fa2a6b7094dcd49bb73f9e8f3f74f91",
+      "gcc-O0": "b6e4f396260cf1ae2e5cbe4c06bafeed724fd8bf6903e43869e112932e28e372",
+      "gcc-O0.o": "0d0c1faecf55cbe7525bb47d306bc9f1cfd8e6be556c1220c0ef7135c64d6552",
+      "gcc-O2": "b945bd52abee0fcaf56c9c97c4aa5474749a23b9a03c3481537e74bb2c0313c6",
+      "gcc-O2.o": "72756eb7f4e07a95badc011990b2fbd371ac9f7a6363a415894329650f818989",
+      "clang-O0": "a32f4bc53d5ad17f05aba958f83a1544f3340158ca4761ae8e7eee1689b52953",
+      "clang-O0.o": "1378ac4b7eeb77cbc0964959745b0bc27f9f38397c16e8e99f6cfa3c66a1f22b",
+      "clang-O2": "0f918331c5c542ab85e089f1ec06cc21614f3114f11eda6bd018caea4cc2baaf",
+      "clang-O2.o": "f0d50b1b96b2d121627296521606726dfed23a7b5716c8f2811d4994b4eb5ed4"
+    }
+  },
+  "machine_start": {
+    "platform": "Linux-7.1.5-76070105-generic-x86_64-with-glibc2.39",
+    "cpu_model": "AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics",
+    "logical_cpus": 16,
+    "original_allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "measurement_cpu": 0,
+    "affinity": [
+      0
+    ],
+    "cpufreq": {
+      "scaling_governor": "powersave",
+      "scaling_driver": "amd-pstate-epp",
+      "cpuinfo_min_freq": "419175",
+      "cpuinfo_max_freq": "5134889",
+      "scaling_cur_freq": "4023840"
+    },
+    "boost": "1",
+    "loadavg": [
+      5.4814453125,
+      9.77294921875,
+      8.4267578125
+    ],
+    "no_system_settings_changed": true
+  },
+  "random_seed": 20261005,
+  "repeats": {
+    "compile": 7,
+    "runtime": 7,
+    "zlib": 3
+  },
+  "samples": {
+    "compile": {
+      "cosmic-O2": [
+        0.004238984,
+        0.003844553,
+        0.004308647,
+        0.00424257,
+        0.003896361,
+        0.004744657,
+        0.004743425
+      ],
+      "gcc-O0": [
+        0.020987514,
+        0.021435336,
+        0.019605482,
+        0.021888761,
+        0.020265268,
+        0.021401793,
+        0.021339193
+      ],
+      "gcc-O2": [
+        0.03937767,
+        0.036625248,
+        0.036398686,
+        0.038944294,
+        0.038182524,
+        0.041658504,
+        0.039346942
+      ],
+      "clang-O2": [
+        0.05506022,
+        0.055064668,
+        0.058844718,
+        0.055660393,
+        0.052043304,
+        0.057462175,
+        0.06125534
+      ],
+      "clang-O0": [
+        0.034933626,
+        0.033296006,
+        0.036688048,
+        0.036929197,
+        0.036968872,
+        0.037345179,
+        0.040883679
+      ],
+      "cosmic-O0": [
+        0.004030577,
+        0.003749652,
+        0.005018649,
+        0.004224065,
+        0.004697697,
+        0.004535508,
+        0.004364843
+      ]
+    },
+    "link": {
+      "clang-O0": [
+        0.021920331,
+        0.020078913,
+        0.01945783,
+        0.019855277,
+        0.020200995,
+        0.018798544,
+        0.018473976
+      ],
+      "gcc-O2": [
+        0.018480008,
+        0.019517033,
+        0.019464944,
+        0.018440834,
+        0.020936396,
+        0.020405946,
+        0.019325468
+      ],
+      "cosmic-O0": [
+        0.019621251,
+        0.018055029,
+        0.01927396,
+        0.022831145,
+        0.020866674,
+        0.021110638,
+        0.018603643
+      ],
+      "clang-O2": [
+        0.021314066,
+        0.018871904,
+        0.018284646,
+        0.01838137,
+        0.019943065,
+        0.021125847,
+        0.018789527
+      ],
+      "cosmic-O2": [
+        0.018985611,
+        0.020177,
+        0.017974886,
+        0.021223113,
+        0.018257123,
+        0.018753288,
+        0.018583575
+      ],
+      "gcc-O0": [
+        0.020310684,
+        0.01856001,
+        0.017912907,
+        0.019973482,
+        0.019077586,
+        0.019894381,
+        0.018677895
+      ]
+    },
+    "runtime": {
+      "cosmic-O0": [
+        {
+          "hash": 0.216849259,
+          "branch": 0.704499276,
+          "divide": 0.313185645,
+          "matrix": 0.210090346
+        },
+        {
+          "hash": 0.216143074,
+          "branch": 0.693820948,
+          "divide": 0.309421646,
+          "matrix": 0.205027523
+        },
+        {
+          "hash": 0.224639096,
+          "branch": 0.945062803,
+          "divide": 0.313335461,
+          "matrix": 0.218824101
+        },
+        {
+          "hash": 0.241979323,
+          "branch": 0.780676546,
+          "divide": 0.300323497,
+          "matrix": 0.203490406
+        },
+        {
+          "hash": 0.229454588,
+          "branch": 0.773360883,
+          "divide": 0.313547144,
+          "matrix": 0.231795797
+        },
+        {
+          "hash": 0.229494234,
+          "branch": 0.723709736,
+          "divide": 0.314765254,
+          "matrix": 0.212022295
+        },
+        {
+          "hash": 0.230066724,
+          "branch": 0.734052685,
+          "divide": 0.301633973,
+          "matrix": 0.207897821
+        }
+      ],
+      "gcc-O2": [
+        {
+          "hash": 0.08007825,
+          "branch": 0.285610253,
+          "divide": 0.161704799,
+          "matrix": 0.0443811
+        },
+        {
+          "hash": 0.083848811,
+          "branch": 0.296742437,
+          "divide": 0.150279118,
+          "matrix": 0.042231315
+        },
+        {
+          "hash": 0.09814966,
+          "branch": 0.309282801,
+          "divide": 0.166747614,
+          "matrix": 0.043527484
+        },
+        {
+          "hash": 0.091252032,
+          "branch": 0.302839159,
+          "divide": 0.165891984,
+          "matrix": 0.045617435
+        },
+        {
+          "hash": 0.094895793,
+          "branch": 0.301622532,
+          "divide": 0.166079601,
+          "matrix": 0.045564885
+        },
+        {
+          "hash": 0.090087103,
+          "branch": 0.292964772,
+          "divide": 0.164274604,
+          "matrix": 0.045009356
+        },
+        {
+          "hash": 0.097138073,
+          "branch": 0.276868564,
+          "divide": 0.153232933,
+          "matrix": 0.042305026
+        }
+      ],
+      "clang-O0": [
+        {
+          "hash": 0.366782598,
+          "branch": 0.721750934,
+          "divide": 0.326795006,
+          "matrix": 0.173507579
+        },
+        {
+          "hash": 0.372834064,
+          "branch": 0.738531445,
+          "divide": 0.34318285,
+          "matrix": 0.168941181
+        },
+        {
+          "hash": 0.381029233,
+          "branch": 0.791643505,
+          "divide": 0.320268906,
+          "matrix": 0.165810449
+        },
+        {
+          "hash": 0.382283712,
+          "branch": 0.785766992,
+          "divide": 0.330090072,
+          "matrix": 0.16237169
+        },
+        {
+          "hash": 0.344546948,
+          "branch": 0.707025618,
+          "divide": 0.313666561,
+          "matrix": 0.162885478
+        },
+        {
+          "hash": 0.37390835,
+          "branch": 0.738069646,
+          "divide": 0.314560895,
+          "matrix": 0.162886019
+        },
+        {
+          "hash": 0.36419505,
+          "branch": 0.743669902,
+          "divide": 0.320107469,
+          "matrix": 0.159497926
+        }
+      ],
+      "gcc-O0": [
+        {
+          "hash": 0.10346329,
+          "branch": 0.387936669,
+          "divide": 0.291651882,
+          "matrix": 0.156179766
+        },
+        {
+          "hash": 0.103304378,
+          "branch": 0.387105896,
+          "divide": 0.305101618,
+          "matrix": 0.17262099
+        },
+        {
+          "hash": 0.124290178,
+          "branch": 0.409295019,
+          "divide": 0.298984718,
+          "matrix": 0.186340491
+        },
+        {
+          "hash": 0.103388307,
+          "branch": 0.379112242,
+          "divide": 0.297380092,
+          "matrix": 0.156657325
+        },
+        {
+          "hash": 0.103485573,
+          "branch": 0.378444691,
+          "divide": 0.291303928,
+          "matrix": 0.160618039
+        },
+        {
+          "hash": 0.108294943,
+          "branch": 0.407922875,
+          "divide": 0.317141409,
+          "matrix": 0.164783373
+        },
+        {
+          "hash": 0.106426333,
+          "branch": 0.394617102,
+          "divide": 0.305133439,
+          "matrix": 0.171071961
+        }
+      ],
+      "clang-O2": [
+        {
+          "hash": 0.077326619,
+          "branch": 0.130937298,
+          "divide": 0.15677518,
+          "matrix": 0.044863459
+        },
+        {
+          "hash": 0.087567655,
+          "branch": 0.160262261,
+          "divide": 0.180502402,
+          "matrix": 0.044779168
+        },
+        {
+          "hash": 0.089982053,
+          "branch": 0.151712086,
+          "divide": 0.169595588,
+          "matrix": 0.04219222
+        },
+        {
+          "hash": 0.081820217,
+          "branch": 0.141107279,
+          "divide": 0.157650396,
+          "matrix": 0.035085966
+        },
+        {
+          "hash": 0.091238126,
+          "branch": 0.152309204,
+          "divide": 0.168978142,
+          "matrix": 0.038960696
+        },
+        {
+          "hash": 0.084068149,
+          "branch": 0.144566327,
+          "divide": 0.172683119,
+          "matrix": 0.037890267
+        },
+        {
+          "hash": 0.0849663,
+          "branch": 0.150047356,
+          "divide": 0.161425427,
+          "matrix": 0.037088179
+        }
+      ],
+      "cosmic-O2": [
+        {
+          "hash": 0.229907681,
+          "branch": 0.436340952,
+          "divide": 0.28845917,
+          "matrix": 0.158447686
+        },
+        {
+          "hash": 0.212944062,
+          "branch": 0.411210858,
+          "divide": 0.305589928,
+          "matrix": 0.142980616
+        },
+        {
+          "hash": 0.245163688,
+          "branch": 0.455777201,
+          "divide": 0.306255266,
+          "matrix": 0.137694548
+        },
+        {
+          "hash": 0.232437209,
+          "branch": 0.416986298,
+          "divide": 0.307771313,
+          "matrix": 0.133746969
+        },
+        {
+          "hash": 0.222930092,
+          "branch": 0.41961796,
+          "divide": 0.305698825,
+          "matrix": 0.136536263
+        },
+        {
+          "hash": 0.229699515,
+          "branch": 0.410436473,
+          "divide": 0.335717711,
+          "matrix": 0.130549921
+        },
+        {
+          "hash": 0.208553539,
+          "branch": 0.411204887,
+          "divide": 0.295443833,
+          "matrix": 0.137360161
+        }
+      ]
+    },
+    "zlib": {
+      "gcc-O0": [
+        0.3864565,
+        0.39248686299999996,
+        0.388850992
+      ],
+      "gcc-O2": [
+        1.3393592140000001,
+        1.318412838,
+        1.6646629689999999
+      ],
+      "clang-O0": [
+        0.442066496,
+        0.37943980600000005,
+        0.42410616
+      ],
+      "cosmic-O0": [
+        0.20146721199999998,
+        0.18396456800000002,
+        0.21413525100000003
+      ],
+      "cosmic-O2": [
+        0.225829074,
+        0.20113688499999996,
+        0.204766253
+      ],
+      "clang-O2": [
+        1.2543907600000002,
+        1.3052264040000001,
+        1.471524243
+      ]
+    }
+  },
+  "order": [
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": -1
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": -1
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": -1
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": -1
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": -1
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": -1
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 0
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 0
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 0
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 0
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 0
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 0
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 1
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 1
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 1
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 1
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 1
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 1
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 2
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 2
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 2
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 2
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 2
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 2
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 3
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 3
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 3
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 3
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 3
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 3
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 4
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 4
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 4
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 4
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 4
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 4
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 5
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 5
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 5
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 5
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 5
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 5
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O0",
+      "index": 6
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O2",
+      "index": 6
+    },
+    {
+      "phase": "compile",
+      "variant": "gcc-O0",
+      "index": 6
+    },
+    {
+      "phase": "compile",
+      "variant": "clang-O2",
+      "index": 6
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O0",
+      "index": 6
+    },
+    {
+      "phase": "compile",
+      "variant": "cosmic-O2",
+      "index": 6
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": -1
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": -1
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": -1
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": -1
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": -1
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": -1
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 0
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 0
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 0
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 0
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 0
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 0
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 1
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 1
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 1
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 1
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 1
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 1
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 2
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 2
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 2
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 2
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 2
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 2
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 3
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 3
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 3
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 3
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 3
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 3
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 4
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 4
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 4
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 4
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 4
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 4
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 5
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 5
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 5
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 5
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 5
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 5
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O2",
+      "index": 6
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O2",
+      "index": 6
+    },
+    {
+      "phase": "link",
+      "variant": "cosmic-O0",
+      "index": 6
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O2",
+      "index": 6
+    },
+    {
+      "phase": "link",
+      "variant": "clang-O0",
+      "index": 6
+    },
+    {
+      "phase": "link",
+      "variant": "gcc-O0",
+      "index": 6
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": -1
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": -1
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": -1
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": -1
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": -1
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": -1
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 0
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 0
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 0
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 0
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 0
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 0
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 1
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 1
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 1
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 1
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 1
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 1
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 2
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 2
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 2
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 2
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 2
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 2
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 3
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 3
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 3
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 3
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 3
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 3
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 4
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 4
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 4
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 4
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 4
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 4
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 5
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 5
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 5
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 5
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 5
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 5
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O0",
+      "index": 6
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O0",
+      "index": 6
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O2",
+      "index": 6
+    },
+    {
+      "phase": "runtime",
+      "variant": "clang-O0",
+      "index": 6
+    },
+    {
+      "phase": "runtime",
+      "variant": "gcc-O2",
+      "index": 6
+    },
+    {
+      "phase": "runtime",
+      "variant": "cosmic-O2",
+      "index": 6
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O0",
+      "index": -1
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O2",
+      "index": -1
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O2",
+      "index": -1
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O0",
+      "index": -1
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O2",
+      "index": -1
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O0",
+      "index": -1
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O0",
+      "index": 0
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O2",
+      "index": 0
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O0",
+      "index": 0
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O0",
+      "index": 0
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O2",
+      "index": 0
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O2",
+      "index": 0
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O0",
+      "index": 1
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O2",
+      "index": 1
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O0",
+      "index": 1
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O2",
+      "index": 1
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O2",
+      "index": 1
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O0",
+      "index": 1
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O2",
+      "index": 2
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O0",
+      "index": 2
+    },
+    {
+      "phase": "zlib",
+      "variant": "cosmic-O0",
+      "index": 2
+    },
+    {
+      "phase": "zlib",
+      "variant": "clang-O2",
+      "index": 2
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O0",
+      "index": 2
+    },
+    {
+      "phase": "zlib",
+      "variant": "gcc-O2",
+      "index": 2
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-compile-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-compile-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-compile-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-compile-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-compile-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-compile-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-3.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-4.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-5.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-runtime-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-runtime-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-runtime-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-runtime-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-runtime-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-runtime-6.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-adler32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-crc32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-deflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-infback--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inffast--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inftrees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-trees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-zutil--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-adler32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-crc32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-deflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-infback--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inffast--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inftrees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-trees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-zutil--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-adler32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-crc32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-deflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-infback--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inffast--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inftrees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-trees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-zutil--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-adler32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-crc32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-deflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-infback--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inffast--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inftrees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-trees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-zutil--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-adler32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-crc32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-deflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-infback--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inffast--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inftrees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-trees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-zutil--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-adler32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-crc32--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-deflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-infback--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inffast--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inflate--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inftrees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-trees--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-zutil--1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-adler32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-crc32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-deflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-infback-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inffast-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inftrees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-trees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-zutil-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-adler32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-crc32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-deflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-infback-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inffast-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inftrees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-trees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-zutil-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-adler32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-crc32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-deflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-infback-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inffast-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inftrees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-trees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-zutil-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-adler32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-crc32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-deflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-infback-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inffast-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inftrees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-trees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-zutil-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-adler32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-crc32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-deflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-infback-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inffast-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inftrees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-trees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-zutil-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-adler32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-crc32-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-deflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-infback-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inffast-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inflate-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inftrees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-trees-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-zutil-0.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-adler32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-crc32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-deflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-infback-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inffast-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inftrees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-trees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-zutil-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-adler32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-crc32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-deflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-infback-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inffast-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inftrees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-trees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-zutil-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-adler32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-crc32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-deflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-infback-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inffast-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inftrees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-trees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-zutil-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-adler32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-crc32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-deflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-infback-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inffast-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inftrees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-trees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-zutil-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-adler32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-crc32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-deflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-infback-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inffast-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inftrees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-trees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-zutil-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-adler32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-crc32-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-deflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-infback-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inffast-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inflate-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inftrees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-trees-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-zutil-1.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-adler32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-crc32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-deflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-infback-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inffast-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-inftrees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-trees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O2-zlib-zutil-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-adler32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-crc32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-deflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-infback-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inffast-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-inftrees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-trees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O0-zlib-zutil-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-adler32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-crc32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-deflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-infback-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inffast-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-inftrees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-trees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "cosmic-O0-zlib-zutil-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-adler32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-crc32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-deflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-infback-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inffast-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-inftrees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-trees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "clang-O2-zlib-zutil-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-adler32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-crc32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-deflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-infback-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inffast-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-inftrees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-trees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O0-zlib-zutil-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/adler32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-adler32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-adler32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/crc32.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-crc32.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-crc32-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/deflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-deflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-deflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/infback.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-infback.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-infback-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inffast.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inffast.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inffast-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inflate.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inflate.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inflate-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/inftrees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-inftrees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-inftrees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/trees.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-trees.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-trees-2.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/tmp/zlib-1.3.2/zutil.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2-zutil.o",
+        "-DZ_SOLO=1",
+        "-I",
+        "/tmp/zlib-1.3.2"
+      ],
+      "log": "gcc-O2-zlib-zutil-2.log",
+      "timeout_seconds": 120
+    }
+  ],
+  "runtime_artifact_hashes": {
+    "harness.o": "abf66152327e48095948559f0073d9110fab0d6da70fe02011a9120e67f7f726",
+    "cosmic-O0": "0c3f24eb32294c92ac8fff07732d444d1fd10ecb53afc465da5a2bef2b9d463f",
+    "cosmic-O0.o": "0d7bd7a5358cae05b563d4c30d79ebc198c49bc183c772fe2c0c8007d9aee0ca",
+    "cosmic-O2": "d38ef68859708e90967b03bb56238e84067e3c1a60a084dd4e2460ade8d02526",
+    "cosmic-O2.o": "d62f6beb26d5b145e9af1f4431ae33809fa2a6b7094dcd49bb73f9e8f3f74f91",
+    "gcc-O0": "b6e4f396260cf1ae2e5cbe4c06bafeed724fd8bf6903e43869e112932e28e372",
+    "gcc-O0.o": "0d0c1faecf55cbe7525bb47d306bc9f1cfd8e6be556c1220c0ef7135c64d6552",
+    "gcc-O2": "b945bd52abee0fcaf56c9c97c4aa5474749a23b9a03c3481537e74bb2c0313c6",
+    "gcc-O2.o": "72756eb7f4e07a95badc011990b2fbd371ac9f7a6363a415894329650f818989",
+    "clang-O0": "a32f4bc53d5ad17f05aba958f83a1544f3340158ca4761ae8e7eee1689b52953",
+    "clang-O0.o": "1378ac4b7eeb77cbc0964959745b0bc27f9f38397c16e8e99f6cfa3c66a1f22b",
+    "clang-O2": "0f918331c5c542ab85e089f1ec06cc21614f3114f11eda6bd018caea4cc2baaf",
+    "clang-O2.o": "f0d50b1b96b2d121627296521606726dfed23a7b5716c8f2811d4994b4eb5ed4"
+  },
+  "statistics": {
+    "compile": {
+      "cosmic-O2": {
+        "median_seconds": 0.00424257,
+        "min_seconds": 0.003844553,
+        "max_seconds": 0.004744657,
+        "q1_seconds": 0.0040676725,
+        "q3_seconds": 0.004526036,
+        "samples": 7
+      },
+      "gcc-O0": {
+        "median_seconds": 0.021339193,
+        "min_seconds": 0.019605482,
+        "max_seconds": 0.021888761,
+        "q1_seconds": 0.020626391,
+        "q3_seconds": 0.0214185645,
+        "samples": 7
+      },
+      "gcc-O2": {
+        "median_seconds": 0.038944294,
+        "min_seconds": 0.036398686,
+        "max_seconds": 0.041658504,
+        "q1_seconds": 0.037403886,
+        "q3_seconds": 0.039362306,
+        "samples": 7
+      },
+      "clang-O2": {
+        "median_seconds": 0.055660393,
+        "min_seconds": 0.052043304,
+        "max_seconds": 0.06125534,
+        "q1_seconds": 0.055062444,
+        "q3_seconds": 0.0581534465,
+        "samples": 7
+      },
+      "clang-O0": {
+        "median_seconds": 0.036929197,
+        "min_seconds": 0.033296006,
+        "max_seconds": 0.040883679,
+        "q1_seconds": 0.035810837,
+        "q3_seconds": 0.037157025499999996,
+        "samples": 7
+      },
+      "cosmic-O0": {
+        "median_seconds": 0.004364843,
+        "min_seconds": 0.003749652,
+        "max_seconds": 0.005018649,
+        "q1_seconds": 0.004127321,
+        "q3_seconds": 0.0046166025,
+        "samples": 7
+      }
+    },
+    "link": {
+      "clang-O0": {
+        "median_seconds": 0.019855277,
+        "min_seconds": 0.018473976,
+        "max_seconds": 0.021920331,
+        "q1_seconds": 0.019128186999999998,
+        "q3_seconds": 0.020139954,
+        "samples": 7
+      },
+      "gcc-O2": {
+        "median_seconds": 0.019464944,
+        "min_seconds": 0.018440834,
+        "max_seconds": 0.020936396,
+        "q1_seconds": 0.018902738,
+        "q3_seconds": 0.0199614895,
+        "samples": 7
+      },
+      "cosmic-O0": {
+        "median_seconds": 0.019621251,
+        "min_seconds": 0.018055029,
+        "max_seconds": 0.022831145,
+        "q1_seconds": 0.018938801499999998,
+        "q3_seconds": 0.020988656,
+        "samples": 7
+      },
+      "clang-O2": {
+        "median_seconds": 0.018871904,
+        "min_seconds": 0.018284646,
+        "max_seconds": 0.021314066,
+        "q1_seconds": 0.0185854485,
+        "q3_seconds": 0.020534456,
+        "samples": 7
+      },
+      "cosmic-O2": {
+        "median_seconds": 0.018753288,
+        "min_seconds": 0.017974886,
+        "max_seconds": 0.021223113,
+        "q1_seconds": 0.018420349000000003,
+        "q3_seconds": 0.0195813055,
+        "samples": 7
+      },
+      "gcc-O0": {
+        "median_seconds": 0.019077586,
+        "min_seconds": 0.017912907,
+        "max_seconds": 0.020310684,
+        "q1_seconds": 0.0186189525,
+        "q3_seconds": 0.0199339315,
+        "samples": 7
+      }
+    },
+    "runtime": {
+      "cosmic-O0": {
+        "hash": {
+          "median_seconds": 0.229454588,
+          "min_seconds": 0.216143074,
+          "max_seconds": 0.241979323,
+          "q1_seconds": 0.2207441775,
+          "q3_seconds": 0.22978047899999998,
+          "samples": 7
+        },
+        "branch": {
+          "median_seconds": 0.734052685,
+          "min_seconds": 0.693820948,
+          "max_seconds": 0.945062803,
+          "q1_seconds": 0.714104506,
+          "q3_seconds": 0.7770187145,
+          "samples": 7
+        },
+        "divide": {
+          "median_seconds": 0.313185645,
+          "min_seconds": 0.300323497,
+          "max_seconds": 0.314765254,
+          "q1_seconds": 0.3055278095,
+          "q3_seconds": 0.3134413025,
+          "samples": 7
+        },
+        "matrix": {
+          "median_seconds": 0.210090346,
+          "min_seconds": 0.203490406,
+          "max_seconds": 0.231795797,
+          "q1_seconds": 0.206462672,
+          "q3_seconds": 0.21542319799999998,
+          "samples": 7
+        }
+      },
+      "gcc-O2": {
+        "hash": {
+          "median_seconds": 0.091252032,
+          "min_seconds": 0.08007825,
+          "max_seconds": 0.09814966,
+          "q1_seconds": 0.086967957,
+          "q3_seconds": 0.096016933,
+          "samples": 7
+        },
+        "branch": {
+          "median_seconds": 0.296742437,
+          "min_seconds": 0.276868564,
+          "max_seconds": 0.309282801,
+          "q1_seconds": 0.28928751249999995,
+          "q3_seconds": 0.3022308455,
+          "samples": 7
+        },
+        "divide": {
+          "median_seconds": 0.164274604,
+          "min_seconds": 0.150279118,
+          "max_seconds": 0.166747614,
+          "q1_seconds": 0.15746886599999999,
+          "q3_seconds": 0.1659857925,
+          "samples": 7
+        },
+        "matrix": {
+          "median_seconds": 0.0443811,
+          "min_seconds": 0.042231315,
+          "max_seconds": 0.045617435,
+          "q1_seconds": 0.042916255,
+          "q3_seconds": 0.0452871205,
+          "samples": 7
+        }
+      },
+      "clang-O0": {
+        "hash": {
+          "median_seconds": 0.372834064,
+          "min_seconds": 0.344546948,
+          "max_seconds": 0.382283712,
+          "q1_seconds": 0.36548882400000005,
+          "q3_seconds": 0.3774687915,
+          "samples": 7
+        },
+        "branch": {
+          "median_seconds": 0.738531445,
+          "min_seconds": 0.707025618,
+          "max_seconds": 0.791643505,
+          "q1_seconds": 0.7299102900000001,
+          "q3_seconds": 0.764718447,
+          "samples": 7
+        },
+        "divide": {
+          "median_seconds": 0.320268906,
+          "min_seconds": 0.313666561,
+          "max_seconds": 0.34318285,
+          "q1_seconds": 0.31733418199999996,
+          "q3_seconds": 0.328442539,
+          "samples": 7
+        },
+        "matrix": {
+          "median_seconds": 0.162886019,
+          "min_seconds": 0.159497926,
+          "max_seconds": 0.173507579,
+          "q1_seconds": 0.16262858400000002,
+          "q3_seconds": 0.16737581499999998,
+          "samples": 7
+        }
+      },
+      "gcc-O0": {
+        "hash": {
+          "median_seconds": 0.103485573,
+          "min_seconds": 0.103304378,
+          "max_seconds": 0.124290178,
+          "q1_seconds": 0.1034257985,
+          "q3_seconds": 0.10736063800000001,
+          "samples": 7
+        },
+        "branch": {
+          "median_seconds": 0.387936669,
+          "min_seconds": 0.378444691,
+          "max_seconds": 0.409295019,
+          "q1_seconds": 0.38310906899999997,
+          "q3_seconds": 0.4012699885,
+          "samples": 7
+        },
+        "divide": {
+          "median_seconds": 0.298984718,
+          "min_seconds": 0.291303928,
+          "max_seconds": 0.317141409,
+          "q1_seconds": 0.294515987,
+          "q3_seconds": 0.3051175285,
+          "samples": 7
+        },
+        "matrix": {
+          "median_seconds": 0.164783373,
+          "min_seconds": 0.156179766,
+          "max_seconds": 0.186340491,
+          "q1_seconds": 0.158637682,
+          "q3_seconds": 0.17184647549999998,
+          "samples": 7
+        }
+      },
+      "clang-O2": {
+        "hash": {
+          "median_seconds": 0.0849663,
+          "min_seconds": 0.077326619,
+          "max_seconds": 0.091238126,
+          "q1_seconds": 0.082944183,
+          "q3_seconds": 0.088774854,
+          "samples": 7
+        },
+        "branch": {
+          "median_seconds": 0.150047356,
+          "min_seconds": 0.130937298,
+          "max_seconds": 0.160262261,
+          "q1_seconds": 0.142836803,
+          "q3_seconds": 0.152010645,
+          "samples": 7
+        },
+        "divide": {
+          "median_seconds": 0.168978142,
+          "min_seconds": 0.15677518,
+          "max_seconds": 0.180502402,
+          "q1_seconds": 0.15953791150000002,
+          "q3_seconds": 0.17113935349999998,
+          "samples": 7
+        },
+        "matrix": {
+          "median_seconds": 0.038960696,
+          "min_seconds": 0.035085966,
+          "max_seconds": 0.044863459,
+          "q1_seconds": 0.037489223,
+          "q3_seconds": 0.043485694000000005,
+          "samples": 7
+        }
+      },
+      "cosmic-O2": {
+        "hash": {
+          "median_seconds": 0.229699515,
+          "min_seconds": 0.208553539,
+          "max_seconds": 0.245163688,
+          "q1_seconds": 0.21793707699999998,
+          "q3_seconds": 0.231172445,
+          "samples": 7
+        },
+        "branch": {
+          "median_seconds": 0.416986298,
+          "min_seconds": 0.410436473,
+          "max_seconds": 0.455777201,
+          "q1_seconds": 0.4112078725,
+          "q3_seconds": 0.427979456,
+          "samples": 7
+        },
+        "divide": {
+          "median_seconds": 0.305698825,
+          "min_seconds": 0.28845917,
+          "max_seconds": 0.335717711,
+          "q1_seconds": 0.3005168805,
+          "q3_seconds": 0.3070132895,
+          "samples": 7
+        },
+        "matrix": {
+          "median_seconds": 0.137360161,
+          "min_seconds": 0.130549921,
+          "max_seconds": 0.158447686,
+          "q1_seconds": 0.135141616,
+          "q3_seconds": 0.14033758200000002,
+          "samples": 7
+        }
+      }
+    },
+    "zlib": {
+      "gcc-O0": {
+        "median_seconds": 0.388850992,
+        "min_seconds": 0.3864565,
+        "max_seconds": 0.39248686299999996,
+        "q1_seconds": 0.387653746,
+        "q3_seconds": 0.3906689275,
+        "samples": 3
+      },
+      "gcc-O2": {
+        "median_seconds": 1.3393592140000001,
+        "min_seconds": 1.318412838,
+        "max_seconds": 1.6646629689999999,
+        "q1_seconds": 1.3288860260000002,
+        "q3_seconds": 1.5020110915,
+        "samples": 3
+      },
+      "clang-O0": {
+        "median_seconds": 0.42410616,
+        "min_seconds": 0.37943980600000005,
+        "max_seconds": 0.442066496,
+        "q1_seconds": 0.40177298300000003,
+        "q3_seconds": 0.433086328,
+        "samples": 3
+      },
+      "cosmic-O0": {
+        "median_seconds": 0.20146721199999998,
+        "min_seconds": 0.18396456800000002,
+        "max_seconds": 0.21413525100000003,
+        "q1_seconds": 0.19271589,
+        "q3_seconds": 0.20780123150000002,
+        "samples": 3
+      },
+      "cosmic-O2": {
+        "median_seconds": 0.204766253,
+        "min_seconds": 0.20113688499999996,
+        "max_seconds": 0.225829074,
+        "q1_seconds": 0.202951569,
+        "q3_seconds": 0.2152976635,
+        "samples": 3
+      },
+      "clang-O2": {
+        "median_seconds": 1.3052264040000001,
+        "min_seconds": 1.2543907600000002,
+        "max_seconds": 1.471524243,
+        "q1_seconds": 1.2798085820000002,
+        "q3_seconds": 1.3883753235,
+        "samples": 3
+      }
+    }
+  },
+  "machine_end": {
+    "platform": "Linux-7.1.5-76070105-generic-x86_64-with-glibc2.39",
+    "cpu_model": "AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics",
+    "logical_cpus": 16,
+    "original_allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "measurement_cpu": 0,
+    "affinity": [
+      0
+    ],
+    "cpufreq": {
+      "scaling_governor": "powersave",
+      "scaling_driver": "amd-pstate-epp",
+      "cpuinfo_min_freq": "419175",
+      "cpuinfo_max_freq": "5134889",
+      "scaling_cur_freq": "4166864"
+    },
+    "boost": "1",
+    "loadavg": [
+      5.5869140625,
+      8.9072265625,
+      8.22119140625
+    ],
+    "no_system_settings_changed": true
+  },
+  "status": "passed"
+}

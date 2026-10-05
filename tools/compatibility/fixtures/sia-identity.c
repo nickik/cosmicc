@@ -1,0 +1,1 @@
+int x,x=3,x; extern int x; int f(char*p){return *p+1;} int main(void){int f(char*);char c=1;unsigned char a=255;unsigned short b=a; if(x!=3 || f(&c)!=2 || b!=255)return 1;}

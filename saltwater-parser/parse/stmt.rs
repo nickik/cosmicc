@@ -14,6 +14,7 @@ impl<I: Lexer> Parser<I> {
             .expect("compound_statement should be called with '{' as the next token")
             .location;
         let mut stmts = vec![];
+        self.typedefs.enter();
         let mut pending_errs = vec![];
         while self.peek_token() != Some(&Token::RightBrace) {
             match self.statement() {
@@ -38,6 +39,7 @@ impl<I: Lexer> Parser<I> {
             ));
             pending_errs.push(actual_err);
         }
+        self.typedefs.exit();
         if let Some(err) = pending_errs.pop() {
             self.error_handler.extend(pending_errs.into_iter());
             Err(err)
@@ -159,7 +161,7 @@ impl<I: Lexer> Parser<I> {
                         location: id.location,
                     });
                 }
-                let is_typedef = self.typedefs.get(&id.data).is_some();
+                let is_typedef = self.typedefs.get(&id.data) == Some(&true);
                 self.unput(Some(Locatable {
                     data: Token::Id(id.data),
                     location: id.location,
@@ -285,6 +287,12 @@ impl<I: Lexer> Parser<I> {
     /// ```
     /// <http://www.quut.com/c/ANSI-C-grammar-y.html#iteration_statement>
     fn for_statement(&mut self) -> StmtResult {
+        self.typedefs.enter();
+        let result = self.for_statement_scoped();
+        self.typedefs.exit();
+        result
+    }
+    fn for_statement_scoped(&mut self) -> StmtResult {
         let start = self.expect(Token::Keyword(Keyword::For))?;
         let paren = self.expect(Token::LeftParen)?;
         let expr_opt = |this: &mut Self| {
@@ -301,7 +309,7 @@ impl<I: Lexer> Parser<I> {
             Some(Token::Keyword(k)) if k.is_decl_specifier() => self.declaration()?,
             Some(Token::Id(id)) => {
                 let id = *id;
-                if self.typedefs.get(&id).is_some() {
+                if self.typedefs.get(&id) == Some(&true) {
                     self.declaration()?
                 } else {
                     expr_opt(self)?

@@ -15,6 +15,9 @@ enum InternalDeclaratorType {
     },
     Array {
         size: Option<Box<Expr>>,
+        parameter_qualifiers: Vec<DeclarationSpecifier>,
+        static_bound: bool,
+        unspecified_vla: bool,
     },
     Function {
         params: Vec<TypeName>,
@@ -43,6 +46,9 @@ impl<I: Lexer> Parser<I> {
     /// <http://www.quut.com/c/ANSI-C-grammar-y.html#external_declaration>
     pub fn external_declaration(&mut self) -> SyntaxResult<Locatable<ExternalDeclaration>> {
         let (specifiers, specifier_locations) = self.specifiers()?;
+        let has_typedef = specifiers
+            .iter()
+            .any(|s| *s == DeclarationSpecifier::Unit(ast::UnitSpecifier::Typedef));
 
         // allow `int;`
         if let Some(token) = self.match_next(&Token::Semicolon) {
@@ -55,7 +61,7 @@ impl<I: Lexer> Parser<I> {
             return Ok(Locatable::new(empty_decl, location));
         }
 
-        let declarator = self.init_declarator()?;
+        let declarator = self.init_declarator(has_typedef)?;
         let mut location = declarator.location.maybe_merge(specifier_locations);
         if self.peek_token() == Some(&Token::LeftBrace) {
             use crate::data::ast::{DeclaratorType, FunctionDefinition};
@@ -65,12 +71,40 @@ impl<I: Lexer> Parser<I> {
                 DeclaratorType::Function(func) => func,
                 _ => return Err(location.with(SyntaxError::NotAFunction(declarator.data))),
             };
+            fn has_unspecified_vla(decl: &DeclaratorType) -> bool {
+                match decl {
+                    DeclaratorType::Array {
+                        of,
+                        unspecified_vla,
+                        ..
+                    } => *unspecified_vla || has_unspecified_vla(of),
+                    DeclaratorType::Pointer { to, .. } => has_unspecified_vla(to),
+                    _ => false,
+                }
+            }
+            if func
+                .params
+                .iter()
+                .any(|p| has_unspecified_vla(&p.declarator.decl))
+            {
+                return Err(location.with(SyntaxError::Generic(
+                    "[*] array declarators require function prototype scope".into(),
+                )));
+            }
             // int f() = 1 { }
             if let Some(init) = declarator.data.init {
                 return Err(location.with(SyntaxError::FunctionInitializer(init)));
             }
 
-            let body = self.compound_statement()?;
+            self.typedefs.enter();
+            for param in &func.params {
+                if let Some(id) = param.declarator.id {
+                    self.typedefs.insert(id, false);
+                }
+            }
+            let body = self.compound_statement();
+            self.typedefs.exit();
+            let body = body?;
             let location = location.merge(body.location);
             // int () {}
             let err = location.with(SyntaxError::MissingFunctionName);
@@ -89,14 +123,14 @@ impl<I: Lexer> Parser<I> {
             .any(|s| *s == DeclarationSpecifier::Unit(crate::data::ast::UnitSpecifier::Typedef));
         while self.match_next(&Token::Semicolon).is_none() {
             self.expect(Token::Comma)?;
-            let decl = self.init_declarator()?;
+            let decl = self.init_declarator(has_typedef)?;
             location = location.merge(decl.location);
             decls.push(decl);
         }
         if has_typedef {
             // `int *;` is caught later
             for id in decls.iter().filter_map(|d| d.data.declarator.id) {
-                self.typedefs.insert(id, ());
+                self.typedefs.insert(id, true);
             }
         }
         let declaration = Declaration {
@@ -168,6 +202,25 @@ impl<I: Lexer> Parser<I> {
             all_locs = all_locs.map_or(Some(spec.location), |existing: Location| {
                 Some(existing.merge(spec.location))
             });
+            seen_typedef |= matches!(
+                &spec.data,
+                DeclarationSpecifier::Struct(_)
+                    | DeclarationSpecifier::Union(_)
+                    | DeclarationSpecifier::Enum { .. }
+                    | DeclarationSpecifier::Typedef(_)
+                    | DeclarationSpecifier::Unit(
+                        ast::UnitSpecifier::Char
+                            | ast::UnitSpecifier::Short
+                            | ast::UnitSpecifier::Int
+                            | ast::UnitSpecifier::Long
+                            | ast::UnitSpecifier::Float
+                            | ast::UnitSpecifier::Double
+                            | ast::UnitSpecifier::Void
+                            | ast::UnitSpecifier::Signed
+                            | ast::UnitSpecifier::Unsigned
+                            | ast::UnitSpecifier::Bool
+                    )
+            );
             specifiers.push(spec.data);
         }
         Ok((specifiers, all_locs))
@@ -345,8 +398,15 @@ impl<I: Lexer> Parser<I> {
         Ok(Locatable::new(decl, location))
     }
 
-    fn init_declarator(&mut self) -> SyntaxResult<Locatable<ast::InitDeclarator>> {
+    fn init_declarator(&mut self, typedef: bool) -> SyntaxResult<Locatable<ast::InitDeclarator>> {
         let decl = self.declarator(false)?;
+        let location = self.last_location;
+        let decl = decl
+            .ok_or_else(|| location.with(SyntaxError::ExpectedDeclarator))?
+            .map(InternalDeclarator::parse_declarator);
+        if let Some(id) = decl.data.id {
+            self.typedefs.insert(id, typedef);
+        }
         let init = if self.match_next(&Token::EQUAL).is_some() {
             Some(self.initializer()?)
         } else {
@@ -354,9 +414,9 @@ impl<I: Lexer> Parser<I> {
         };
         // TODO: this location is wrong
         let location = self.last_location;
-        let decl = decl.ok_or_else(|| location.with(SyntaxError::ExpectedDeclarator))?;
+        let decl = Locatable::new(decl.data, location);
         Ok(decl.map(|d| ast::InitDeclarator {
-            declarator: InternalDeclarator::parse_declarator(d),
+            declarator: d,
             init,
         }))
     }
@@ -557,21 +617,33 @@ impl<I: Lexer> Parser<I> {
     fn postfix_type(
         &mut self,
         mut prefix: Option<Locatable<InternalDeclarator>>,
-        allow_abstract: bool,
+        _allow_abstract: bool,
     ) -> SyntaxResult<Option<Locatable<InternalDeclarator>>> {
         while let Some(data) = self.peek_token() {
             let current = match data {
                 // Array; Specified in section 6.7.6.2 of the C11 spec
                 Token::LeftBracket => {
                     self.expect(Token::LeftBracket).unwrap();
-                    if let Some(token) = self.match_next(&Token::Keyword(Keyword::Static)) {
-                        if !allow_abstract {
-                            self.error_handler.push_back(Locatable::new(
-                                SyntaxError::StaticInConcreteArray,
-                                token.location,
-                            ));
+                    let mut parameter_qualifiers = Vec::new();
+                    let mut static_bound = false;
+                    while let Some(token) = self.match_keywords(&[
+                        Keyword::Const,
+                        Keyword::Volatile,
+                        Keyword::Restrict,
+                        Keyword::Static,
+                    ]) {
+                        if token.data == Keyword::Static {
+                            if static_bound {
+                                self.error_handler.push_back(
+                                    token.location.with(SyntaxError::StaticInConcreteArray),
+                                );
+                            }
+                            static_bound = true;
+                        } else {
+                            parameter_qualifiers.push(token.data.try_into().unwrap());
                         }
                     }
+                    let unspecified_vla = self.match_next(&Token::Star).is_some();
                     let (size, location) =
                         if let Some(token) = self.match_next(&Token::RightBracket) {
                             (None, token.location)
@@ -579,7 +651,19 @@ impl<I: Lexer> Parser<I> {
                             let expr = Box::new(self.expr()?);
                             (Some(expr), self.expect(Token::RightBracket)?.location)
                         };
-                    Locatable::new(InternalDeclaratorType::Array { size }, location)
+                    if static_bound && (size.is_none() || unspecified_vla) {
+                        self.error_handler
+                            .push_back(location.with(SyntaxError::StaticInConcreteArray));
+                    }
+                    Locatable::new(
+                        InternalDeclaratorType::Array {
+                            size,
+                            parameter_qualifiers,
+                            static_bound,
+                            unspecified_vla,
+                        },
+                        location,
+                    )
                 }
                 Token::LeftParen => self.parameter_type_list()?,
                 _ => break,
@@ -673,7 +757,7 @@ impl<I: Lexer> Parser<I> {
             }
         }
     }
-    fn initializer(&mut self) -> SyntaxResult<Initializer> {
+    pub(super) fn initializer(&mut self) -> SyntaxResult<Initializer> {
         // initializer_list
         if self.match_next(&Token::LeftBrace).is_some() {
             self.aggregate_initializer()
@@ -755,9 +839,17 @@ impl InternalDeclarator {
                     to: Box::new(current),
                     qualifiers,
                 },
-                Array { size } => DeclaratorType::Array {
+                Array {
+                    size,
+                    parameter_qualifiers,
+                    static_bound,
+                    unspecified_vla,
+                } => DeclaratorType::Array {
                     of: Box::new(current),
                     size,
+                    parameter_qualifiers,
+                    static_bound,
+                    unspecified_vla,
                 },
                 Function { params, varargs } => DeclaratorType::from(ast::FunctionDeclarator {
                     return_type: Box::new(current),

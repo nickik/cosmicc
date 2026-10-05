@@ -1,0 +1,93 @@
+{
+  "compiler_sha256": "ff5de80019013a5315083698fc3a09290f787ffcb3be7145abbcd3a385ec5f0e",
+  "cases": [
+    {
+      "mode": "cosmic-O0",
+      "command": [
+        "/tmp/cosmic-native-continuation-final-220/cosmic-snapshot",
+        "-O0",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00219.c",
+        "-o",
+        "/tmp/cosmic-native-generic-focused/cosmic-O0"
+      ],
+      "returncode": 0,
+      "stdout": "20\n10\n20\n123\n2\n0\n5\n1\n2\n3\n4\nlong\n1\n3\n"
+    },
+    {
+      "mode": "cosmic-O2",
+      "command": [
+        "/tmp/cosmic-native-continuation-final-220/cosmic-snapshot",
+        "-O2",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00219.c",
+        "-o",
+        "/tmp/cosmic-native-generic-focused/cosmic-O2"
+      ],
+      "returncode": 0,
+      "stdout": "20\n10\n20\n123\n2\n0\n5\n1\n2\n3\n4\nlong\n1\n3\n"
+    },
+    {
+      "mode": "gcc-13-O0",
+      "command": [
+        "gcc-13",
+        "-std=gnu11",
+        "-O0",
+        "-Wno-implicit-int",
+        "-Wno-implicit-function-declaration",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00219.c",
+        "-o",
+        "/tmp/cosmic-native-generic-focused/gcc-13-O0"
+      ],
+      "returncode": 0,
+      "stdout": "20\n10\n20\n123\n2\n0\n5\n1\n2\n3\n4\nlong\n1\n3\n"
+    },
+    {
+      "mode": "gcc-13-O2",
+      "command": [
+        "gcc-13",
+        "-std=gnu11",
+        "-O2",
+        "-Wno-implicit-int",
+        "-Wno-implicit-function-declaration",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00219.c",
+        "-o",
+        "/tmp/cosmic-native-generic-focused/gcc-13-O2"
+      ],
+      "returncode": 0,
+      "stdout": "20\n10\n20\n123\n2\n0\n5\n1\n2\n3\n4\nlong\n1\n3\n"
+    },
+    {
+      "mode": "clang-18-O0",
+      "command": [
+        "clang-18",
+        "-std=gnu11",
+        "-O0",
+        "-Wno-implicit-int",
+        "-Wno-implicit-function-declaration",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00219.c",
+        "-o",
+        "/tmp/cosmic-native-generic-focused/clang-18-O0"
+      ],
+      "returncode": 0,
+      "stdout": "20\n10\n20\n123\n2\n0\n5\n1\n2\n3\n4\nlong\n1\n3\n"
+    },
+    {
+      "mode": "clang-18-O2",
+      "command": [
+        "clang-18",
+        "-std=gnu11",
+        "-O2",
+        "-Wno-implicit-int",
+        "-Wno-implicit-function-declaration",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00219.c",
+        "-o",
+        "/tmp/cosmic-native-generic-focused/clang-18-O2"
+      ],
+      "returncode": 0,
+      "stdout": "20\n10\n20\n123\n2\n0\n5\n1\n2\n3\n4\nlong\n1\n3\n"
+    }
+  ]
+}

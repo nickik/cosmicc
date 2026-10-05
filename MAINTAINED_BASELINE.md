@@ -2,7 +2,7 @@
 
 Cosmic C's supported product is the `cosmicc` command and its direct
 `C -> typed HIR -> CLIF -> Cranelift SIA32 -> COSMIC-SIA` path.  The compiler
-runs on the build host, but generated code is only SIA32.  Native bytes or a
+runs on the build host; SIA32 is the default, and AMD64 ELF is also supported.  Native bytes or a
 decoded `CallPlan` are compilation evidence, not execution evidence.
 
 ## Supported toolchain and commands
@@ -16,20 +16,21 @@ change is deliberate.
 | --- | --- |
 | Formatting | `cargo fmt --all -- --check` |
 | C-to-SIA tests | `cargo test -p saltwater-sia --locked` |
+| Workspace tests | `cargo test --workspace --locked` |
 | Compiler command | `cargo check --bin cosmicc --locked` |
 | Workspace validation | `cargo check --workspace --locked` |
 | Complete supported gate | `sh scripts/check-supported.sh` |
 | Release compiler build | `cargo build --release --bin cosmicc --locked` |
 
-`cargo test --workspace` is intentionally not a supported gate yet.  Its
-inherited host-runner, JIT, varargs, system-`cc`, and benchmark sources are
-retained below for provenance but do not describe the Cosmic SIA profile.
+`cargo test --workspace --locked` is now part of the supported gate. Historical
+host-runner/JIT sources remain excluded from Cargo target discovery and do not
+define Cosmic's target profile.
 
 ## Inventory
 
 | Location | Classification | Status |
 | --- | --- | --- |
-| `src/cosmicc.rs`, root `cosmicc` package | Active Cosmic C implementation | Supported compiler command; sole root Cargo binary target. |
+| `src/cosmicc.rs`, root `cosmicc` package | Active Cosmic C implementation | Supported compiler command; compiler command; cosmic-link is the bounded single-bundle image builder. |
 | `saltwater-sia/` | Active Cosmic C implementation | Supported lowering, bundle, CallPlan, and byte tests. |
 | `saltwater-parser/` | Retained parser/frontend infrastructure | Required by `saltwater-sia`; retained while its broader C surface is audited. Its historical optional `jit` compatibility switch is not enabled or supported by Cosmic C. |
 | `src/main.rs` | Retired host/JIT functionality | Historical Saltwater driver, explicitly not a Cargo target. |

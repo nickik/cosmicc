@@ -1,0 +1,13 @@
+[package]
+name = "saltwater-amd64"
+version = "0.12.0"
+edition = "2021"
+[lib]
+path = "lib.rs"
+[dependencies]
+cranelift-codegen = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d", features = ["std", "x86"] }
+cranelift-frontend = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
+cranelift-module = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
+cranelift-object = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
+target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
+saltwater-parser = { path = "../saltwater-parser" }

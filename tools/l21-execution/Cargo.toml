@@ -14,8 +14,3 @@ lighting-simulation = { git = "https://github.com/nickik/LightingSimulation", re
 # Coordinated local validation; replace with published exact Git revisions after approval.
 [patch."https://github.com/nickik/LightingSimulation"]
 lighting-simulation = { path = "../../../LightingSimulation" }
-
-[patch."https://github.com/nickik/crainlift"]
-cranelift-codegen = { path = "../../../crainlift3/cranelift/codegen" }
-cranelift-frontend = { path = "../../../crainlift3/cranelift/frontend" }
-target-lexicon = { path = "../../../crainlift3/vendor/target-lexicon-sia" }

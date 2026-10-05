@@ -32,10 +32,30 @@ impl PureAnalyzer {
         };
         // The only time (that I know of) that an expression will initialize a non-scalar
         // is for character literals.
-        let is_char_array = match ctype {
-            Type::Array(inner, _) => inner.is_char(),
+        let is_char_array = match (ctype, &expr.ctype, &expr.expr) {
+            (
+                Type::Array(destination, _),
+                Type::Array(source, _),
+                ExprType::Literal(LiteralValue::Str(_)),
+            ) => destination == source || (destination.is_char() && source.is_char()),
             _ => false,
         };
+        if is_char_array {
+            if let (
+                Type::Array(element, types::ArrayType::Fixed(bound)),
+                ExprType::Literal(LiteralValue::Str(bytes)),
+            ) = (ctype, &expr.expr)
+            {
+                // A bound may omit the terminating null, but no character.
+                let width = element.sizeof_for(self.target).unwrap_or(1) as usize;
+                if (bytes.len() / width).saturating_sub(1) as u64 > *bound {
+                    self.err(
+                        SemanticError::from("string initializer is too long for character array"),
+                        location,
+                    );
+                }
+            }
+        }
         // See section 6.7.9 of the C11 standard:
         // The initializer for a scalar shall be a single expression, optionally enclosed in braces.
         // The initial value of the object is that of the expression (after conversion)
@@ -62,6 +82,12 @@ impl PureAnalyzer {
         ctype: &Type,
         location: Location,
     ) -> Initializer {
+        if matches!(ctype, Type::Array(_, _)) && list.len() == 1 {
+            if matches!(&list[0], ast::Initializer::Scalar(e) if matches!(&e.data, ast::ExprType::Literal(LiteralValue::Str(_)) | ast::ExprType::WideStringLiteral(LiteralValue::Str(_))))
+            {
+                return self.parse_initializer(list.into_iter().next().unwrap(), ctype, location);
+            }
+        }
         let len = list.len();
         let mut iter = list.into_iter().peekable();
         let init = self.aggregate_initializer(&mut iter, ctype, location);
@@ -102,7 +128,7 @@ impl PureAnalyzer {
                 };
                 let target = match first {
                     ast::Designator::Index(index) => {
-                        match Self::const_uint(self.expr((**index).clone())) {
+                        match Self::const_uint(self.expr((**index).clone()), self.target) {
                             Ok(value) => value as usize,
                             Err(error) => {
                                 self.error_handler.push_back(error);
@@ -185,7 +211,11 @@ impl PureAnalyzer {
                     //               ^
                     // type is aggregate and initializer is scalar
                     // see if we can short circuit int[][3] -> int[3]
-                    if inner != Type::Error && !inner.is_scalar() {
+                    if matches!(&inner, Type::Array(_, _))
+                        && matches!(elem, Scalar(e) if matches!(&e.data, ast::ExprType::Literal(LiteralValue::Str(_)) | ast::ExprType::WideStringLiteral(LiteralValue::Str(_))))
+                    {
+                        self.parse_initializer(list.next().unwrap(), &inner, location)
+                    } else if inner != Type::Error && !inner.is_scalar() {
                         // Note: this element is _not_ consumed
                         self.aggregate_initializer(list, &inner, location)
                     // type is scalar and initializer is scalar
@@ -231,7 +261,8 @@ impl Type {
             ty if ty.is_scalar() => 1,
             Type::Array(_, ArrayType::Fixed(size)) => *size as usize,
             Type::Array(_, ArrayType::Unbounded) => 0,
-            Type::Struct(st) | Type::Union(st) => st.members().len(),
+            Type::Struct(st) => st.members().len(),
+            Type::Union(_) => 1,
             Type::Function { .. } | Type::Error => 1,
             _ => unimplemented!("type checking for {}", self),
         }

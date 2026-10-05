@@ -1,0 +1,13 @@
+{
+  "evidence": "production CPU/MMU/module RTL + real MainboardFPGA in Bluesim via HardwareCpuBoard; no physical FPGA claim",
+  "hashes": {
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/float-language.c": "875bced8b908a3f3dc337db2bd394904e123ad72cadb9959ef832f20ca0d4521",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/i64-abi-stress.c": "84bd89ecb0eae6aed4b3a14ee312c411f2316149a5a48ee31a7658bda2d93cc0",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/cpu/bridge": "e2e23a4c13a5e861c4467de2226ff8ee38851b7dd817303a3578e4f34861937a",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/cpu/bridge.so": "acab6d56926e70dba3bd18b86650573cad55e5d886c3111d1cfc66d155f7a699",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/mainboard/bridge": "02da435862a40223917ff1b83d4bfea3783a6926fc72927ca34377c3e0d7f7c6",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/mainboard/bridge.so": "10ff683b89288dee967dfada208378758fc8c18b27dfa717658d26c91fc9294d"
+  },
+  "binary32_instructions": 32419,
+  "i64_abi_instructions": 7326
+}

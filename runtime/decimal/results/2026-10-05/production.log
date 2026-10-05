@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running `tools/l21-execution/target/debug/sia-float-language tools/sia/decimal-language.c --max-instructions 10000000 --board`
+PRODUCTION-BOARD cycles=11713002 backend_transactions=1655643 minimum_sp=0xedd08
+PASS SIA C software floating-point source tools/sia/decimal-language.c; 1440640 instructions; board=true

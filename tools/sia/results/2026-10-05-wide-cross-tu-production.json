@@ -1,0 +1,176 @@
+{
+  "compiler_sha256": "a779a61517b2ba2e6d39432a1a13081622022451da1bed5de3ad9ef194622f0b",
+  "sources": {
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c": "8d86928ecaf253912fd3cc7557292acf4baf724977e4a1c633b4022100cd12cf",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c": "91e0f9ab3fe55d6e2248eeb626e5aa4a9bf686ab65dee5a1ae8c52f3d07714a1"
+  },
+  "commands": [
+    {
+      "name": "gcc-O0-compile",
+      "argv": [
+        "gcc",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/gcc-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "gcc-O0-execute",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/gcc-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "gcc-O2-compile",
+      "argv": [
+        "gcc",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/gcc-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "gcc-O2-execute",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/gcc-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "clang-O0-compile",
+      "argv": [
+        "clang",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/clang-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "clang-O0-execute",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/clang-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "clang-O2-compile",
+      "argv": [
+        "clang",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/clang-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "clang-O2-execute",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/clang-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "abi-cross-tu-caller-compile",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/compiler-snapshot",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/abi-cross-tu-caller.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "abi-cross-tu-callee-compile",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/compiler-snapshot",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/abi-cross-tu-callee.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "context-compile",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/compiler-snapshot",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/context.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/context.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "binary32-add-compile",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/compiler-snapshot",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-add.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary32-add.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "binary32-convert-compile",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/compiler-snapshot",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-convert.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary32-convert.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "binary64-compile",
+      "argv": [
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/compiler-snapshot",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary64.c",
+        "-o",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary64.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "sia-execute",
+      "argv": [
+        "cargo",
+        "run",
+        "--manifest-path",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution/Cargo.toml",
+        "--bin",
+        "multi-object-native",
+        "--offline",
+        "--",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/abi-cross-tu-caller.sia",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/abi-cross-tu-callee.sia",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/context.sia",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary32-add.sia",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary32-convert.sia",
+        "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary64.sia",
+        "--board"
+      ],
+      "returncode": 0
+    }
+  ],
+  "evidence": "production CPU/mainboard Bluesim",
+  "objects": {
+    "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/abi-cross-tu-caller.sia": "8dd22b5ecf63698533d978cf03c6ff903b6817cab35410ae96c5d0cfe65d7e6b",
+    "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/abi-cross-tu-callee.sia": "568b117db50c888be284b508e9a838b07fc7be9833b0ce9f047df012006bf45e",
+    "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/context.sia": "1fafb4305a5609fc5c2299b1bf5ef02c73936b0ab128ecb28491569497fd041a",
+    "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary32-add.sia": "1bcc2fe837995630a0f221e82635fa4e4d230227be26bdf254f4cb90ff6687ca",
+    "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary32-convert.sia": "428d2557660aad476bfd0c0ea4392a71f0846072520900742ba20a5dfe4b77c9",
+    "/tmp/cosmic-sia-wide-abi-cross-tu-production-final/binary64.sia": "54112abe5b3d14a11051869ed7ba889081e6fe7fc2c87afb201abf1d943ce4b2"
+  },
+  "status": "passed"
+}

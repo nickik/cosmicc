@@ -1,0 +1,19 @@
+{
+  "compiler_sha256": "ff5de80019013a5315083698fc3a09290f787ffcb3be7145abbcd3a385ec5f0e",
+  "generic_architectural_guest_instructions": 595,
+  "generic_production_guest_instructions": 595,
+  "decimal_architectural_guest_instructions": 1441284,
+  "c99_math_architectural_guest_instructions": 554528,
+  "source_sha256": {
+    "tools/sia/generic-language.c": "da3aa843f5bc92701c0a796907898833880a692ce879117b9680c92427958442",
+    "tools/sia/decimal-language.c": "61a49f1d2bf41b7a131826344d315276b5fea01e6b4e0a1ee87299814322e3b8",
+    "runtime/softfloat/c99-math-test.c": "8a352ee408a9fec421b444fae5053f1aa9367a64de429e92205a7e5739c7b2d3"
+  },
+  "production_boundary": "Production CPU/MainboardFPGA HDL in Bluesim; pin transport and external RAM backing are host test boundaries. No physical FPGA is claimed.",
+  "reviewed_sia_execution": {
+    "executed": 146,
+    "passes": 146,
+    "instructions": 11315804,
+    "failures": []
+  }
+}

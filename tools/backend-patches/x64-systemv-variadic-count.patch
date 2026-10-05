@@ -1,0 +1,313 @@
+diff --git a/cranelift/codegen/src/ir/extfunc.rs b/cranelift/codegen/src/ir/extfunc.rs
+index ebfaf3a8dd..7572804ccd 100644
+--- a/cranelift/codegen/src/ir/extfunc.rs
++++ b/cranelift/codegen/src/ir/extfunc.rs
+@@ -256,6 +256,11 @@ pub enum ArgumentPurpose {
+     /// This is a pointer to a context struct containing details about the current sandbox. It is
+     /// used as a base pointer for `vmctx` global values.
+     VMContext,
++
++    /// x86-64 System V hidden vector-register count for a variadic call.
++    /// Must be one final i32 argument, supplied in EAX without consuming an
++    /// ordinary argument register. The caller supplies a count in 0..=8.
++    SystemVVariadicCount,
+ }
+ 
+ impl fmt::Display for ArgumentPurpose {
+@@ -265,6 +270,7 @@ impl fmt::Display for ArgumentPurpose {
+             Self::StructArgument(size) => return write!(f, "sarg({size})"),
+             Self::StructReturn => "sret",
+             Self::VMContext => "vmctx",
++            Self::SystemVVariadicCount => "sysv_varargs",
+         })
+     }
+ }
+@@ -276,6 +282,7 @@ impl FromStr for ArgumentPurpose {
+             "normal" => Ok(Self::Normal),
+             "sret" => Ok(Self::StructReturn),
+             "vmctx" => Ok(Self::VMContext),
++            "sysv_varargs" => Ok(Self::SystemVVariadicCount),
+             _ if s.starts_with("sarg(") => {
+                 if !s.ends_with(")") {
+                     return Err(());
+@@ -383,6 +390,7 @@ mod tests {
+             (ArgumentPurpose::Normal, "normal"),
+             (ArgumentPurpose::StructReturn, "sret"),
+             (ArgumentPurpose::VMContext, "vmctx"),
++            (ArgumentPurpose::SystemVVariadicCount, "sysv_varargs"),
+             (ArgumentPurpose::StructArgument(42), "sarg(42)"),
+         ];
+         for &(e, n) in &all_purpose {
+diff --git a/cranelift/codegen/src/isa/aarch64/abi.rs b/cranelift/codegen/src/isa/aarch64/abi.rs
+index 171549ceb1..dd232a4fe4 100644
+--- a/cranelift/codegen/src/isa/aarch64/abi.rs
++++ b/cranelift/codegen/src/isa/aarch64/abi.rs
+@@ -158,6 +158,15 @@ impl ABIMachineSpec for AArch64MachineDeps {
+         add_ret_area_ptr: bool,
+         mut args: ArgsAccumulator,
+     ) -> CodegenResult<(u32, Option<usize>)> {
++        if params
++            .iter()
++            .any(|p| p.purpose == ir::ArgumentPurpose::SystemVVariadicCount)
++        {
++            return Err(crate::CodegenError::Unsupported(
++                "sysv_varargs is supported only by x86-64 SystemV".into(),
++            ));
++        }
++
+         let is_apple_cc = call_conv == isa::CallConv::AppleAarch64;
+         let is_winch_return = call_conv == isa::CallConv::Winch && args_or_rets == ArgsOrRets::Rets;
+ 
+diff --git a/cranelift/codegen/src/isa/pulley_shared/abi.rs b/cranelift/codegen/src/isa/pulley_shared/abi.rs
+index e42d9a558c..c500aa7cb6 100644
+--- a/cranelift/codegen/src/isa/pulley_shared/abi.rs
++++ b/cranelift/codegen/src/isa/pulley_shared/abi.rs
+@@ -57,6 +57,15 @@ where
+         add_ret_area_ptr: bool,
+         mut args: ArgsAccumulator,
+     ) -> CodegenResult<(u32, Option<usize>)> {
++        if params
++            .iter()
++            .any(|p| p.purpose == ir::ArgumentPurpose::SystemVVariadicCount)
++        {
++            return Err(crate::CodegenError::Unsupported(
++                "sysv_varargs is supported only by x86-64 SystemV".into(),
++            ));
++        }
++
+         // NB: make sure this method stays in sync with
+         // `cranelift_pulley::interp::Vm::call`.
+         //
+diff --git a/cranelift/codegen/src/isa/riscv64/abi.rs b/cranelift/codegen/src/isa/riscv64/abi.rs
+index 8b130715cd..98bde822f6 100644
+--- a/cranelift/codegen/src/isa/riscv64/abi.rs
++++ b/cranelift/codegen/src/isa/riscv64/abi.rs
+@@ -91,6 +91,15 @@ impl ABIMachineSpec for Riscv64MachineDeps {
+         add_ret_area_ptr: bool,
+         mut args: ArgsAccumulator,
+     ) -> CodegenResult<(u32, Option<usize>)> {
++        if params
++            .iter()
++            .any(|p| p.purpose == ir::ArgumentPurpose::SystemVVariadicCount)
++        {
++            return Err(crate::CodegenError::Unsupported(
++                "sysv_varargs is supported only by x86-64 SystemV".into(),
++            ));
++        }
++
+         // This implements the LP64D RISC-V ABI.
+ 
+         assert_ne!(
+diff --git a/cranelift/codegen/src/isa/s390x/abi.rs b/cranelift/codegen/src/isa/s390x/abi.rs
+index be945f22d5..eab85c5e21 100644
+--- a/cranelift/codegen/src/isa/s390x/abi.rs
++++ b/cranelift/codegen/src/isa/s390x/abi.rs
+@@ -307,6 +307,15 @@ impl ABIMachineSpec for S390xMachineDeps {
+         add_ret_area_ptr: bool,
+         mut args: ArgsAccumulator,
+     ) -> CodegenResult<(u32, Option<usize>)> {
++        if params
++            .iter()
++            .any(|p| p.purpose == ir::ArgumentPurpose::SystemVVariadicCount)
++        {
++            return Err(crate::CodegenError::Unsupported(
++                "sysv_varargs is supported only by x86-64 SystemV".into(),
++            ));
++        }
++
+         assert_ne!(
+             call_conv,
+             isa::CallConv::Winch,
+diff --git a/cranelift/codegen/src/isa/sia32/abi.rs b/cranelift/codegen/src/isa/sia32/abi.rs
+index 9558929338..133e367d54 100644
+--- a/cranelift/codegen/src/isa/sia32/abi.rs
++++ b/cranelift/codegen/src/isa/sia32/abi.rs
+@@ -75,6 +75,15 @@ impl ABIMachineSpec for Sia32MachineDeps {
+         add_ret_area_ptr: bool,
+         mut args: ArgsAccumulator,
+     ) -> CodegenResult<(u32, Option<usize>)> {
++        if params
++            .iter()
++            .any(|p| p.purpose == ir::ArgumentPurpose::SystemVVariadicCount)
++        {
++            return Err(crate::CodegenError::Unsupported(
++                "sysv_varargs is supported only by x86-64 SystemV".into(),
++            ));
++        }
++
+         ensure_call_conv(call_conv)?;
+         if add_ret_area_ptr && args_or_rets != ArgsOrRets::Args {
+             return Err(CodegenError::Unsupported(
+@@ -544,6 +553,23 @@ impl ABIMachineSpec for Sia32MachineDeps {
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn x64_variadic_hidden_count_is_rejected() {
++        let mut sig = Signature::new(isa::CallConv::SystemV);
++        sig.params.push(ir::AbiParam::special(
++            I32,
++            ir::ArgumentPurpose::SystemVVariadicCount,
++        ));
++        let f = ir::Function::with_name_signature(ir::UserFuncName::user(0, 0), sig);
++        assert!(
++            crate::machinst::SigSet::new::<Sia32MachineDeps>(
++                &f,
++                &settings::Flags::new(settings::builder()),
++            )
++            .is_err()
++        );
++    }
++
+     #[test]
+     fn machine_abi_has_expected_word_and_stack_size() {
+         assert_eq!(Sia32MachineDeps::word_bits(), 32);
+@@ -578,15 +604,39 @@ mod tests {
+         let flags = settings::Flags::new(settings::builder());
+         let sig = Signature::new(isa::CallConv::SystemV);
+         let frame = Sia32MachineDeps::compute_frame_layout(
+-            isa::CallConv::SystemV, &flags, &sig, &[],
+-            FunctionCalls::Regular, 0, 0, 0, 16, 0,
++            isa::CallConv::SystemV,
++            &flags,
++            &sig,
++            &[],
++            FunctionCalls::Regular,
++            0,
++            0,
++            0,
++            16,
++            0,
+         );
+-        assert!(frame.clobbered_callee_saves.iter().any(|r| r.to_reg().hw_enc() == 15));
+-        let instructions = Sia32MachineDeps::gen_clobber_save(isa::CallConv::SystemV, &flags, &frame);
+-        let save = instructions.iter().position(|inst| matches!(inst,
+-            Inst::StoreBaseOffset { src, .. } if *src == regs::frame_reg())).unwrap();
+-        let replacement = instructions.iter().position(|inst| matches!(inst,
+-            Inst::Mov { dst, .. } if dst.to_reg() == regs::frame_reg())).unwrap();
++        assert!(
++            frame
++                .clobbered_callee_saves
++                .iter()
++                .any(|r| r.to_reg().hw_enc() == 15)
++        );
++        let instructions =
++            Sia32MachineDeps::gen_clobber_save(isa::CallConv::SystemV, &flags, &frame);
++        let save = instructions
++            .iter()
++            .position(|inst| {
++                matches!(inst,
++            Inst::StoreBaseOffset { src, .. } if *src == regs::frame_reg())
++            })
++            .unwrap();
++        let replacement = instructions
++            .iter()
++            .position(|inst| {
++                matches!(inst,
++            Inst::Mov { dst, .. } if dst.to_reg() == regs::frame_reg())
++            })
++            .unwrap();
+         assert!(save < replacement);
+     }
+ 
+diff --git a/cranelift/codegen/src/isa/x64/abi.rs b/cranelift/codegen/src/isa/x64/abi.rs
+index 3c3dac7f56..6981cad30d 100644
+--- a/cranelift/codegen/src/isa/x64/abi.rs
++++ b/cranelift/codegen/src/isa/x64/abi.rs
+@@ -153,6 +153,28 @@ impl ABIMachineSpec for X64ABIMachineSpec {
+         for (ix, param) in params.iter().enumerate() {
+             let last_param = ix == params.len() - 1;
+ 
++            if param.purpose == ir::ArgumentPurpose::SystemVVariadicCount {
++                if call_conv != isa::CallConv::SystemV
++                    || args_or_rets != ArgsOrRets::Args
++                    || param.value_type != types::I32
++                    || param.extension != ir::ArgumentExtension::None
++                    || !last_param
++                    || params[..ix].iter().any(|p| p.purpose == param.purpose)
++                {
++                    return Err(crate::CodegenError::Unsupported(
++                        "sysv_varargs requires one final unextended i32 x64 SystemV argument"
++                            .into(),
++                    ));
++                }
++                args.push(ABIArg::reg(
++                    regs::rax().to_real_reg().unwrap(),
++                    types::I32,
++                    ir::ArgumentExtension::None,
++                    param.purpose,
++                ));
++                continue;
++            }
++
+             if let ir::ArgumentPurpose::StructArgument(size) = param.purpose {
+                 let offset = next_stack as i64;
+                 let size = size;
+@@ -1350,6 +1372,67 @@ mod tests {
+     use crate::machinst::abi::Callee;
+     use alloc::vec::Vec;
+ 
++    fn varargs_param(ty: ir::Type) -> ir::AbiParam {
++        let mut p = ir::AbiParam::new(ty);
++        p.purpose = ir::ArgumentPurpose::SystemVVariadicCount;
++        p
++    }
++    fn arg_locations(sig: ir::Signature) -> CodegenResult<Vec<ABIArg>> {
++        let f = ir::Function::with_name_signature(ir::UserFuncName::user(0, 0), sig.clone());
++        let sigs =
++            SigSet::new::<X64ABIMachineSpec>(&f, &settings::Flags::new(settings::builder()))?;
++        Ok(sigs.args(sigs.abi_sig_for_signature(&sig)).to_vec())
++    }
++    #[test]
++    fn variadic_count_preserves_exhausted_gpr_and_vector_locations() {
++        let mut sig = ir::Signature::new(isa::CallConv::SystemV);
++        for _ in 0..7 {
++            sig.params.push(ir::AbiParam::new(types::I64));
++        }
++        for _ in 0..9 {
++            sig.params.push(ir::AbiParam::new(types::F64));
++        }
++        let original = arg_locations(sig.clone()).unwrap();
++        sig.params.push(varargs_param(types::I32));
++        let args = arg_locations(sig).unwrap();
++        assert_eq!(
++            format!("{:?}", original),
++            format!("{:?}", &args[..original.len()])
++        );
++        match args.last().unwrap() {
++            ABIArg::Slots { slots, purpose } => {
++                assert_eq!(*purpose, ir::ArgumentPurpose::SystemVVariadicCount);
++                assert!(matches!(slots.as_slice(), [ABIArgSlot::Reg { reg, ty, .. }]
++                    if *reg == regs::rax().to_real_reg().unwrap() && *ty == types::I32));
++            }
++            _ => panic!("hidden count must be register argument"),
++        }
++    }
++    #[test]
++    fn invalid_variadic_count_signatures_are_rejected() {
++        for cc in [isa::CallConv::WindowsFastcall, isa::CallConv::Fast] {
++            let mut sig = ir::Signature::new(cc);
++            sig.params.push(varargs_param(types::I32));
++            assert!(arg_locations(sig).is_err());
++        }
++        for ty in [types::I8, types::I64, types::F32] {
++            let mut sig = ir::Signature::new(isa::CallConv::SystemV);
++            sig.params.push(varargs_param(ty));
++            assert!(arg_locations(sig).is_err());
++        }
++        let mut sig = ir::Signature::new(isa::CallConv::SystemV);
++        sig.returns.push(varargs_param(types::I32));
++        assert!(arg_locations(sig).is_err());
++        let mut sig = ir::Signature::new(isa::CallConv::SystemV);
++        sig.params.push(varargs_param(types::I32));
++        sig.params.push(ir::AbiParam::new(types::I64));
++        assert!(arg_locations(sig).is_err());
++        let mut sig = ir::Signature::new(isa::CallConv::SystemV);
++        sig.params.push(varargs_param(types::I32));
++        sig.params.push(varargs_param(types::I32));
++        assert!(arg_locations(sig).is_err());
++    }
++
+     fn make_frame_layout(total_relevant_fields_sum: u32) -> FrameLayout {
+         FrameLayout {
+             word_bytes: 8,

@@ -63,6 +63,7 @@ pub struct PreProcessorBuilder<'a> {
     search_path: Vec<Cow<'a, Path>>,
     /// The user-defined macros that should be defined at startup
     definitions: Definitions,
+    target: crate::TargetDataModel,
 }
 
 impl<'a> PreProcessorBuilder<'a> {
@@ -73,6 +74,7 @@ impl<'a> PreProcessorBuilder<'a> {
             buf: buf.into(),
             search_path: Vec::new(),
             definitions: Definitions::new(),
+            target: crate::TargetDataModel::Sia32,
         }
     }
     pub fn filename<P: Into<PathBuf>>(mut self, name: P) -> Self {
@@ -91,13 +93,19 @@ impl<'a> PreProcessorBuilder<'a> {
         self.definitions.insert(name, def.into());
         self
     }
+    /// Select the explicit target data model.
+    pub fn target(mut self, target: crate::TargetDataModel) -> Self {
+        self.target = target;
+        self
+    }
     pub fn build(self) -> PreProcessor<'a> {
-        PreProcessor::new(
+        PreProcessor::new_for_target(
             self.buf,
             self.filename,
             self.debug,
             self.search_path,
             self.definitions,
+            self.target,
         )
     }
 }
@@ -138,6 +146,9 @@ pub struct PreProcessor<'a> {
     search_path: Vec<Cow<'a, Path>>,
     /// The current macro definitions
     definitions: Definitions,
+    /// Per-name stacks include None to preserve an originally undefined macro.
+    saved_macros: HashMap<InternedStr, Vec<Option<Definition>>>,
+    target: crate::TargetDataModel,
     /// Handles reading from files
     file_processor: FileProcessor,
 }
@@ -321,14 +332,36 @@ impl<'a> PreProcessor<'a> {
         user_search_path: I,
         user_definitions: HashMap<InternedStr, Definition>,
     ) -> Self {
+        Self::new_for_target(
+            chars,
+            filename,
+            debug,
+            user_search_path,
+            user_definitions,
+            crate::TargetDataModel::Sia32,
+        )
+    }
+    /// Construct preprocessing with target-owned headers and predefines.
+    pub fn new_for_target<
+        'search: 'a,
+        I: IntoIterator<Item = Cow<'search, Path>>,
+        S: Into<ArcStr>,
+    >(
+        chars: S,
+        filename: impl Into<std::ffi::OsString>,
+        debug: bool,
+        user_search_path: I,
+        user_definitions: HashMap<InternedStr, Definition>,
+        target: crate::TargetDataModel,
+    ) -> Self {
         let now = time::OffsetDateTime::now_utc();
 
         #[allow(clippy::inconsistent_digit_grouping)]
         let mut definitions = map! {
-            format!("__{}__", TARGET.architecture).into() => int_def(1),
+            (if target == crate::TargetDataModel::Amd64 { "__x86_64__" } else { "__sia32__" }).into() => int_def(1),
             format!("__{}__", TARGET.operating_system).into() => int_def(1),
             "__STDC__".into() => int_def(1),
-            "__STDC_HOSTED__".into() => int_def(1),
+            "__STDC_HOSTED__".into() => int_def(0),
             "__STDC_VERSION__".into() => int_def(2011_12),
             "__STDC_NO_ATOMICS__".into() => int_def(1),
             "__STDC_NO_COMPLEX__".into() => int_def(1),
@@ -338,6 +371,17 @@ impl<'a> PreProcessor<'a> {
             "__TIME__".into() => str_def(&now.format("%H:%M:%S")),
         };
         definitions.extend(user_definitions);
+        definitions.insert(
+            "__SIZEOF_LONG__".into(),
+            int_def(target.word_bytes() as i32),
+        );
+        definitions.insert(
+            "__SIZEOF_POINTER__".into(),
+            int_def(target.word_bytes() as i32),
+        );
+        if target == crate::TargetDataModel::Amd64 {
+            definitions.insert("__LP64__".into(), int_def(1));
+        }
         // Common GNU compatibility annotations used by portable system headers.
         // They carry no semantic effect in the initial SIA32 ABI model.
         definitions
@@ -387,7 +431,9 @@ impl<'a> PreProcessor<'a> {
             nested_ifs: Default::default(),
             pending: Default::default(),
             search_path,
+            target,
             definitions,
+            saved_macros: HashMap::new(),
             file_processor,
         };
         new_cpp.update_builtin_definitions(); // So they are defined from the start
@@ -571,12 +617,7 @@ impl<'a> PreProcessor<'a> {
                 self.definitions.remove(&name.data);
                 Ok(())
             }
-            Pragma => {
-                self.error_handler
-                    .warn(WarningDiagnostic::IgnoredPragma, self.span(start));
-                drop(self.tokens_until_newline(false));
-                Ok(())
-            }
+            Pragma => self.pragma(start),
             // NOTE: #warning is a non-standard extension, but is implemented
             // by most major compilers including clang and gcc.
             Warning => {
@@ -600,11 +641,50 @@ impl<'a> PreProcessor<'a> {
                 Ok(())
             }
             Line => {
-                self.error_handler.warn(
-                    WarningDiagnostic::Generic("#line is not yet implemented".into()),
-                    self.span(start),
-                );
-                drop(self.tokens_until_newline(false));
+                self.update_builtin_definitions();
+                let raw = self.tokens_until_newline(false);
+                let tokens = replace_iter(raw.into_iter(), &self.definitions)
+                    .flatten()
+                    .collect::<Result<Vec<_>, _>>()?;
+                let location = self.span(start);
+                let number = match tokens.first().map(|t| &t.data) {
+                    Some(Token::Literal(LiteralToken::Int(text))) => text.parse::<i64>().ok(),
+                    _ => None,
+                }
+                .filter(|n| (1..=2147483647).contains(n))
+                .ok_or_else(|| {
+                    location.error(CppError::Expected(
+                        "line number from 1 to 2147483647",
+                        "#line",
+                    ))
+                })?;
+                let filename = match tokens.get(1).map(|t| &t.data) {
+                    None => None,
+                    Some(Token::Literal(LiteralToken::Str(parts))) if tokens.len() == 2 => {
+                        let parsed = LiteralToken::Str(parts.clone())
+                            .parse()
+                            .map_err(|e| location.with(e))?;
+                        if let LiteralValue::Str(bytes) = parsed {
+                            Some(
+                                String::from_utf8_lossy(&bytes[..bytes.len().saturating_sub(1)])
+                                    .into_owned(),
+                            )
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    _ => {
+                        return Err(
+                            location.error(CppError::Expected("optional filename string", "#line"))
+                        )
+                    }
+                };
+                let lexer = self.lexer_mut();
+                // The newline ending this directive is still pending.
+                lexer.line_directive_offset = number - (lexer.line as i64 + 2);
+                if let Some(filename) = filename {
+                    lexer.line_directive_filename = Some(filename);
+                }
                 Ok(())
             }
             Include => self.include(start),
@@ -621,10 +701,15 @@ impl<'a> PreProcessor<'a> {
 
         self.update_builtin_definitions();
         // TODO: is this unwrap safe? there should only be scalar types in a cpp directive...
-        match Self::cpp_expr(&self.definitions, lex_tokens.into_iter(), location)?
-            .truthy(&mut self.error_handler)
-            .constexpr()?
-            .data
+        match Self::cpp_expr_for(
+            &self.definitions,
+            lex_tokens.into_iter(),
+            location,
+            self.target,
+        )?
+        .truthy(&mut self.error_handler)
+        .constexpr_for(self.target)?
+        .data
         {
             (LiteralValue::Int(i), Type::Bool) => Ok(i != 0),
             _ => unreachable!("bug in const_fold or parser: cpp cond should be boolean"),
@@ -705,8 +790,25 @@ impl<'a> PreProcessor<'a> {
     /// as per [6.10.1](http://port70.net/~nsz/c/c11/n1570.html#6.10.1p4).
     pub fn cpp_expr<L>(
         definitions: &Definitions,
+        lex_tokens: L,
+        location: Location,
+    ) -> CompileResult<hir::Expr>
+    where
+        L: Iterator<Item = Locatable<Token>>,
+    {
+        Self::cpp_expr_for(
+            definitions,
+            lex_tokens,
+            location,
+            crate::TargetDataModel::Sia32,
+        )
+    }
+    /// Parse a preprocessing expression with an explicit target.
+    pub fn cpp_expr_for<L>(
+        definitions: &Definitions,
         mut lex_tokens: L,
         location: Location,
+        target: crate::TargetDataModel,
     ) -> CompileResult<hir::Expr>
     where
         L: Iterator<Item = Locatable<Token>>,
@@ -769,7 +871,7 @@ impl<'a> PreProcessor<'a> {
         // TODO: catch expressions that aren't allowed
         // (see https://github.com/jyn514/rcc/issues/5#issuecomment-575339427)
         // TODO: can semantic errors happen here? should we check?
-        Ok(PureAnalyzer::new().expr(expr))
+        Ok(PureAnalyzer::new_for_target(target).expr(expr))
     }
     /// We saw an `#if`, `#ifdef`, or `#ifndef` token at the start of the line
     /// and want to either take the branch or ignore the tokens within the directive.
@@ -988,6 +1090,74 @@ impl<'a> PreProcessor<'a> {
             Ok(())
         }
     }
+    fn pragma(&mut self, start: u32) -> Result<(), Locatable<Error>> {
+        use crate::data::error::Warning as WarningDiagnostic;
+        // Read the directive directly: names such as push_macro may themselves
+        // be defined macros and must not be expanded here.
+        let tokens = self
+            .tokens_until_newline(false)
+            .into_iter()
+            .map(|r| r.map(|t| t.data))
+            .collect::<Result<Vec<_>, _>>()?;
+        if matches!(tokens.as_slice(),[Token::Id(a),Token::Id(b),Token::Id(c)] if get_str!(*a)=="STDC" && get_str!(*b)=="FENV_ACCESS" && matches!(get_str!(*c),"ON"|"OFF"|"DEFAULT"))
+        {
+            // SIA emits all runtime FP operators as side-effecting calls,
+            // conservatively preserving fenv regardless of the access mode.
+            return Ok(());
+        }
+        let action = match tokens.first() {
+            Some(Token::Id(name)) if get_str!(*name) == "push_macro" => true,
+            Some(Token::Id(name)) if get_str!(*name) == "pop_macro" => false,
+            _ => {
+                self.error_handler
+                    .warn(WarningDiagnostic::IgnoredPragma, self.span(start));
+                return Ok(());
+            }
+        };
+        let invalid = || {
+            self.span(start).error(CppError::Expected(
+                "push_macro(\"identifier\") or pop_macro(\"identifier\")",
+                "#pragma",
+            ))
+        };
+        let parts = match tokens.as_slice() {
+            [_, Token::LeftParen, Token::Literal(LiteralToken::Str(parts)), Token::RightParen] => {
+                parts
+            }
+            _ => return Err(invalid()),
+        };
+        let value = LiteralToken::Str(parts.clone())
+            .parse()
+            .map_err(|e| self.span(start).with(e))?;
+        let LiteralValue::Str(bytes) = value else {
+            unreachable!()
+        };
+        let bytes = bytes.strip_suffix(&[0]).ok_or_else(invalid)?;
+        if bytes.is_empty()
+            || !(bytes[0].is_ascii_alphabetic() || bytes[0] == b'_')
+            || !bytes
+                .iter()
+                .all(|b| b.is_ascii_alphanumeric() || *b == b'_')
+        {
+            return Err(invalid());
+        }
+        let name: InternedStr = std::str::from_utf8(bytes).unwrap().into();
+        if action {
+            let saved = self.definitions.get(&name).cloned();
+            self.saved_macros.entry(name).or_default().push(saved);
+        } else if let Some(saved) = self.saved_macros.get_mut(&name).and_then(Vec::pop) {
+            self.definitions.remove(&name);
+            if let Some(definition) = saved {
+                self.define_macro(name, definition)
+                    .map_err(|e| self.span(start).with(e))?;
+            }
+        } else {
+            // Like other unhandled pragmas, an unmatched pop is nonfatal.
+            self.error_handler
+                .warn(WarningDiagnostic::IgnoredPragma, self.span(start));
+        }
+        Ok(())
+    }
     fn define_macro(&mut self, name: InternedStr, definition: Definition) -> Result<(), CppError> {
         use std::collections::hash_map::Entry;
         match self.definitions.entry(name) {
@@ -1152,7 +1322,7 @@ impl<'a> PreProcessor<'a> {
                     None => return Err(not_found),
                     Some(name) => name,
                 };
-                match get_builtin_header(header_name) {
+                match get_builtin_header_for(header_name, self.target) {
                     Some(file) => {
                         let mut path = PathBuf::from("<builtin>");
                         path.push(&filename);
@@ -1218,9 +1388,15 @@ impl<'a> PreProcessor<'a> {
     }
 
     fn update_builtin_definitions(&mut self) {
+        let lexer = self.file_processor.lexer();
+        let line = lexer.line as i64 + 1 + lexer.line_directive_offset;
+        let filename = lexer
+            .line_directive_filename
+            .clone()
+            .unwrap_or_else(|| self.file_processor.path().to_string_lossy().into_owned());
         self.definitions.extend(map! {
-            "__LINE__".into() => int_def((self.line() + 1) as i32),
-            "__FILE__".into() => str_def(self.file_processor.path().to_string_lossy()),
+            "__LINE__".into() => int_def(line as i32),
+            "__FILE__".into() => str_def(filename),
         })
     }
 }
@@ -1245,9 +1421,10 @@ macro_rules! built_in_headers {
 // [(filename, contents)]
 // TODO: this could probably use a perfect-hashmap,
 // but it's so small that it's not worth it
-const PRECOMPILED_HEADERS: [(&str, &str); 13] = built_in_headers! {
+const PRECOMPILED_HEADERS: [(&str, &str); 14] = built_in_headers! {
     "errno.h",
     "inttypes.h",
+    "limits.h",
     "stdarg.h",
     "stddef.h",
     "stdint.h",
@@ -1260,6 +1437,39 @@ const PRECOMPILED_HEADERS: [(&str, &str); 13] = built_in_headers! {
     "unistd.h",
     "fcntl.h",
 };
+
+fn get_builtin_header_for(expected: &str, target: crate::TargetDataModel) -> Option<&'static str> {
+    if expected == "wchar.h" {
+        return Some(include_str!("../headers/wchar.h"));
+    }
+    if target == crate::TargetDataModel::Sia32 {
+        match expected {
+            "fenv.h" => return Some(include_str!("../headers/sia/fenv.h")),
+            "stdlib.h" => return Some(include_str!("../headers/sia/stdlib.h")),
+            "stdio.h" => return Some(include_str!("../headers/sia/stdio.h")),
+            "math.h" => return Some(include_str!("../headers/sia/math.h")),
+            "float.h" => return Some(include_str!("../headers/sia/float.h")),
+            _ => {}
+        }
+    }
+    if target == crate::TargetDataModel::Sia32 && expected == "stdarg.h" {
+        return Some(include_str!("../headers/sia/stdarg.h"));
+    }
+    if target == crate::TargetDataModel::Amd64 {
+        match expected {
+            "limits.h" => return Some(include_str!("../headers/amd64/limits.h")),
+            "stdarg.h" => return Some(include_str!("../headers/amd64/stdarg.h")),
+            "math.h" => return Some(include_str!("../headers/amd64/math.h")),
+            "stdio.h" => return Some(include_str!("../headers/amd64/stdio.h")),
+            "string.h" => return Some(include_str!("../headers/amd64/string.h")),
+            "stdint.h" => return Some(include_str!("../headers/amd64/stdint.h")),
+            "stddef.h" => return Some(include_str!("../headers/amd64/stddef.h")),
+            "sys/types.h" => return Some(include_str!("../headers/amd64/sys-types.h")),
+            _ => {}
+        }
+    }
+    get_builtin_header(expected)
+}
 
 fn get_builtin_header(expected: impl AsRef<str>) -> Option<&'static str> {
     PRECOMPILED_HEADERS
@@ -1699,11 +1909,80 @@ d
         assert!(cpp(src).next_non_whitespace().is_none());
     }
     #[test]
+    fn pragma_macro_stacks_preserve_nested_definitions() {
+        assert_same(
+            r#"
+#define push_macro replacement_name
+#define pop_macro other_name
+#define a 1
+#pragma push_macro("a")
+#undef a
+#define a 2
+#pragma push_macro("a")
+#undef a
+#define a 3
+a
+#pragma pop_macro("a")
+a
+#pragma pop_macro("a")
+a
+"#,
+            "3 2 1",
+        );
+    }
+    #[test]
+    fn pragma_macro_stacks_preserve_undefined_empty_and_function_macros() {
+        assert_same(
+            r#"
+#pragma push_macro("missing")
+#define missing 9
+#pragma pop_macro("missing")
+#ifdef missing
+bad
+#endif
+#define empty
+#pragma push_macro("empty")
+#undef empty
+#pragma pop_macro("empty")
+#ifndef empty
+bad
+#endif
+#define f(x) x+1
+#pragma push_macro("f")
+#undef f
+#define f(x) x+9
+f(2)
+#pragma pop_macro("f")
+f(2)
+#pragma pop_macro("f")
+f(3)
+"#,
+            "2+9 2+1 3+1",
+        );
+    }
+    #[test]
+    fn pragma_macro_stack_rejects_malformed_arguments() {
+        for source in [
+            "#pragma push_macro",
+            "#pragma push_macro(a)",
+            "#pragma push_macro(\"bad name\")",
+            "#pragma pop_macro(\"9bad\")",
+            "#pragma push_macro(\"a\") extra",
+            "#pragma push_macro(\"\")",
+        ] {
+            assert!(
+                cpp(source).any(|t| t.is_err()),
+                "accepted malformed pragma: {}",
+                source
+            );
+        }
+    }
+    #[test]
     fn line() {
         let src = "#line 1";
         let mut cpp = cpp(src);
         assert!(cpp.next_non_whitespace().is_none());
-        assert!(cpp.warnings().pop_front().is_some());
+        assert!(cpp.warnings().pop_front().is_none());
     }
     #[test]
     fn warning() {
@@ -1873,6 +2152,24 @@ int main(){}
 h",
             "\n\n1",
         );
+    }
+
+    #[test]
+    fn repeated_nested_function_macros_keep_sibling_hide_sets() {
+        assert_same(
+            "#define DO1(x) x
+#define DO2(x) DO1(x) DO1(x)
+#define DO4(x) DO2(x) DO2(x)
+#define DO8(x) DO4(x) DO4(x)
+DO8(7)",
+            "7 7 7 7 7 7 7 7",
+        );
+    }
+
+    #[test]
+    fn argument_prescan_keeps_recursive_ancestor_disabled() {
+        assert_same("#define F(x) x\n#define G(x) F(G(x))\nG(1)", "G(1)");
+        assert_same("#define F(x) x+1\nF(F(1))", "1+1+1");
     }
 
     #[test]
