@@ -1,0 +1,685 @@
+checking package dependencies
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/LightingTypes.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/module/LightingMemoryBus.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/module/LightingInterrupts.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/common/CpuMmu.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/cpu/LightingPrivileged.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/common/PhysicalMem.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/module/ModuleBusAdapter.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/mmu/LightingMmu.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/cpu/LightingMulDiv.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/cpu/LightingCpu.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv
+code generation for mkLightingComputeBoard starts
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_mmu_issueWalk" was treated as more urgent than
+  "core_mmu_issueTarget". Conflicts:
+    "core_mmu_issueWalk" cannot fire before "core_mmu_issueTarget":
+      calls to core_adapter_state.write vs. core_adapter_state.read
+    "core_mmu_issueTarget" cannot fire before "core_mmu_issueWalk":
+      calls to core_adapter_state.write vs. core_adapter_state.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_mmu_lookupTranslation" was treated as more urgent than
+  "core_mmu_completeWalk". Conflicts:
+    "core_mmu_lookupTranslation" cannot fire before "core_mmu_completeWalk":
+      calls to
+	core_mmu_physicalOwner.write vs. core_mmu_physicalOwner.read
+	core_mmu_walking.write vs. core_mmu_walking.read
+	core_mmu_walkPending.write vs. core_mmu_walkPending.read
+    "core_mmu_completeWalk" cannot fire before "core_mmu_lookupTranslation":
+      calls to
+	core_mmu_physicalOwner.write vs. core_mmu_physicalOwner.read
+	core_mmu_tlb.write vs. core_mmu_tlb.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_mmu_completeWalk" was treated as more urgent than
+  "core_mmu_completeControl". Conflicts:
+    "core_mmu_completeWalk" cannot fire before "core_mmu_completeControl":
+      calls to core_mmu_tlb.write vs. core_mmu_tlb.read
+    "core_mmu_completeControl" cannot fire before "core_mmu_completeWalk":
+      calls to
+	core_mmu_activeVmctx.write vs. core_mmu_activeVmctx.read
+	core_mmu_tlb.write vs. core_mmu_tlb.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_misalignedFetch" was treated as more urgent than
+  "core_cpuCore_cpu_advanceRetirement". Conflicts:
+    "core_cpuCore_cpu_misalignedFetch" cannot fire before "core_cpuCore_cpu_advanceRetirement":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_privilegeReg.write vs. core_cpuCore_cpu_privilegeReg.read
+	core_cpuCore_cpu_statusReg.write vs. core_cpuCore_cpu_statusReg.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+    "core_cpuCore_cpu_advanceRetirement" cannot fire before "core_cpuCore_cpu_misalignedFetch":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_fetchPc.write vs. core_cpuCore_cpu_fetchPc.read
+	core_cpuCore_cpu_privilegeReg.write vs. core_cpuCore_cpu_privilegeReg.read
+	core_cpuCore_cpu_statusReg.write vs. core_cpuCore_cpu_statusReg.read
+	core_cpuCore_cpu_trapEntryPending.write vs. core_cpuCore_cpu_trapEntryPending.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_fValid.write vs. core_cpuCore_cpu_fValid.read
+	core_cpuCore_cpu_xValid.write vs. core_cpuCore_cpu_xValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_mmu_selectRequest" was treated as more urgent than
+  "core_cpuCore_cpu_issueFetch". Conflicts:
+    "core_mmu_selectRequest" cannot fire before "core_cpuCore_cpu_issueFetch":
+      calls to
+	core_mmu_instructionState.write vs. core_mmu_instructionState.read
+    "core_cpuCore_cpu_issueFetch" cannot fire before "core_mmu_selectRequest":
+      calls to
+	core_mmu_instructionState.write vs. core_mmu_instructionState.read
+	core_mmu_instructionReq.write vs. core_mmu_instructionReq.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_mmu_selectRequest" was treated as more urgent than
+  "core_cpuCore_cpu_completeFetch". Conflicts:
+    "core_mmu_selectRequest" cannot fire before "core_cpuCore_cpu_completeFetch":
+      calls to
+	core_mmu_instructionState.write vs. core_mmu_instructionState.read
+    "core_cpuCore_cpu_completeFetch" cannot fire before "core_mmu_selectRequest":
+      calls to
+	core_mmu_instructionState.write vs. core_mmu_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_advanceRetirement" was treated as more urgent than
+  "core_cpuCore_cpu_completeFetch". Conflicts:
+    "core_cpuCore_cpu_advanceRetirement" cannot fire before "core_cpuCore_cpu_completeFetch":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_trapEntryPending.write vs. core_cpuCore_cpu_trapEntryPending.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_fValid.write vs. core_cpuCore_cpu_fValid.read
+    "core_cpuCore_cpu_completeFetch" cannot fire before "core_cpuCore_cpu_advanceRetirement":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_misalignedFetch" was treated as more urgent than
+  "core_cpuCore_cpu_decodeToExecute". Conflicts:
+    "core_cpuCore_cpu_misalignedFetch" cannot fire before "core_cpuCore_cpu_decodeToExecute":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_dValid.write vs. core_cpuCore_cpu_dValid.read
+	core_cpuCore_cpu_xValid.write vs. core_cpuCore_cpu_xValid.read
+    "core_cpuCore_cpu_decodeToExecute" cannot fire before "core_cpuCore_cpu_misalignedFetch":
+      calls to core_cpuCore_cpu_xValid.write vs. core_cpuCore_cpu_xValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_mmu_selectRequest" was treated as more urgent than
+  "core_cpuCore_cpu_issueGroup". Conflicts:
+    "core_mmu_selectRequest" cannot fire before "core_cpuCore_cpu_issueGroup":
+      calls to core_mmu_dataState.write vs. core_mmu_dataState.read
+    "core_cpuCore_cpu_issueGroup" cannot fire before "core_mmu_selectRequest":
+      calls to
+	core_mmu_dataState.write vs. core_mmu_dataState.read
+	core_mmu_dataReq.write vs. core_mmu_dataReq.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_completeFetch" was treated as more urgent than
+  "core_cpuCore_cpu_completeData". Conflicts:
+    "core_cpuCore_cpu_completeFetch" cannot fire before "core_cpuCore_cpu_completeData":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+    "core_cpuCore_cpu_completeData" cannot fire before "core_cpuCore_cpu_completeFetch":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_trapEntryPending.write vs. core_cpuCore_cpu_trapEntryPending.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_fValid.write vs. core_cpuCore_cpu_fValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_completeData" was treated as more urgent than
+  "core_cpuCore_cpu_completeArithmetic". Conflicts:
+    "core_cpuCore_cpu_completeData" cannot fire before "core_cpuCore_cpu_completeArithmetic":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_regs.write vs. core_cpuCore_cpu_regs.read
+	core_cpuCore_cpu_retired.write vs. core_cpuCore_cpu_retired.read
+	core_cpuCore_cpu_privilegeReg.write vs. core_cpuCore_cpu_privilegeReg.read
+	core_cpuCore_cpu_statusReg.write vs. core_cpuCore_cpu_statusReg.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_retirementPending.write vs. core_cpuCore_cpu_retirementPending.read
+    "core_cpuCore_cpu_completeArithmetic" cannot fire before "core_cpuCore_cpu_completeData":
+      calls to
+	core_cpuCore_cpu_regs.write vs. core_cpuCore_cpu_regs.read
+	core_cpuCore_cpu_retired.write vs. core_cpuCore_cpu_retired.read
+	core_cpuCore_cpu_privilegeReg.write vs. core_cpuCore_cpu_privilegeReg.read
+	core_cpuCore_cpu_statusReg.write vs. core_cpuCore_cpu_statusReg.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_retirementPending.write vs. core_cpuCore_cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_issueGroup" was treated as more urgent than
+  "core_cpuCore_cpu_issueControl". Conflicts:
+    "core_cpuCore_cpu_issueGroup" cannot fire before "core_cpuCore_cpu_issueControl":
+      calls to core_mmu_dataState.write vs. core_mmu_dataState.read
+    "core_cpuCore_cpu_issueControl" cannot fire before "core_cpuCore_cpu_issueGroup":
+      calls to core_mmu_controlState.write vs. core_mmu_controlState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_completeArithmetic" was treated as more urgent than
+  "core_cpuCore_cpu_completeControl". Conflicts:
+    "core_cpuCore_cpu_completeArithmetic" cannot fire before "core_cpuCore_cpu_completeControl":
+      calls to
+	core_cpuCore_cpu_regs.write vs. core_cpuCore_cpu_regs.read
+	core_cpuCore_cpu_retired.write vs. core_cpuCore_cpu_retired.read
+	core_cpuCore_cpu_retirementPending.write vs. core_cpuCore_cpu_retirementPending.read
+    "core_cpuCore_cpu_completeControl" cannot fire before "core_cpuCore_cpu_completeArithmetic":
+      calls to
+	core_cpuCore_cpu_retired.write vs. core_cpuCore_cpu_retired.read
+	core_cpuCore_cpu_privilegeReg.write vs. core_cpuCore_cpu_privilegeReg.read
+	core_cpuCore_cpu_statusReg.write vs. core_cpuCore_cpu_statusReg.read
+	core_cpuCore_cpu_retirementPending.write vs. core_cpuCore_cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0010)
+  Rule "core_cpuCore_cpu_completeFetch" was treated as more urgent than
+  "core_cpuCore_cpu_executeAndRetire". Conflicts:
+    "core_cpuCore_cpu_completeFetch" cannot fire before "core_cpuCore_cpu_executeAndRetire":
+      calls to
+	core_cpuCore_cpu_isRunning.write vs. core_cpuCore_cpu_isRunning.read
+	core_cpuCore_cpu_xValid.write vs. core_cpuCore_cpu_xValid.read
+    "core_cpuCore_cpu_executeAndRetire" cannot fire before "core_cpuCore_cpu_completeFetch":
+      calls to
+	core_cpuCore_cpu_trapEntryPending.write vs. core_cpuCore_cpu_trapEntryPending.read
+	core_cpuCore_cpu_fetchEpoch.write vs. core_cpuCore_cpu_fetchEpoch.read
+	core_cpuCore_cpu_fValid.write vs. core_cpuCore_cpu_fValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0036)
+  Rule "core_propagatePlatformInterrupt" will appear to fire before "start"
+  when both fire in the same clock cycle, affecting:
+    calls to
+      core_cpuCore_cpu_platformInterruptReg.write vs. core_cpuCore_cpu_platformInterruptReg.write
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `start' shadows the effects of `core_cpuCore_cpu_arithmetic_iterate'
+  when they execute in the same clock cycle. Affected method calls:
+    core_cpuCore_cpu_arithmetic_valid.write,
+    core_cpuCore_cpu_arithmetic_fault.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `start' shadows the effects of `core_propagatePlatformInterrupt' when
+  they execute in the same clock cycle. Affected method calls:
+    core_cpuCore_cpu_platformInterruptReg.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_arithmetic_iterate' shadows the effects of
+  `core_cpuCore_cpu_completeArithmetic' when they execute in the same clock
+  cycle. Affected method calls:
+    core_cpuCore_cpu_arithmetic_valid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completePhysical' shadows the effects of
+  `core_cpuCore_cpu_executeAndRetire' when they execute in the same clock
+  cycle. Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completePhysical' shadows the effects of
+  `core_cpuCore_cpu_completeFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completePhysical' shadows the effects of
+  `core_cpuCore_cpu_completeData' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completePhysical' shadows the effects of
+  `core_cpuCore_cpu_issueGroup' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completePhysical' shadows the effects of
+  `core_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completeWalk' shadows the effects of
+  `core_cpuCore_cpu_executeAndRetire' when they execute in the same clock
+  cycle. Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completeWalk' shadows the effects of
+  `core_cpuCore_cpu_completeFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completeWalk' shadows the effects of
+  `core_cpuCore_cpu_completeData' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completeWalk' shadows the effects of
+  `core_cpuCore_cpu_issueGroup' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_completeWalk' shadows the effects of
+  `core_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_cpuCore_cpu_executeAndRetire' when they execute in the same clock
+  cycle. Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_cpuCore_cpu_completeFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_cpuCore_cpu_completeData' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_cpuCore_cpu_issueGroup' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_mmu_issueTarget' when they execute in the same clock cycle. Affected
+  method calls:
+    core_mmu_targetPending.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_mmu_lookupTranslation' shadows the effects of
+  `core_mmu_issueWalk' when they execute in the same clock cycle. Affected
+  method calls:
+    core_mmu_walkPending.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_executeAndRetire' shadows the effects of
+  `core_cpuCore_cpu_fetchToDecode' when they execute in the same clock cycle.
+  Affected method calls:
+    core_cpuCore_cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_completeFetch' shadows the effects of
+  `core_cpuCore_cpu_completeControl' when they execute in the same clock
+  cycle. Affected method calls:
+    core_cpuCore_cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_completeFetch' shadows the effects of
+  `core_cpuCore_cpu_decodeToExecute' when they execute in the same clock
+  cycle. Affected method calls:
+    core_cpuCore_cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_advanceRetirement' shadows the effects of
+  `core_cpuCore_cpu_decodeToExecute' when they execute in the same clock
+  cycle. Affected method calls:
+    core_cpuCore_cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_advanceRetirement' shadows the effects of
+  `core_cpuCore_cpu_fetchToDecode' when they execute in the same clock cycle.
+  Affected method calls:
+    core_cpuCore_cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/rtl/board/LightingComputeBoard.bsv", line 68, column 8: (G0117)
+  Rule `core_cpuCore_cpu_advanceRetirement' shadows the effects of
+  `core_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    core_cpuCore_cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Elaborated module file created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/mkLightingComputeBoard.ba
+compiling /tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv
+code generation for mkTbLightingCpuBoardBridge starts
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_mmu_issueWalk" was treated as more urgent than
+  "board_mmu_issueTarget". Conflicts:
+    "board_mmu_issueWalk" cannot fire before "board_mmu_issueTarget":
+      calls to board_adapter_state.write vs. board_adapter_state.read
+    "board_mmu_issueTarget" cannot fire before "board_mmu_issueWalk":
+      calls to board_adapter_state.write vs. board_adapter_state.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_mmu_lookupTranslation" was treated as more urgent than
+  "board_mmu_completeWalk". Conflicts:
+    "board_mmu_lookupTranslation" cannot fire before "board_mmu_completeWalk":
+      calls to
+	board_mmu_physicalOwner.write vs. board_mmu_physicalOwner.read
+	board_mmu_walking.write vs. board_mmu_walking.read
+	board_mmu_walkPending.write vs. board_mmu_walkPending.read
+    "board_mmu_completeWalk" cannot fire before "board_mmu_lookupTranslation":
+      calls to
+	board_mmu_physicalOwner.write vs. board_mmu_physicalOwner.read
+	board_mmu_tlb.write vs. board_mmu_tlb.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_mmu_completeControl" was treated as more urgent than
+  "board_mmu_completeWalk". Conflicts:
+    "board_mmu_completeControl" cannot fire before "board_mmu_completeWalk":
+      calls to
+	board_mmu_activeVmctx.write vs. board_mmu_activeVmctx.read
+	board_mmu_tlb.write vs. board_mmu_tlb.read
+    "board_mmu_completeWalk" cannot fire before "board_mmu_completeControl":
+      calls to board_mmu_tlb.write vs. board_mmu_tlb.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_advanceRetirement" was treated as more urgent than
+  "board_cpuCore_cpu_misalignedFetch". Conflicts:
+    "board_cpuCore_cpu_advanceRetirement" cannot fire before "board_cpuCore_cpu_misalignedFetch":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_fetchPc.write vs. board_cpuCore_cpu_fetchPc.read
+	board_cpuCore_cpu_privilegeReg.write vs. board_cpuCore_cpu_privilegeReg.read
+	board_cpuCore_cpu_statusReg.write vs. board_cpuCore_cpu_statusReg.read
+	board_cpuCore_cpu_trapEntryPending.write vs. board_cpuCore_cpu_trapEntryPending.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_fValid.write vs. board_cpuCore_cpu_fValid.read
+	board_cpuCore_cpu_xValid.write vs. board_cpuCore_cpu_xValid.read
+    "board_cpuCore_cpu_misalignedFetch" cannot fire before "board_cpuCore_cpu_advanceRetirement":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_privilegeReg.write vs. board_cpuCore_cpu_privilegeReg.read
+	board_cpuCore_cpu_statusReg.write vs. board_cpuCore_cpu_statusReg.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_mmu_selectRequest" was treated as more urgent than
+  "board_cpuCore_cpu_issueFetch". Conflicts:
+    "board_mmu_selectRequest" cannot fire before "board_cpuCore_cpu_issueFetch":
+      calls to
+	board_mmu_instructionState.write vs. board_mmu_instructionState.read
+    "board_cpuCore_cpu_issueFetch" cannot fire before "board_mmu_selectRequest":
+      calls to
+	board_mmu_instructionState.write vs. board_mmu_instructionState.read
+	board_mmu_instructionReq.write vs. board_mmu_instructionReq.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_mmu_selectRequest" was treated as more urgent than
+  "board_cpuCore_cpu_completeFetch". Conflicts:
+    "board_mmu_selectRequest" cannot fire before "board_cpuCore_cpu_completeFetch":
+      calls to
+	board_mmu_instructionState.write vs. board_mmu_instructionState.read
+    "board_cpuCore_cpu_completeFetch" cannot fire before "board_mmu_selectRequest":
+      calls to
+	board_mmu_instructionState.write vs. board_mmu_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_advanceRetirement" was treated as more urgent than
+  "board_cpuCore_cpu_completeFetch". Conflicts:
+    "board_cpuCore_cpu_advanceRetirement" cannot fire before "board_cpuCore_cpu_completeFetch":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_trapEntryPending.write vs. board_cpuCore_cpu_trapEntryPending.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_fValid.write vs. board_cpuCore_cpu_fValid.read
+    "board_cpuCore_cpu_completeFetch" cannot fire before "board_cpuCore_cpu_advanceRetirement":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_misalignedFetch" was treated as more urgent than
+  "board_cpuCore_cpu_decodeToExecute". Conflicts:
+    "board_cpuCore_cpu_misalignedFetch" cannot fire before "board_cpuCore_cpu_decodeToExecute":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_dValid.write vs. board_cpuCore_cpu_dValid.read
+	board_cpuCore_cpu_xValid.write vs. board_cpuCore_cpu_xValid.read
+    "board_cpuCore_cpu_decodeToExecute" cannot fire before "board_cpuCore_cpu_misalignedFetch":
+      calls to
+	board_cpuCore_cpu_xValid.write vs. board_cpuCore_cpu_xValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_mmu_selectRequest" was treated as more urgent than
+  "board_cpuCore_cpu_issueGroup". Conflicts:
+    "board_mmu_selectRequest" cannot fire before "board_cpuCore_cpu_issueGroup":
+      calls to board_mmu_dataState.write vs. board_mmu_dataState.read
+    "board_cpuCore_cpu_issueGroup" cannot fire before "board_mmu_selectRequest":
+      calls to
+	board_mmu_dataState.write vs. board_mmu_dataState.read
+	board_mmu_dataReq.write vs. board_mmu_dataReq.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_completeFetch" was treated as more urgent than
+  "board_cpuCore_cpu_completeData". Conflicts:
+    "board_cpuCore_cpu_completeFetch" cannot fire before "board_cpuCore_cpu_completeData":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+    "board_cpuCore_cpu_completeData" cannot fire before "board_cpuCore_cpu_completeFetch":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_trapEntryPending.write vs. board_cpuCore_cpu_trapEntryPending.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_fValid.write vs. board_cpuCore_cpu_fValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_completeData" was treated as more urgent than
+  "board_cpuCore_cpu_completeArithmetic". Conflicts:
+    "board_cpuCore_cpu_completeData" cannot fire before "board_cpuCore_cpu_completeArithmetic":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_regs.write vs. board_cpuCore_cpu_regs.read
+	board_cpuCore_cpu_retired.write vs. board_cpuCore_cpu_retired.read
+	board_cpuCore_cpu_privilegeReg.write vs. board_cpuCore_cpu_privilegeReg.read
+	board_cpuCore_cpu_statusReg.write vs. board_cpuCore_cpu_statusReg.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_retirementPending.write vs. board_cpuCore_cpu_retirementPending.read
+    "board_cpuCore_cpu_completeArithmetic" cannot fire before "board_cpuCore_cpu_completeData":
+      calls to
+	board_cpuCore_cpu_regs.write vs. board_cpuCore_cpu_regs.read
+	board_cpuCore_cpu_retired.write vs. board_cpuCore_cpu_retired.read
+	board_cpuCore_cpu_privilegeReg.write vs. board_cpuCore_cpu_privilegeReg.read
+	board_cpuCore_cpu_statusReg.write vs. board_cpuCore_cpu_statusReg.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_retirementPending.write vs. board_cpuCore_cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_issueGroup" was treated as more urgent than
+  "board_cpuCore_cpu_issueControl". Conflicts:
+    "board_cpuCore_cpu_issueGroup" cannot fire before "board_cpuCore_cpu_issueControl":
+      calls to board_mmu_dataState.write vs. board_mmu_dataState.read
+    "board_cpuCore_cpu_issueControl" cannot fire before "board_cpuCore_cpu_issueGroup":
+      calls to board_mmu_controlState.write vs. board_mmu_controlState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_completeArithmetic" was treated as more urgent than
+  "board_cpuCore_cpu_completeControl". Conflicts:
+    "board_cpuCore_cpu_completeArithmetic" cannot fire before "board_cpuCore_cpu_completeControl":
+      calls to
+	board_cpuCore_cpu_regs.write vs. board_cpuCore_cpu_regs.read
+	board_cpuCore_cpu_retired.write vs. board_cpuCore_cpu_retired.read
+	board_cpuCore_cpu_retirementPending.write vs. board_cpuCore_cpu_retirementPending.read
+    "board_cpuCore_cpu_completeControl" cannot fire before "board_cpuCore_cpu_completeArithmetic":
+      calls to
+	board_cpuCore_cpu_retired.write vs. board_cpuCore_cpu_retired.read
+	board_cpuCore_cpu_privilegeReg.write vs. board_cpuCore_cpu_privilegeReg.read
+	board_cpuCore_cpu_statusReg.write vs. board_cpuCore_cpu_statusReg.read
+	board_cpuCore_cpu_retirementPending.write vs. board_cpuCore_cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0010)
+  Rule "board_cpuCore_cpu_completeFetch" was treated as more urgent than
+  "board_cpuCore_cpu_executeAndRetire". Conflicts:
+    "board_cpuCore_cpu_completeFetch" cannot fire before "board_cpuCore_cpu_executeAndRetire":
+      calls to
+	board_cpuCore_cpu_isRunning.write vs. board_cpuCore_cpu_isRunning.read
+	board_cpuCore_cpu_xValid.write vs. board_cpuCore_cpu_xValid.read
+    "board_cpuCore_cpu_executeAndRetire" cannot fire before "board_cpuCore_cpu_completeFetch":
+      calls to
+	board_cpuCore_cpu_trapEntryPending.write vs. board_cpuCore_cpu_trapEntryPending.read
+	board_cpuCore_cpu_fetchEpoch.write vs. board_cpuCore_cpu_fetchEpoch.read
+	board_cpuCore_cpu_fValid.write vs. board_cpuCore_cpu_fValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0036)
+  Rule "board_propagatePlatformInterrupt" will appear to fire before
+  "initialize" when both fire in the same clock cycle, affecting:
+    calls to
+      board_cpuCore_cpu_platformInterruptReg.write vs. board_cpuCore_cpu_platformInterruptReg.write
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `initialize' shadows the effects of
+  `board_cpuCore_cpu_arithmetic_iterate' when they execute in the same clock
+  cycle. Affected method calls:
+    board_cpuCore_cpu_arithmetic_valid.write,
+    board_cpuCore_cpu_arithmetic_fault.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `initialize' shadows the effects of `board_propagatePlatformInterrupt'
+  when they execute in the same clock cycle. Affected method calls:
+    board_cpuCore_cpu_platformInterruptReg.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `initialize' shadows the effects of `retirement' when they execute in
+  the same clock cycle. Affected method calls:
+    pc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `initialize' shadows the effects of `reply' when they execute in the
+  same clock cycle. Affected method calls:
+    pending.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_arithmetic_iterate' shadows the effects of
+  `board_cpuCore_cpu_completeArithmetic' when they execute in the same clock
+  cycle. Affected method calls:
+    board_cpuCore_cpu_arithmetic_valid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completePhysical' shadows the effects of
+  `board_cpuCore_cpu_executeAndRetire' when they execute in the same clock
+  cycle. Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completePhysical' shadows the effects of
+  `board_cpuCore_cpu_completeFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completePhysical' shadows the effects of
+  `board_cpuCore_cpu_completeData' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completePhysical' shadows the effects of
+  `board_cpuCore_cpu_issueGroup' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completePhysical' shadows the effects of
+  `board_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completeWalk' shadows the effects of
+  `board_cpuCore_cpu_executeAndRetire' when they execute in the same clock
+  cycle. Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completeWalk' shadows the effects of
+  `board_cpuCore_cpu_completeFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completeWalk' shadows the effects of
+  `board_cpuCore_cpu_completeData' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completeWalk' shadows the effects of
+  `board_cpuCore_cpu_issueGroup' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_completeWalk' shadows the effects of
+  `board_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_cpuCore_cpu_executeAndRetire' when they execute in the same clock
+  cycle. Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_cpuCore_cpu_completeFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_cpuCore_cpu_completeData' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_cpuCore_cpu_issueGroup' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_dataState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_mmu_instructionState.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_mmu_issueTarget' when they execute in the same clock cycle. Affected
+  method calls:
+    board_mmu_targetPending.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_mmu_lookupTranslation' shadows the effects of
+  `board_mmu_issueWalk' when they execute in the same clock cycle. Affected
+  method calls:
+    board_mmu_walkPending.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_executeAndRetire' shadows the effects of
+  `board_cpuCore_cpu_fetchToDecode' when they execute in the same clock cycle.
+  Affected method calls:
+    board_cpuCore_cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_completeFetch' shadows the effects of
+  `board_cpuCore_cpu_completeControl' when they execute in the same clock
+  cycle. Affected method calls:
+    board_cpuCore_cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_completeFetch' shadows the effects of
+  `board_cpuCore_cpu_decodeToExecute' when they execute in the same clock
+  cycle. Affected method calls:
+    board_cpuCore_cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `step' shadows the effects of `reply' when they execute in the same
+  clock cycle. Affected method calls:
+    pending.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_advanceRetirement' shadows the effects of
+  `board_cpuCore_cpu_decodeToExecute' when they execute in the same clock
+  cycle. Affected method calls:
+    board_cpuCore_cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_advanceRetirement' shadows the effects of
+  `board_cpuCore_cpu_fetchToDecode' when they execute in the same clock cycle.
+  Affected method calls:
+    board_cpuCore_cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/system/TbLightingCpuBoardBridge.bsv", line 10, column 8: (G0117)
+  Rule `board_cpuCore_cpu_advanceRetirement' shadows the effects of
+  `board_cpuCore_cpu_issueFetch' when they execute in the same clock cycle.
+  Affected method calls:
+    board_cpuCore_cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Elaborated module file created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/mkTbLightingCpuBoardBridge.ba
+All packages are up to date.
+Bluesim object created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/mkTbLightingCpuBoardBridge.{h,o}
+Bluesim object created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/model_mkTbLightingCpuBoardBridge.{h,o}
+Simulation shared library created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge.so
+Simulation executable created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge

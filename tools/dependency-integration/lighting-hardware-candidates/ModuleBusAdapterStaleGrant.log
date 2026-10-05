@@ -1,0 +1,13 @@
+checking package dependencies
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/common/PhysicalMem.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/module/LightingMemoryBus.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/module/ModuleBusAdapter.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbModuleBusAdapterStaleGrant.bsv
+code generation for mkTbModuleBusAdapterStaleGrant starts
+Elaborated module file created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/ModuleBusAdapterStaleGrant/mkTbModuleBusAdapterStaleGrant.ba
+All packages are up to date.
+Bluesim object created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/ModuleBusAdapterStaleGrant/mkTbModuleBusAdapterStaleGrant.{h,o}
+Bluesim object created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/ModuleBusAdapterStaleGrant/model_mkTbModuleBusAdapterStaleGrant.{h,o}
+Simulation shared library created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/ModuleBusAdapterStaleGrant/runner.so
+Simulation executable created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/ModuleBusAdapterStaleGrant/runner
+PASS adapter ignores stale READY/ERROR grants before a fresh grant

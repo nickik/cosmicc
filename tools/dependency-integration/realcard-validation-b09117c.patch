@@ -1,0 +1,480 @@
+From b09117c762a36f6d25256fc3d0de3c212ada2d61 Mon Sep 17 00:00:00 2001
+From: Niklaus Zbinden <niklaus.zbinden@gmail.com>
+Date: Mon, 5 Oct 2026 04:43:01 +0200
+Subject: [PATCH] Carry CPU validation and qualified reads through registered
+ memory backend
+
+---
+ docs/ROADMAP.md                               |  8 +++
+ hardware/mainboard-fpga/Makefile              | 18 ++++++
+ hardware/mainboard-fpga/SPEC.md               | 41 ++++++++++--
+ .../mainboard-fpga/VALIDATION_TEST_STATUS.md  | 17 +++++
+ .../bluespec/LightingMemoryBusCompat.bsv      |  6 +-
+ .../mainboard-fpga/bluespec/MainboardFPGA.bsv | 19 +++++-
+ .../bluespec/TbMainboardByteEnable.bsv        |  5 +-
+ .../bluespec/TbMainboardValidation.bsv        | 63 +++++++++++++++++++
+ hardware/memory-controller/SPEC.md            | 21 +++++++
+ .../bluespec/MemoryController.bsv             | 41 ++++++++++++
+ .../bluespec/TbMemoryQualified.bsv            | 32 ++++++++++
+ 11 files changed, 262 insertions(+), 9 deletions(-)
+ create mode 100644 hardware/mainboard-fpga/VALIDATION_TEST_STATUS.md
+ create mode 100644 hardware/mainboard-fpga/bluespec/TbMainboardValidation.bsv
+ create mode 100644 hardware/memory-controller/bluespec/TbMemoryQualified.bsv
+
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index ef1c967..34d9a93 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -112,3 +112,11 @@
+ - hot insertion
+ - multiprocessor notification routing inside host profiles
+ - faster/new physical layer that preserves QDX and capability semantics
++
++## Lighting CPU memory-bus validation and qualified-read compatibility
++
++- [x] Carry explicit CPU VALIDATE through MainboardFPGA and MemoryController's registered backend boundary; reject PLIO MMIO and malformed full-word validation before target access.
++- [x] Document version-one CPU/backend compatibility and stable NORMAL-memory commit requirements in `hardware/mainboard-fpga/SPEC.md`.
++- [ ] Require each deployed memory backend and transport to implement side-effect-free readable/writable NORMAL classification before enabling CPU grouped transfers. PLIO's universal peripheral protocol is unchanged.
++
++- [x] Carry instruction/page-table access kind across the registered backend and reject malformed/side-effecting CPU access before PLIO MMIO.
+diff --git a/hardware/mainboard-fpga/Makefile b/hardware/mainboard-fpga/Makefile
+index 758aec7..4aae196 100644
+--- a/hardware/mainboard-fpga/Makefile
++++ b/hardware/mainboard-fpga/Makefile
+@@ -298,3 +298,21 @@ verilog-sanity:
+ 
+ clean:
+ 	rm -rf $(BUILD)
++
++.PHONY: test-validation
++test-validation:
++	mkdir -p $(BUILD)/validation
++	$(BSC) +RTS -K8M -RTS -u -sim -p '$(BASE_SEARCH)' -bdir $(BUILD)/validation -simdir $(BUILD)/validation -info-dir $(BUILD)/validation -g mkTbMainboardValidation bluespec/TbMainboardValidation.bsv
++	$(BSC) +RTS -K8M -RTS -sim -p '$(BASE_SEARCH)' -bdir $(BUILD)/validation -simdir $(BUILD)/validation -e mkTbMainboardValidation -o $(BUILD)/validation/tb
++	set -o pipefail; timeout 60s $(BUILD)/validation/tb | tee $(BUILD)/validation/run.log
++	! grep -q FAIL $(BUILD)/validation/run.log
++	grep -q "PASS validation" $(BUILD)/validation/run.log
++
++.PHONY: test-qualified
++test-qualified:
++	mkdir -p $(BUILD)/qualified
++	$(BSC) +RTS -K8M -RTS -u -sim -p '$(BASE_SEARCH)' -bdir $(BUILD)/qualified -simdir $(BUILD)/qualified -info-dir $(BUILD)/qualified -g mkTbMemoryQualified ../memory-controller/bluespec/TbMemoryQualified.bsv
++	$(BSC) +RTS -K8M -RTS -sim -p '$(BASE_SEARCH)' -bdir $(BUILD)/qualified -simdir $(BUILD)/qualified -e mkTbMemoryQualified -o $(BUILD)/qualified/tb
++	set -o pipefail; timeout 60s $(BUILD)/qualified/tb | tee $(BUILD)/qualified/run.log
++	! grep -q FAIL $(BUILD)/qualified/run.log
++	grep -q "PASS qualified" $(BUILD)/qualified/run.log
+diff --git a/hardware/mainboard-fpga/SPEC.md b/hardware/mainboard-fpga/SPEC.md
+index ec7d78e..31958bb 100644
+--- a/hardware/mainboard-fpga/SPEC.md
++++ b/hardware/mainboard-fpga/SPEC.md
+@@ -22,7 +22,7 @@ The CPU side follows Lighting Memory Bus v0.1 semantics:
+ - `BUS_GRANT` grants ownership;
+ - the CPU asserts `REQ` only after observing `BUS_GRANT`;
+ - `REQ` and the payload remain stable until completion;
+-- `ADDR`, `WRITE_DATA`, `BE`, and `WRITE` form the payload;
++- `ADDR`, `WRITE_DATA`, `BE`, `WRITE`, `VALIDATE`, and `ACCESS_KIND` form the payload;
+ - `READY` completes successfully;
+ - `ERROR` completes unsuccessfully;
+ - `READ_DATA` is meaningful on a successful read.
+@@ -33,11 +33,29 @@ If a malformed/test master drops `BUS_REQ` before asserting `REQ`, the mainboard
+ 
+ Because `advance()` is registered, a completed CPU `REQ` sample can still be present in the input pipeline on the cycle in which `READY`/`ERROR` becomes externally visible. The mainboard MUST remember that the request was already accepted and MUST NOT accept it again. It rearms CPU request acceptance only after a subsequently processed cycle observes `REQ=0`.
+ 
+-### Temporary byte-enable restriction
++### Byte lanes and side-effect-free validation
+ 
+-The current in-repository `MemoryControllerIfc.hostRequest` accepts only `(write, address, writeData)` and therefore cannot preserve arbitrary `BE[3:0]` semantics. Until that controller is extended, the mainboard MUST accept only `BE=0xf`. Any other `BE` MUST complete with `ERROR` and MUST NOT reach the memory backend.
++Normal requests preserve BE through the memory controller and external backend.
++The memory-controller address is word aligned; BE selects active lanes.
+ 
+-This restriction is temporary and is not a change to the Lighting Memory Bus specification.
++VALIDATE is an explicit version-one CPU memory-bus operation. It MUST use an
++aligned address and BE=0xf. WRITE indicates the intended eventual direction;
++WRITE_DATA MUST NOT cause a write during validation. A successful read validation
++returns zero data; a successful write validation returns no data.
++
++The mainboard MUST reject PLIO controller/worker MMIO validation with ERROR,
++without issuing a worker request or modifying any CSR. Other addresses pass to
++the registered memory backend with a distinct backendValidate signal. The
++backend MUST classify the entire word as NORMAL readable/writable memory and
++check bounds/protection without reading or writing the target. Reserved ranges,
++MMIO and ROM writes MUST fail. Unsupported backends MUST fail closed.
++
++Validated NORMAL store commits MUST NOT subsequently produce recoverable
++per-word faults. Memory configuration must remain stable while the CPU commits
++its group. Validation does not imply atomic visibility to DMA or other masters.
++
++Legacy transports without the VALIDATE field MUST reject grouped validation;
++they MUST NOT encode it as a zero-BE request or an ordinary read/write.
+ 
+ ## 3. PLIO/QDX slots
+ 
+@@ -196,3 +214,18 @@ The focused mainboard verification MUST establish at least:
+ 17. a separate integration test instantiates the real `mkQDXBCard` against the mainboard slot boundary and feeds each newly completed physical card image back to the mainboard;
+ 18. the mainboard core elaborates to Verilog and passes a synthesis sanity check without requiring an embedded RAM implementation;
+ 19. after a successful PLIO DMA final beat, that final image is consumed through the registered FIFO, BG is observed low for at least one sampled cycle while BR remains asserted, and the same slot can later receive a fresh grant epoch.
++
++### Qualified CPU reads
++
++ACCESS_KIND=0 denotes ordinary data; 1 instruction; 2 page-table; 3 reserved.
++Nonzero kinds MUST be reads, MUST NOT request VALIDATE, and MUST NOT route to
++PLIO controller or worker MMIO. Reserved kind MUST fail before target access.
++Instruction reads MUST use BE=3 or BE=12; page-table reads MUST use BE=15; both
++MUST use word-aligned backend addresses. The registered backend receives
++`memoryBackendAccessKind`; it MUST reject side-effecting/non-normal targets.
++This is a host-internal CPU/backend qualification, not a universal PLIO field.
++
++The M6 transport compatibility closure carries CPU validation in flag bit3 and
++access kind in bits5:4. Its backend reply adds validation and access-kind fields
++(after the original15 fields, for17 total). Legacy adapters MUST fail closed
++rather than dropping either qualifier.
+diff --git a/hardware/mainboard-fpga/VALIDATION_TEST_STATUS.md b/hardware/mainboard-fpga/VALIDATION_TEST_STATUS.md
+new file mode 100644
+index 0000000..9f05acd
+--- /dev/null
++++ b/hardware/mainboard-fpga/VALIDATION_TEST_STATUS.md
+@@ -0,0 +1,17 @@
++# CPU validation and qualified-read integration receipt
++
++Base: `c0b02d978b16aaf4dccc9310d5f1971a696436a9`.
++Bluespec: 2026.01, build `9bd39e6f`. Tests use fresh isolated source builds.
++
++```
++PATH=<bsc>/bin:$PATH make -C hardware/mainboard-fpga \
++  test-validation test-qualified test-byte-enable BSC=<bsc>/bin/bsc
++```
++
++- `test-validation`: 11 cases cover valid read/write validation, alignment and BE faults, controller/worker MMIO rejection, backend range-fault propagation, and qualified-write/validation/reserved/MMIO rejection. Worker selected/address/data strobes remain inactive; DMA generation and backend-memory sentinel remain unchanged.
++- `test-qualified`: 8 cases cover valid instruction BE3/12 and page-table BE15 reads, invalid kinds, incompatible BE, and otherwise-valid instruction misalignment.
++- `test-byte-enable`: all ten existing byte masks and request-backpressure stability remain covered, with explicit default data kind and validation false.
++
++Validation requests carry zero write data; backends must classify bounds and permissions without target access. These tests use a bounded classification responder, not a production RAM/ROM implementation. HardwareCpuBoard must separately test its concrete memory backend and transport. BSC's inherited action-shadowing warnings remain; no always-false-rule warning is accepted.
++
++The candidate contains CPU/backend host compatibility only. PLIO wire encoding, DMA arbitration, and QDX card/endpoint/media behavior are unchanged.
+diff --git a/hardware/mainboard-fpga/bluespec/LightingMemoryBusCompat.bsv b/hardware/mainboard-fpga/bluespec/LightingMemoryBusCompat.bsv
+index 3d3f5a8..003e7c6 100644
+--- a/hardware/mainboard-fpga/bluespec/LightingMemoryBusCompat.bsv
++++ b/hardware/mainboard-fpga/bluespec/LightingMemoryBusCompat.bsv
+@@ -5,10 +5,12 @@ package LightingMemoryBusCompat;
+ // cross-repository hardware dependency is stable.
+ 
+ typedef struct {
++    Bit#(2) accessKind; // 0=data, 1=instruction, 2=page table, 3=reserved
+     Bit#(32) addr;
+     Bit#(32) writeData;
+     Bit#(4)  byteEnable;
+     Bool     write;
++    Bool     validate;
+ } LightingBusPayload deriving (Bits, Eq, FShow);
+ 
+ typedef struct {
+@@ -35,10 +37,12 @@ typedef struct {
+ 
+ function LightingBusPayload lightingBusPayloadDefault();
+     return LightingBusPayload {
++        accessKind: 0,
+         addr: 0,
+         writeData: 0,
+         byteEnable: 0,
+-        write: False
++        write: False,
++        validate: False
+     };
+ endfunction
+ 
+diff --git a/hardware/mainboard-fpga/bluespec/MainboardFPGA.bsv b/hardware/mainboard-fpga/bluespec/MainboardFPGA.bsv
+index b044327..1862b4c 100644
+--- a/hardware/mainboard-fpga/bluespec/MainboardFPGA.bsv
++++ b/hardware/mainboard-fpga/bluespec/MainboardFPGA.bsv
+@@ -107,6 +107,8 @@ interface MainboardFPGAIfc;
+     method LightingModuleInterrupts interrupts(Bool timerIrq, Bool machineFault);
+ 
+     method Bool memoryBackendRequestValid;
++    method Bool memoryBackendValidate;
++    method Bit#(2) memoryBackendAccessKind;
+     method Bool memoryBackendWrite;
+     method Bit#(32) memoryBackendAddress;
+     method Bit#(4) memoryBackendByteEnable;
+@@ -380,8 +382,19 @@ module mkMainboardFPGA(MainboardFPGAIfc);
+                 && (!host.memoryRequestValid || preferCpu))));
+         let cycle = cycleQ.first;
+         Bool plio0 = isLightingPlio0(cycle.cpu.payload.addr);
+-        if (!plio0 && memory.hostRequestReady) begin
+-            memory.hostRequest(cycle.cpu.payload.write,
++        if ((cycle.cpu.payload.validate && plio0) || (cycle.cpu.payload.accessKind != 0 && (plio0 || cycle.cpu.payload.write || cycle.cpu.payload.validate || cycle.cpu.payload.accessKind == 3))) begin
++            // Validation must never enter controller/worker MMIO or mutate CSRs.
++            cpuResponsePending <= True;
++            cpuResponseFault <= True;
++            cpuResponseReadDataValid <= False;
++            cpuResponseReadData <= 0;
++        end
++        else if (!plio0 && memory.hostRequestReady) begin
++            if (cycle.cpu.payload.validate)
++                memory.hostValidate(cycle.cpu.payload.write, cycle.cpu.payload.addr, cycle.cpu.payload.byteEnable);
++            else if (cycle.cpu.payload.accessKind != 0)
++                memory.hostReadQualified(cycle.cpu.payload.accessKind, cycle.cpu.payload.addr, cycle.cpu.payload.byteEnable);
++            else memory.hostRequest(cycle.cpu.payload.write,
+                 cycle.cpu.payload.addr,
+                 cycle.cpu.payload.byteEnable,
+                 cycle.cpu.payload.writeData);
+@@ -833,6 +846,8 @@ module mkMainboardFPGA(MainboardFPGAIfc);
+     endmethod
+ 
+     method Bool memoryBackendRequestValid = memory.backendRequestValid;
++    method Bool memoryBackendValidate = memory.backendValidate;
++    method Bit#(2) memoryBackendAccessKind = memory.backendAccessKind;
+     method Bool memoryBackendWrite = memory.backendWrite;
+     method Bit#(32) memoryBackendAddress = memory.backendAddress;
+     method Bit#(4) memoryBackendByteEnable = memory.backendByteEnable;
+diff --git a/hardware/mainboard-fpga/bluespec/TbMainboardByteEnable.bsv b/hardware/mainboard-fpga/bluespec/TbMainboardByteEnable.bsv
+index a80875a..05526f9 100644
+--- a/hardware/mainboard-fpga/bluespec/TbMainboardByteEnable.bsv
++++ b/hardware/mainboard-fpga/bluespec/TbMainboardByteEnable.bsv
+@@ -26,11 +26,12 @@ function LightingBusMasterDrive cpuRequest(Bit#(32) addr, Bit#(4) be, Bit#(32) d
+     LightingBusMasterDrive cpu = lightingBusMasterDriveDefault();
+     cpu.busRequest = True;
+     cpu.request = True;
+-    cpu.payload = LightingBusPayload {
++    cpu.payload = LightingBusPayload {accessKind: 0,
+         addr: addr,
+         writeData: data,
+         byteEnable: be,
+-        write: True
++        write: True,
++        validate: False
+     };
+     return cpu;
+ endfunction
+diff --git a/hardware/mainboard-fpga/bluespec/TbMainboardValidation.bsv b/hardware/mainboard-fpga/bluespec/TbMainboardValidation.bsv
+new file mode 100644
+index 0000000..5b279ba
+--- /dev/null
++++ b/hardware/mainboard-fpga/bluespec/TbMainboardValidation.bsv
+@@ -0,0 +1,63 @@
++package TbMainboardValidation;
++import Vector::*;
++import QLITypes::*;
++import QICInterfaces::*;
++import PLIOTx::*;
++import PLIOWorkerHost::*;
++import MainboardFPGA::*;
++import LightingMemoryBusCompat::*;
++
++(* synthesize *)
++module mkTbMainboardValidation(Empty);
++    MainboardFPGAIfc dut <- mkMainboardFPGA;
++    Reg#(Bit#(4)) test <- mkReg(0);
++    Reg#(Bit#(3)) phase <- mkReg(0);
++    Reg#(Bit#(32)) watchdog <- mkReg(0);
++    Reg#(Bit#(32)) sentinel <- mkReg(32'h12345678);
++    rule noWorkerSideEffects;
++        let slots=dut.plioSlots(replicate(backplaneDriveDefault()),False);
++        for(Integer i=0;i<8;i=i+1) if(slots[i].selected || slots[i].addressStrobe || slots[i].dataStrobe) begin $display("FAIL validation touched worker");$finish(1);end
++        if(dut.dmaGeneration(0,0)!=0) begin $display("FAIL validation changed DMA CSR");$finish(1);end
++    endrule
++    rule tick;
++        watchdog <= watchdog+1;
++        if(watchdog==20000) begin $display("FAIL validation watchdog test=%0d phase=%0d",test,phase); $finish(1); end
++    endrule
++    rule run (dut.debugAdvanceReady);
++        Vector#(8,BackplaneDrive) cards=replicate(backplaneDriveDefault());
++        HostWorkerRequest worker=HostWorkerRequest{slot:0,address:0,width:HostW32,write:False,value:0};
++        LightingBusMasterDrive cpu=lightingBusMasterDriveDefault();
++        Bit#(32) addr = test==2 ? 32'h1001 : (test==4 || test==10) ? lightingPlio0Base : test==5 ? lightingPlio0Base+lightingPlio0WorkerBase : test==6 ? 32'hfffffffC : 32'h1000;
++        Bool reject = test>=2;
++        Bool accept=False; Bool respond=False;
++        if(phase!=4) begin
++            cpu.busRequest=True; cpu.request=True;
++            cpu.payload.addr=addr;cpu.payload.byteEnable=test==3 ? 3 : 15;
++            cpu.payload.write=(test!=0 && test!=9 && test!=10);cpu.payload.writeData=32'hdeadbeef;cpu.payload.validate=(test<=6 || test==8);
++            cpu.payload.accessKind=test==9 ? 3 : test>=7 ? 1 : 0;
++        end
++        let response=dut.lightingMemory(cards,cpu,False);
++        if(phase==0) phase<=1;
++        else if(phase==1 && dut.memoryBackendRequestValid) begin
++            if((test>=2 && test<=5) || test>=7) begin $display("FAIL malformed/MMIO validation reached backend");$finish(1);end
++            if(!dut.memoryBackendValidate || dut.memoryBackendAddress!=addr || dut.memoryBackendByteEnable!=15 || dut.memoryBackendWriteData!=0 || dut.memoryBackendWrite!=(test!=0)) begin
++                $display("FAIL validation payload");$finish(1);
++            end
++            // Ordinary backend writes would mutate this sentinel. Validation skips them.
++            if(!dut.memoryBackendValidate && dut.memoryBackendWrite) sentinel<=dut.memoryBackendWriteData;
++            accept=True;phase<=2;
++        end
++        else if(phase==2 && dut.memoryBackendResponseReady) begin respond=True;phase<=3;end
++
++        else if((phase==1 || phase==3) && response.ready) begin
++            if(response.error!=reject || response.readData!=0 || sentinel!=32'h12345678) begin $display("FAIL validation response/nonmutation");$finish(1);end
++            phase<=4;
++        end
++        else if(phase==4) begin
++            if(test==10) begin $display("PASS validation read/write, alignment, BE, MMIO/range and qualified-write/validate/reserved/MMIO rejection; no mutation");$finish(0);end
++            test<=test+1;phase<=0;
++        end
++        dut.advance(cards,cpu,False,worker,accept,respond,test==6,test==0,0,False);
++    endrule
++endmodule
++endpackage
+diff --git a/hardware/memory-controller/SPEC.md b/hardware/memory-controller/SPEC.md
+index 9b09be0..8e1aeca 100644
+--- a/hardware/memory-controller/SPEC.md
++++ b/hardware/memory-controller/SPEC.md
+@@ -125,3 +125,24 @@ The frozen MemoryController implementation is accepted only when one exact SHA p
+ 11. Dedicated iCE40 synthesis maps the integrated BRAM backend to native `SB_RAM40_4K` cells.
+ 
+ MainboardFPGA tests are intentionally not part of this component acceptance gate; Mainboard integration is a separate follow-on stage.
++
++## Lighting host validation compatibility
++
++`hostValidate(write,address,byteEnable)` MUST reject unaligned addresses and
++BE other than 0xf before issuing a backend request. It MUST carry
++`backendValidate=True`, the intended write direction, and zero write data through
++backpressure until acceptance. Ordinary requests MUST carry `backendValidate=False`.
++
++A validation backend MUST check the entire word range and direction permissions
++without reading or writing its target. Reserved/MMIO ranges and ROM writes MUST
++fault; unsupported validation MUST fail closed. Range classification belongs to
++the backend, not PLIO. Successful read validation returns valid zero data and
++successful write validation returns no read data. The existing response protocol
++and reset cancellation apply unchanged.
++
++`hostReadQualified(kind,address,byteEnable)` accepts only kind1 instruction
++reads (BE=3/12) and kind2 page-table reads (BE=15), with aligned addresses.
++Malformed requests MUST fault without backend access. Qualified requests MUST
++carry stable `backendAccessKind` through backpressure; data and validation
++requests MUST carry kind0. No instruction/page-table interpretation is imposed
++on the universal PLIO peripheral protocol.
+diff --git a/hardware/memory-controller/bluespec/MemoryController.bsv b/hardware/memory-controller/bluespec/MemoryController.bsv
+index 9544ebd..9cc9ae6 100644
+--- a/hardware/memory-controller/bluespec/MemoryController.bsv
++++ b/hardware/memory-controller/bluespec/MemoryController.bsv
+@@ -16,6 +16,8 @@ endfunction
+ interface MemoryControllerIfc;
+     method Bool hostRequestReady;
+     method Action hostRequest(Bool write, Bit#(32) address, Bit#(4) byteEnable, Bit#(32) writeData);
++    method Action hostReadQualified(Bit#(2) accessKind, Bit#(32) address, Bit#(4) byteEnable);
++    method Action hostValidate(Bool write, Bit#(32) address, Bit#(4) byteEnable);
+     method Bool hostResponseValid;
+     method Bool hostResponseFault;
+     method Bool hostReadDataValid;
+@@ -23,6 +25,8 @@ interface MemoryControllerIfc;
+     method Action hostResponseConsumed;
+ 
+     method Bool backendRequestValid;
++    method Bool backendValidate;
++    method Bit#(2) backendAccessKind;
+     method Bool backendWrite;
+     method Bit#(32) backendAddress;
+     method Bit#(4) backendByteEnable;
+@@ -37,6 +41,8 @@ endinterface
+ 
+ module mkMemoryController(MemoryControllerIfc);
+     Reg#(MemoryControllerState) state <- mkReg(MemIdle);
++    Reg#(Bool) requestValidate <- mkReg(False);
++    Reg#(Bit#(2)) requestAccessKind <- mkReg(0);
+     Reg#(Bool) requestWrite <- mkReg(False);
+     Reg#(Bit#(32)) requestAddress <- mkReg(0);
+     Reg#(Bit#(4)) requestByteEnable <- mkReg(0);
+@@ -48,6 +54,8 @@ module mkMemoryController(MemoryControllerIfc);
+     method Bool hostRequestReady = state == MemIdle;
+ 
+     method Action hostRequest(Bool write, Bit#(32) address, Bit#(4) byteEnable, Bit#(32) writeData) if (state == MemIdle);
++        requestValidate <= False;
++        requestAccessKind <= 0;
+         Bool misaligned = address[1:0] != 0;
+         requestWrite <= write;
+         requestAddress <= address;
+@@ -59,6 +67,35 @@ module mkMemoryController(MemoryControllerIfc);
+         state <= misaligned ? MemHostResponse : MemBackendRequest;
+     endmethod
+ 
++    method Action hostReadQualified(Bit#(2) accessKind, Bit#(32) address, Bit#(4) byteEnable) if (state == MemIdle);
++        Bool invalid = address[1:0] != 0 || !(accessKind == 1 || accessKind == 2)
++            || (accessKind == 1 ? !(byteEnable == 3 || byteEnable == 12) : byteEnable != 15);
++        requestValidate <= False;
++        requestAccessKind <= accessKind;
++        requestWrite <= False;
++        requestAddress <= address;
++        requestByteEnable <= byteEnable;
++        requestWriteData <= 0;
++        responseFault <= invalid;
++        responseReadDataValid <= False;
++        responseReadData <= 0;
++        state <= invalid ? MemHostResponse : MemBackendRequest;
++    endmethod
++
++    method Action hostValidate(Bool write, Bit#(32) address, Bit#(4) byteEnable) if (state == MemIdle);
++        Bool invalid = address[1:0] != 0 || byteEnable != 4'hf;
++        requestValidate <= True;
++        requestAccessKind <= 0;
++        requestWrite <= write;
++        requestAddress <= address;
++        requestByteEnable <= byteEnable;
++        requestWriteData <= 0;
++        responseFault <= invalid;
++        responseReadDataValid <= False;
++        responseReadData <= 0;
++        state <= invalid ? MemHostResponse : MemBackendRequest;
++    endmethod
++
+     method Bool hostResponseValid = state == MemHostResponse;
+     method Bool hostResponseFault = responseFault;
+     method Bool hostReadDataValid = responseReadDataValid;
+@@ -72,6 +109,8 @@ module mkMemoryController(MemoryControllerIfc);
+     endmethod
+ 
+     method Bool backendRequestValid = state == MemBackendRequest;
++    method Bool backendValidate = requestValidate;
++    method Bit#(2) backendAccessKind = requestAccessKind;
+     method Bool backendWrite = requestWrite;
+     method Bit#(32) backendAddress = requestAddress;
+     method Bit#(4) backendByteEnable = requestByteEnable;
+@@ -93,6 +132,8 @@ module mkMemoryController(MemoryControllerIfc);
+ 
+     method Action resetController;
+         state <= MemIdle;
++        requestValidate <= False;
++        requestAccessKind <= 0;
+         requestWrite <= False;
+         requestAddress <= 0;
+         requestByteEnable <= 0;
+diff --git a/hardware/memory-controller/bluespec/TbMemoryQualified.bsv b/hardware/memory-controller/bluespec/TbMemoryQualified.bsv
+new file mode 100644
+index 0000000..6713c57
+--- /dev/null
++++ b/hardware/memory-controller/bluespec/TbMemoryQualified.bsv
+@@ -0,0 +1,32 @@
++package TbMemoryQualified;
++import MemoryController::*;
++(* synthesize *)
++module mkTbMemoryQualified(Empty);
++    MemoryControllerIfc mc <- mkMemoryController;
++    Reg#(Bit#(4)) test <- mkReg(0);
++    Reg#(Bit#(2)) phase <- mkReg(0);
++    Reg#(Bit#(16)) watchdog <- mkReg(0);
++    rule tick;
++      watchdog<=watchdog+1;
++      if(watchdog==1000) begin $display("FAIL qualifier watchdog");$finish(1);end
++    endrule
++    rule issue(phase==0);
++      Bit#(2) kind=test==0 || test==1 || test==3 || test==7 ? 1 : test==2 || test==4 ? 2 : test==5 ? 3 : 0;
++      Bit#(4) be=test==0 || test==7 ? 3 : test==1 ? 12 : test==3 ? 15 : test==4 ? 3 : 15;
++      mc.hostReadQualified(kind,test==7 ? 32'h1001 : 32'h1000,be);phase<=1;
++    endrule
++    rule accept(phase==1 && mc.backendRequestValid);
++      if(test>=3 || mc.backendValidate || mc.backendWrite || mc.backendAccessKind!=(test==2 ? 2 : 1) || mc.backendWriteData!=0) begin $display("FAIL qualified forwarding/rejection");$finish(1);end
++      mc.backendRequestAccepted;phase<=2;
++    endrule
++    rule respond(phase==2 && mc.backendResponseReady);
++      mc.backendRespond(False,True,32'h11223344);phase<=3;
++    endrule
++    rule retire((phase==1 || phase==3) && mc.hostResponseValid);
++      if(mc.hostResponseFault!=(test>=3) || mc.hostReadDataValid!=(test<3) || (test<3 && mc.hostReadData!=32'h11223344)) begin $display("FAIL qualified response test=%0d",test);$finish(1);end
++      mc.hostResponseConsumed;
++      if(test==7) begin $display("PASS qualified instruction halves/page-table full-word; reserved/data kind, BE and alignment rejection");$finish(0);end
++      test<=test+1;phase<=0;
++    endrule
++endmodule
++endpackage
+-- 
+2.43.0
+

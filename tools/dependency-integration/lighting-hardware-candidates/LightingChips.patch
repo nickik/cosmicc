@@ -1,0 +1,2157 @@
+From 6d4a03e1ae31a008685cad68072ad1a652c62a85 Mon Sep 17 00:00:00 2001
+From: Niklaus Zbinden <niklaus.zbinden@gmail.com>
+Date: Mon, 5 Oct 2026 04:49:42 +0200
+Subject: [PATCH] Add production CPU bridge dependency closure and bounded RTL
+ gates
+
+---
+ docs/HARDWARE-CPU-INTEGRATION.md              |   7 +
+ rtl/common/CpuMmu.bsv                         |   7 +
+ rtl/common/PhysicalMem.bsv                    |   8 +-
+ rtl/cpu/LightingCpu.bsv                       | 212 ++++++++--
+ rtl/cpu/LightingMulDiv.bsv                    |  81 ++++
+ rtl/mmu/LightingMmu.bsv                       | 235 ++++++++---
+ rtl/module/LightingMemoryBus.bsv              |   4 +
+ rtl/module/ModuleBusAdapter.bsv               |   6 +-
+ sim/FlatCpuMemory.bsv                         |   4 +-
+ sim/TestMachine.bsv                           |   8 +-
+ tests/boot/workload.fg                        |  18 +
+ tests/bsv/TbLightingComputeBoardMulti.bsv     |  60 +++
+ .../bsv/TbLightingComputeBoardTranslation.bsv |  62 +++
+ tests/bsv/TbLightingCpuMulDivInterrupt.bsv    |  46 ++
+ tests/bsv/TbLightingMulDiv.bsv                |  30 ++
+ tests/bsv/TbModuleBusAdapterStaleGrant.bsv    |  31 ++
+ tests/bsv/muldiv_fixture.py                   |  18 +
+ tests/privilege-diff/run.py                   | 276 ++++++++++++
+ tests/system/TbLightingCpuBoardBridge.bsv     |  52 +++
+ tests/translation-diff/cpu_run.py             | 395 ++++++++++++++++++
+ tests/translation-diff/run.py                 | 102 +++++
+ tools/build-cpu-integration-bridges.py        |  13 +
+ tools/check-cpu-integration-rtl.py            |  22 +
+ tools/prepare-cpu-integration-inputs.py       |  12 +
+ 24 files changed, 1614 insertions(+), 95 deletions(-)
+ create mode 100644 docs/HARDWARE-CPU-INTEGRATION.md
+ create mode 100644 rtl/cpu/LightingMulDiv.bsv
+ create mode 100644 tests/boot/workload.fg
+ create mode 100644 tests/bsv/TbLightingComputeBoardMulti.bsv
+ create mode 100644 tests/bsv/TbLightingComputeBoardTranslation.bsv
+ create mode 100644 tests/bsv/TbLightingCpuMulDivInterrupt.bsv
+ create mode 100644 tests/bsv/TbLightingMulDiv.bsv
+ create mode 100644 tests/bsv/TbModuleBusAdapterStaleGrant.bsv
+ create mode 100644 tests/bsv/muldiv_fixture.py
+ create mode 100644 tests/privilege-diff/run.py
+ create mode 100644 tests/system/TbLightingCpuBoardBridge.bsv
+ create mode 100644 tests/translation-diff/cpu_run.py
+ create mode 100644 tests/translation-diff/run.py
+ create mode 100755 tools/build-cpu-integration-bridges.py
+ create mode 100755 tools/check-cpu-integration-rtl.py
+ create mode 100755 tools/prepare-cpu-integration-inputs.py
+
+diff --git a/docs/HARDWARE-CPU-INTEGRATION.md b/docs/HARDWARE-CPU-INTEGRATION.md
+new file mode 100644
+index 0000000..2c1e81c
+--- /dev/null
++++ b/docs/HARDWARE-CPU-INTEGRATION.md
+@@ -0,0 +1,7 @@
++# Production CPU integration closure
++
++This candidate starts at published LightingChips b4f4cee0524ebbfa61a5a9049f27755e05f6492e. It carries the production CPU/MMU/module bridge dependency closure, multiply/divide unit, access-qualified memory transactions, grouped/updating transfers, and six focused RTL tests. It excludes autonomous system/storage/ROM tops and unrelated working-tree changes.
++
++Run tools/check-cpu-integration-rtl.py --bsc PATH for six fresh bounded RTL checks. Run tools/build-cpu-integration-bridges.py --bsc PATH --lighting LIGHTING_CHECKOUT to build the production CPU and matching real mainboard bridge. The Lighting checkout must contain the exact compatible RealCard Gitlink; current tested tuple uses b09117c762a36f6d25256fc3d0de3c212ada2d61. See Lighting's docs/HARDWARE-CPU-INTEGRATION.md for configured Rust execution tests. tools/prepare-cpu-integration-inputs.py deterministically generates their six guest input images from checked-in corpus sources.
++
++RTL simulation acceptance is separate from physical FPGA qualification. No board constraints or vendor place-and-route claim is made. Neither candidate is merged into main, and RealCard publication requires explicit authorization.
+diff --git a/rtl/common/CpuMmu.bsv b/rtl/common/CpuMmu.bsv
+index a2a101a..e9e34b9 100644
+--- a/rtl/common/CpuMmu.bsv
++++ b/rtl/common/CpuMmu.bsv
+@@ -24,7 +24,14 @@ typedef struct {
+     MmuFault fault;
+ } CpuInstructionResponse deriving (Bits, Eq, FShow);
+ 
++// Version 1: validation translates and checks NORMAL physical memory without
++// target access; successful readData is the captured PA. Commit replays that PA
++// with translation disabled, only after the entire group has validated.
++typedef enum { CpuDataAccess, CpuDataValidate, CpuDataCommit }
++    CpuDataKind deriving (Bits, Eq, FShow);
++
+ typedef struct {
++    CpuDataKind   kind;
+     SiaAddr       virtualAddress;
+     MemWidth      width;
+     Bool          write;
+diff --git a/rtl/common/PhysicalMem.bsv b/rtl/common/PhysicalMem.bsv
+index eae38fe..a8d3c91 100644
+--- a/rtl/common/PhysicalMem.bsv
++++ b/rtl/common/PhysicalMem.bsv
+@@ -1,6 +1,8 @@
+ package PhysicalMem;
+ 
+ typedef struct {
++    Bit#(2) accessKind; // 0=data, 1=instruction, 2=page table, 3=reserved
++    Bool     validate;
+     Bit#(32) addr;
+     Bit#(32) writeData;
+     Bit#(4)  byteEnable;
+@@ -12,7 +14,11 @@ typedef struct {
+     Bool     error;
+ } PhysicalMemResponse deriving (Bits, Eq, FShow);
+ 
+-// MMU-facing physical-memory contract. Version 0 permits exactly one
++// MMU-facing physical-memory contract. Version 2 preserves data/fetch/walker
++// classification through the mainboard. Fetches permit NORMAL RAM/ROM; walks
++// require installed coherent RAM. Reserved class, writes or validation with a
++// non-data class fault before target access. Version 1 NORMAL validation remains
++// side-effect free. A mainboard must implement both. It permits exactly one
+ // outstanding transaction. A request remains owned by the receiver until a
+ // response is consumed; there are deliberately no transaction tags or
+ // reordering semantics yet.
+diff --git a/rtl/cpu/LightingCpu.bsv b/rtl/cpu/LightingCpu.bsv
+index 11da828..5f45e6d 100644
+--- a/rtl/cpu/LightingCpu.bsv
++++ b/rtl/cpu/LightingCpu.bsv
+@@ -1,9 +1,11 @@
+ package LightingCpu;
+ 
+ import Vector::*;
++import RWire::*;
+ import LightingTypes::*;
+ import CpuMmu::*;
+ import LightingPrivileged::*;
++import LightingMulDiv::*;
+ 
+ typedef enum {
+     CpuFailureNone,
+@@ -17,7 +19,9 @@ typedef enum {
+     CpuFailureLoadPage,
+     CpuFailureStorePage,
+     CpuFailureLoadAccess,
+-    CpuFailureStoreAccess
++    CpuFailureStoreAccess,
++    CpuFailureTrapEntry,
++    CpuFailureMachineError
+ } CpuFailure deriving (Bits, Eq, FShow);
+ 
+ typedef enum {
+@@ -29,6 +33,8 @@ typedef enum {
+ interface LightingCpu;
+     method Action start(SiaAddr resetPc);
+     method Action setPlatformInterrupt(Bool asserted);
++    // Platform halt is accepted only at the internal retirement boundary.
++    method Action haltAfterRetirement;
+     method Bool running;
+     method SiaAddr nextFetchPc;
+     method Vector#(16,SiaWord) registers;
+@@ -60,11 +66,23 @@ function Bool dataAligned(MemWidth width,SiaAddr addr);Bool ok=True;case(width)M
+ function SiaWord extendScalarLoad(MemWidth width,Bool signedLoad,SiaWord value);SiaWord v=value;case(width)MemByte:begin Bit#(8)b=truncate(value);v=signedLoad&&b[7]==1'b1 ? {24'hffffff,b}:zeroExtend(b);end MemHalf:begin Bit#(16)h=truncate(value);v=signedLoad&&h[15]==1'b1 ? {16'hffff,h}:zeroExtend(h);end default:v=value;endcase return v;endfunction
+ 
+ module mkLightingCpuWithTrapVector#(CpuMmuBoundary memory, SiaAddr trapVector)(LightingCpu);
++ LightingMulDiv arithmetic <- mkLightingMulDiv;
++ PulseWire platformHalt <- mkPulseWire;
++ Reg#(Bool)mathOutstanding<-mkReg(False);Reg#(Bit#(4))mathRd<-mkReg(0);Reg#(SiaAddr)mathPc<-mkReg(0);Reg#(SiaInsn)mathInsn<-mkReg(0);
+  Reg#(Bool)isRunning<-mkReg(False);Reg#(CpuFailure)failed<-mkReg(CpuFailureNone);Reg#(SiaAddr)faultPcReg<-mkReg(0);Reg#(SiaAddr)faultAddressReg<-mkReg(0);Reg#(Vector#(16,SiaWord))regs<-mkReg(replicate(0));Reg#(SiaAddr)fetchPc<-mkReg(0);Reg#(Bit#(64))retired<-mkReg(0);
+  Reg#(PrivilegeMode)privilegeReg<-mkReg(PrivilegeSupervisor);Reg#(Bit#(32))statusReg<-mkReg(0);Reg#(Bit#(32))epcReg<-mkReg(0);Reg#(Bit#(32))causeReg<-mkReg(0);Reg#(Bit#(32))badaddrReg<-mkReg(0);Reg#(Bit#(32))scratchReg<-mkReg(0);Reg#(Bit#(32))vmctxReg<-mkReg(0);Reg#(Bool)platformInterruptReg<-mkReg(False);
++ // Preserve the original exception if its first handler fetch cannot complete.
++ // This tracks trap entry, not ordinary execution at the trap-vector address.
++ Reg#(Bool)trapEntryPending<-mkReg(False);
+  Reg#(Bit#(8))fetchEpoch<-mkReg(0);Reg#(Bool)fetchOutstanding<-mkReg(False);Reg#(SiaAddr)requestedPc<-mkReg(0);Reg#(Bit#(8))requestedEpoch<-mkReg(0);
+  Reg#(Bool)fValid<-mkReg(False);Reg#(SiaAddr)fPc<-mkReg(0);Reg#(SiaInsn)fInsn<-mkReg(0);Reg#(MmuFault)fFault<-mkReg(MmuNoFault);Reg#(Bit#(8))fEpoch<-mkReg(0);Reg#(Bool)dValid<-mkReg(False);Reg#(SiaAddr)dPc<-mkReg(0);Reg#(SiaInsn)dInsn<-mkReg(0);Reg#(MmuFault)dFault<-mkReg(MmuNoFault);Reg#(Bit#(8))dEpoch<-mkReg(0);Reg#(Bool)xValid<-mkReg(False);Reg#(SiaAddr)xPc<-mkReg(0);Reg#(SiaInsn)xInsn<-mkReg(0);Reg#(MmuFault)xFault<-mkReg(MmuNoFault);Reg#(Bit#(8))xEpoch<-mkReg(0);
++ Reg#(Bool)scalarUpdate<-mkReg(False);Reg#(Bit#(4))scalarBase<-mkReg(0);Reg#(SiaWord)scalarNewBase<-mkReg(0);
+  Reg#(Bool)dataOutstanding<-mkReg(False);Reg#(Bool)dataWrite<-mkReg(False);Reg#(Bit#(4))dataRd<-mkReg(0);Reg#(MemWidth)dataWidth<-mkReg(MemWord);Reg#(Bool)dataSignedLoad<-mkReg(False);Reg#(SiaAddr)dataPc<-mkReg(0);Reg#(SiaAddr)dataAddress<-mkReg(0);Reg#(SiaInsn)dataInsn<-mkReg(0);Reg#(Bool)retirementPending<-mkReg(False);Reg#(Bool)retirementValid<-mkReg(False);Reg#(RetireState)retirement<-mkRegU;
++ // Group accesses validate all VAs before replaying captured physical addresses.
++ Reg#(Bool)groupActive<-mkReg(False);Reg#(Bool)groupValidating<-mkReg(False);Reg#(Bool)groupWaiting<-mkReg(False);
++ Reg#(Bit#(2))groupIndex<-mkReg(0);Reg#(Bit#(2))groupLast<-mkReg(0);
++ Reg#(Vector#(4,SiaWord))groupPhysical<-mkRegU;Reg#(Vector#(4,SiaWord))groupValues<-mkRegU;
++ Reg#(Bit#(4))groupBase<-mkReg(0);Reg#(Bool)groupUpdate<-mkReg(False);Reg#(SiaWord)groupNewBase<-mkReg(0);
+  Reg#(Bool)controlPending<-mkReg(False);Reg#(Bool)controlOutstanding<-mkReg(False);Reg#(CpuControlOp)controlOp<-mkReg(CpuControlFence);Reg#(MmuControlKind)controlKind<-mkReg(MmuControlFenceAll);Reg#(SiaAddr)controlPc<-mkReg(0);Reg#(SiaInsn)controlInsn<-mkReg(0);Reg#(Bit#(32))controlValue<-mkReg(0);Reg#(SiaAddr)controlNextPc<-mkReg(0);Reg#(SiaStatus)controlOldStatus<-mkReg(0);Reg#(PrivilegeMode)controlReturnMode<-mkReg(PrivilegeSupervisor);
+ 
+  // Retirement is an internal CPU boundary, never a testbench handshake.  A
+@@ -73,29 +91,101 @@ module mkLightingCpuWithTrapVector#(CpuMmuBoundary memory, SiaAddr trapVector)(L
+  rule advanceRetirement(isRunning&&retirementPending);
+   RetireState completed=retirement;
+   retirementPending<=False;
+-  if(platformInterruptReg&&((statusReg&statusIe)!=0))begin
+-   epcReg<=completed.nextPc;causeReg<=32'h80000001;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++  if(platformHalt)isRunning<=False;
++  else if(platformInterruptReg&&((statusReg&statusIe)!=0))begin
++   epcReg<=completed.nextPc;causeReg<=32'h80000001;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
+   end
+  endrule
+ 
+- rule misalignedFetch(isRunning&&!controlPending&&!controlOutstanding&&!xValid&&!dataOutstanding&&!fetchOutstanding&&!fValid&&fetchPc[0]==1'b1);
+-  failed<=CpuFailureInstructionAlignment;faultPcReg<=fetchPc;faultAddressReg<=fetchPc;epcReg<=fetchPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=fetchPc;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++ rule misalignedFetch(isRunning&&!controlPending&&!controlOutstanding&&!xValid&&!dataOutstanding&&!mathOutstanding&&!fetchOutstanding&&!fValid&&fetchPc[0]==1'b1);
++  if(trapEntryPending)begin
++   failed<=CpuFailureTrapEntry;isRunning<=False;trapEntryPending<=False;fValid<=False;dValid<=False;xValid<=False;
++  end
++  else begin
++  failed<=CpuFailureInstructionAlignment;faultPcReg<=fetchPc;faultAddressReg<=fetchPc;epcReg<=fetchPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=fetchPc;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++  end
++ endrule
++ rule issueFetch(isRunning&&!controlPending&&!controlOutstanding&&!xValid&&!dataOutstanding&&!mathOutstanding&&!fetchOutstanding&&!fValid&&fetchPc[0]==1'b0&&memory.instruction.canRequest);memory.instruction.request(CpuInstructionRequest{virtualAddress:fetchPc,privilege:privilegeReg,translationEnabled:statusReg[3]==1'b1});requestedPc<=fetchPc;requestedEpoch<=fetchEpoch;fetchPc<=fetchPc+2;fetchOutstanding<=True;endrule
++ rule completeFetch(isRunning&&fetchOutstanding&&!fValid&&memory.instruction.responseValid);
++  let response=memory.instruction.response;
++  memory.instruction.consumeResponse;fetchOutstanding<=False;
++  // Wrong-path responses must drain without ending a new trap entry.
++  if(requestedEpoch==fetchEpoch)begin
++   if(trapEntryPending&&requestedPc==trapVector&&response.fault!=MmuNoFault)begin
++    // SIA32-P section 8: halt, retaining EPC/CAUSE/BADADDR/STATUS and all
++    // other architectural state from the original trap. No recursive trap.
++    failed<=CpuFailureTrapEntry;isRunning<=False;fetchPc<=trapVector;
++    trapEntryPending<=False;fValid<=False;dValid<=False;xValid<=False;
++   end
++   else begin
++    if(trapEntryPending&&requestedPc==trapVector)trapEntryPending<=False;
++    fPc<=requestedPc;fInsn<=response.instruction;fFault<=response.fault;fEpoch<=requestedEpoch;fValid<=True;
++   end
++  end
+  endrule
+- rule issueFetch(isRunning&&!controlPending&&!controlOutstanding&&!xValid&&!dataOutstanding&&!fetchOutstanding&&!fValid&&fetchPc[0]==1'b0&&memory.instruction.canRequest);memory.instruction.request(CpuInstructionRequest{virtualAddress:fetchPc,privilege:privilegeReg,translationEnabled:False});requestedPc<=fetchPc;requestedEpoch<=fetchEpoch;fetchPc<=fetchPc+2;fetchOutstanding<=True;endrule
+- rule completeFetch(isRunning&&fetchOutstanding&&!fValid&&memory.instruction.responseValid);let response=memory.instruction.response;memory.instruction.consumeResponse;fetchOutstanding<=False;if(requestedEpoch==fetchEpoch)begin fPc<=requestedPc;fInsn<=response.instruction;fFault<=response.fault;fEpoch<=requestedEpoch;fValid<=True;end endrule
+  rule discardStaleFetch(isRunning&&fValid&&fEpoch!=fetchEpoch);fValid<=False;endrule
+- rule fetchToDecode(isRunning&&!controlPending&&!controlOutstanding&&!dataOutstanding&&fValid&&fEpoch==fetchEpoch&&!dValid);dPc<=fPc;dInsn<=fInsn;dFault<=fFault;dEpoch<=fEpoch;dValid<=True;fValid<=False;endrule
++ rule fetchToDecode(isRunning&&!controlPending&&!controlOutstanding&&!dataOutstanding&&!mathOutstanding&&fValid&&fEpoch==fetchEpoch&&!dValid);dPc<=fPc;dInsn<=fInsn;dFault<=fFault;dEpoch<=fEpoch;dValid<=True;fValid<=False;endrule
+  rule discardStaleDecode(isRunning&&dValid&&dEpoch!=fetchEpoch);dValid<=False;endrule
+- rule decodeToExecute(isRunning&&!controlPending&&!controlOutstanding&&!dataOutstanding&&dValid&&dEpoch==fetchEpoch&&!xValid);xPc<=dPc;xInsn<=dInsn;xFault<=dFault;xEpoch<=dEpoch;xValid<=True;dValid<=False;endrule
++ rule decodeToExecute(isRunning&&!controlPending&&!controlOutstanding&&!dataOutstanding&&!mathOutstanding&&dValid&&dEpoch==fetchEpoch&&!xValid);xPc<=dPc;xInsn<=dInsn;xFault<=dFault;xEpoch<=dEpoch;xValid<=True;dValid<=False;endrule
+ 
+- rule completeData(isRunning&&dataOutstanding&&!retirementPending&&memory.data.responseValid);
+-  let response=memory.data.response;memory.data.consumeResponse;dataOutstanding<=False;
++ rule issueGroup(isRunning&&dataOutstanding&&groupActive&&!groupWaiting&&memory.data.canRequest);
++  SiaAddr address=groupValidating ? dataAddress + (zeroExtend(groupIndex)<<2) : groupPhysical[groupIndex];
++  memory.data.request(CpuDataRequest{kind:groupValidating ? CpuDataValidate:CpuDataCommit,virtualAddress:address,width:MemWord,write:dataWrite,writeData:groupValues[groupIndex],privilege:privilegeReg,translationEnabled:groupValidating && statusReg[3]==1'b1});
++  groupWaiting<=True;
++ endrule
++
++ rule completeData(isRunning&&dataOutstanding&&(!groupActive||groupWaiting)&&!retirementPending&&memory.data.responseValid);
++  let response=memory.data.response;memory.data.consumeResponse;
++  SiaAddr failingAddress=dataAddress+(groupActive ? (zeroExtend(groupIndex)<<2):0);
+   if(response.fault!=MmuNoFault)begin
+-   CpuFailure diagnostic=dataWrite ? CpuFailureStoreAccess:CpuFailureLoadAccess;SiaCauseCode code=dataWrite ? causeStoreAccess:causeLoadAccess;
+-   if(response.fault==MmuPageFault)begin diagnostic=dataWrite ? CpuFailureStorePage:CpuFailureLoadPage;code=dataPageCause(dataWrite);end
+-   failed<=diagnostic;faultPcReg<=dataPc;faultAddressReg<=dataAddress;epcReg<=dataPc;causeReg<=synchronousCause(code);badaddrReg<=dataAddress;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++   scalarUpdate<=False;dataOutstanding<=False;groupActive<=False;groupWaiting<=False;
++   if(groupActive&&!groupValidating&&dataWrite)begin
++    // A validated NORMAL RAM store must not produce a recoverable partial fault.
++    failed<=CpuFailureMachineError;isRunning<=False;faultPcReg<=dataPc;faultAddressReg<=failingAddress;fetchPc<=dataPc;fValid<=False;dValid<=False;xValid<=False;
++   end
++   else begin
++    CpuFailure diagnostic=dataWrite ? CpuFailureStoreAccess:CpuFailureLoadAccess;SiaCauseCode code=dataWrite ? causeStoreAccess:causeLoadAccess;
++    if(response.fault==MmuPageFault)begin diagnostic=dataWrite ? CpuFailureStorePage:CpuFailureLoadPage;code=dataPageCause(dataWrite);end
++    failed<=diagnostic;faultPcReg<=dataPc;faultAddressReg<=failingAddress;epcReg<=dataPc;causeReg<=synchronousCause(code);badaddrReg<=failingAddress;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++   end
++  end
++  else if(groupActive&&groupValidating)begin
++   groupPhysical<=update(groupPhysical,groupIndex,response.readData);groupWaiting<=False;
++   if(groupIndex==groupLast)begin groupValidating<=False;groupIndex<=0;end
++   else groupIndex<=groupIndex+1;
++  end
++  else if(groupActive&&groupIndex!=groupLast)begin
++   if(!dataWrite)groupValues<=update(groupValues,groupIndex,response.readData);
++   groupIndex<=groupIndex+1;groupWaiting<=False;
++  end
++  else begin
++   Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;
++   if(groupActive)begin
++    if(!dataWrite)begin
++     Vector#(4,SiaWord)values=update(groupValues,groupIndex,response.readData);
++     for(Integer i=0;i<4;i=i+1)begin
++      Bit#(4)index=dataRd+fromInteger(i);
++      if(fromInteger(i)<=groupLast&&index!=0)nextRegs=update(nextRegs,index,values[i]);
++     end
++    end
++    if(groupUpdate&&groupBase!=0)nextRegs=update(nextRegs,groupBase,groupNewBase);
++   end
++   else if(!dataWrite&&dataRd!=0)nextRegs=update(nextRegs,dataRd,extendScalarLoad(dataWidth,dataSignedLoad,response.readData));
++   if(!groupActive&&scalarUpdate&&scalarBase!=0)nextRegs=update(nextRegs,scalarBase,scalarNewBase);
++   scalarUpdate<=False;dataOutstanding<=False;groupActive<=False;groupWaiting<=False;nextRegs[0]=0;regs<=nextRegs;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:dataPc,insn:dataInsn,nextPc:dataPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;
++  end
++ endrule
++
++ rule completeArithmetic(isRunning&&mathOutstanding&&!retirementPending&&arithmetic.responseValid);
++  let value=arithmetic.result;let error=arithmetic.arithmeticFault;arithmetic.consumeResponse;mathOutstanding<=False;
++  if(error)begin
++   failed<=CpuFailureArithmetic;faultPcReg<=mathPc;faultAddressReg<=0;epcReg<=mathPc;causeReg<=synchronousCause(causeArithmetic);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;
++  end
++  else begin
++   Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;
++   if(mathRd!=0)nextRegs=update(nextRegs,mathRd,value);nextRegs[0]=0;
++   regs<=nextRegs;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:mathPc,insn:mathInsn,nextPc:mathPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;
+   end
+-  else begin Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;SiaWord loadValue=extendScalarLoad(dataWidth,dataSignedLoad,response.readData);if(!dataWrite&&dataRd!=0)nextRegs=update(nextRegs,dataRd,loadValue);nextRegs[0]=0;regs<=nextRegs;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:dataPc,insn:dataInsn,nextPc:dataPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;end
+  endrule
+ 
+  rule issueControl(isRunning&&controlPending&&!controlOutstanding&&!fetchOutstanding&&memory.control.canRequest);
+@@ -117,21 +207,26 @@ module mkLightingCpuWithTrapVector#(CpuMmuBoundary memory, SiaAddr trapVector)(L
+   end
+  endrule
+ 
+- rule executeAndRetire(isRunning&&!controlPending&&!controlOutstanding&&!dataOutstanding&&xValid&&xEpoch==fetchEpoch&&!retirementPending);
++ rule executeAndRetire(isRunning&&!controlPending&&!controlOutstanding&&!dataOutstanding&&!mathOutstanding&&xValid&&xEpoch==fetchEpoch&&!retirementPending);
+   Bit#(4)primary=xInsn[15:12];Bit#(4)rd=xInsn[11:8];Bit#(4)rs=xInsn[7:4];Bit#(4)rc=xInsn[3:0];Bit#(4)fn=xInsn[3:0];
+ 
+   if(xFault!=MmuNoFault)begin
+-   failed<=CpuFailureInstructionAccess;faultPcReg<=xPc;faultAddressReg<=xPc;epcReg<=xPc;causeReg<=synchronousCause(instructionFaultCause(xFault));badaddrReg<=xPc;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;
++   failed<=CpuFailureInstructionAccess;faultPcReg<=xPc;faultAddressReg<=xPc;epcReg<=xPc;causeReg<=synchronousCause(instructionFaultCause(xFault));badaddrReg<=xPc;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;
+   end
+   else if(isTrapEncoding(xInsn))begin
+-   epcReg<=xPc;causeReg<=trapCause(xInsn[11:4]);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++   epcReg<=xPc;causeReg<=trapCause(xInsn[11:4]);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
+   end
+   else if(isBreakEncoding(xInsn))begin
+-   epcReg<=xPc;causeReg<=synchronousCause(causeBreakpoint);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++   epcReg<=xPc;causeReg<=synchronousCause(causeBreakpoint);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++  end
++  else if(primary==4'hc&&fn>=5&&fn<=13)begin
++   if(arithmetic.canStart)begin
++    arithmetic.start(fn,readReg(regs,rd),readReg(regs,rs));mathOutstanding<=True;mathRd<=rd;mathPc<=xPc;mathInsn<=xInsn;xValid<=False;
++   end
+   end
+   else if(primary==4'hf)begin
+    if(isDefinedPrivilegedSystem(xInsn)&&privilegeReg==PrivilegeUser)begin
+-    epcReg<=xPc;causeReg<=synchronousCause(causePrivilege);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
++    epcReg<=xPc;causeReg<=synchronousCause(causePrivilege);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;
+    end
+    else if(xInsn[15:8]==8'hf0&&privilegeReg==PrivilegeSupervisor)begin
+     Bit#(4) selector=xInsn[3:0];SiaWord value=0;Bool legal=True;Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;
+@@ -144,43 +239,87 @@ module mkLightingCpuWithTrapVector#(CpuMmuBoundary memory, SiaAddr trapVector)(L
+      4'h5:value=vmctxReg;
+      default:legal=False;
+     endcase
+-    if(!legal)begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++    if(!legal)begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+     else begin if(xInsn[7:4]!=0)nextRegs=update(nextRegs,xInsn[7:4],value);nextRegs[0]=0;regs<=nextRegs;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
+    end
+    else if(xInsn[15:8]==8'hf1&&privilegeReg==PrivilegeSupervisor)begin
+     Bit#(4) selector=xInsn[3:0];SiaWord value=readReg(regs,xInsn[7:4]);Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;
+     if(selector==0)begin
+-     if(value[3]==1'b1)begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+-     else begin statusReg<=value&32'h00000007;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
++     begin statusReg<=value&32'h0000000f;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;
++      // Discard fetches made under the previous translation mode.
++      if(value[3]!=statusReg[3])begin fetchPc<=xPc+2;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;end
++     end
+     end
+     else if(selector==1)begin epcReg<=value;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
+     else if(selector==4)begin scratchReg<=value;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
+     else if(selector==5)begin controlPending<=True;controlKind<=MmuControlWriteVmctx;controlOp<=CpuControlWriteVmctx;controlPc<=xPc;controlInsn<=xInsn;controlValue<=value;controlNextPc<=xPc+2;xValid<=False;fetchPc<=xPc+2;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;end
+-    else begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++    else begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+    end
+    else if(xInsn[15:8]==8'hf2&&privilegeReg==PrivilegeSupervisor)begin
+     if(xInsn[3:0]==4'h4)begin Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;SiaWord oldGpr=readReg(regs,xInsn[7:4]);if(xInsn[7:4]!=0)nextRegs=update(nextRegs,xInsn[7:4],scratchReg);nextRegs[0]=0;regs<=nextRegs;scratchReg<=oldGpr;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
+-    else begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++    else begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+    end
+    else if(xInsn==16'hf300&&privilegeReg==PrivilegeSupervisor)begin
+-    if(epcReg[0]==1'b1)begin SiaAddr attempted=epcReg;epcReg<=xPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=attempted;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;end
++    if(epcReg[0]==1'b1)begin SiaAddr attempted=epcReg;epcReg<=xPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=attempted;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;end
+     else begin PrivilegeMode returnMode=statusReg[2]==1'b1 ? PrivilegeSupervisor:PrivilegeUser;SiaAddr target=epcReg;Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;statusReg<=sretStatus(statusReg);privilegeReg<=returnMode;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:target,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;fetchPc<=target;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;end
+    end
+    else if(xInsn[15:12]==4'hf&&xInsn[11:8]==4'h3&&xInsn[3:0]==4'h1&&privilegeReg==PrivilegeSupervisor)begin
+-    if(epcReg[0]==1'b1)begin SiaAddr attempted=epcReg;epcReg<=xPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=attempted;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;end
++    if(epcReg[0]==1'b1)begin SiaAddr attempted=epcReg;epcReg<=xPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=attempted;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;xValid<=False;end
+     else begin Bit#(32)value=readReg(regs,xInsn[7:4]);SiaAddr target=epcReg;controlPending<=True;controlKind<=MmuControlWriteVmctx;controlOp<=CpuControlSretctx;controlPc<=xPc;controlInsn<=xInsn;controlValue<=value;controlNextPc<=target;controlOldStatus<=statusReg;controlReturnMode<=statusReg[2]==1'b1 ? PrivilegeSupervisor:PrivilegeUser;xValid<=False;fetchPc<=target;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;end
+    end
+    else if(xInsn[15:8]==8'hf4&&isDefinedPrivilegedSystem(xInsn)&&privilegeReg==PrivilegeSupervisor)begin
+     MmuControlKind kind=MmuControlFenceAll;Bit#(32)value=0;if(xInsn[3:0]==4'h1)begin kind=MmuControlFenceVa;value=readReg(regs,xInsn[7:4]);end else if(xInsn[3:0]==4'h2)begin kind=MmuControlFenceAsid;value=readReg(regs,xInsn[7:4]);end controlPending<=True;controlKind<=kind;controlOp<=CpuControlFence;controlPc<=xPc;controlInsn<=xInsn;controlValue<=value;controlNextPc<=xPc+2;xValid<=False;fetchPc<=xPc+2;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;
+    end
+    else if(xInsn==16'hf500&&privilegeReg==PrivilegeSupervisor)begin Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
+-   else if(isUnprivilegedSystemNop(xInsn))begin Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;end
+-   else begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++   else if(isUnprivilegedSystemNop(xInsn))begin Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:xPc+2,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;
++    // Prior stores have completed before execution reaches this instruction.
++    // Discard every younger instruction, including outstanding old-epoch fetches.
++    if(xInsn==16'hf600)begin fetchPc<=xPc+2;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;end
++   end
++   else begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++  end
++  else if(primary==4'h8)begin
++   Bool isStore=fn==2||fn==3||fn==4||fn==7||fn==8||fn==9;
++   Bool updating=fn==1||fn==3||fn==4||fn==6||fn==8||fn==9;
++   Bool pre=fn==4||fn==9;Bit#(5)count=fn<5 ? 2:4;
++   Bit#(5)first=zeroExtend(rd);Bit#(5)baseIndex=zeroExtend(rs);
++   Bool legal=fn<=9&&first+count<=16&&(!updating||isStore||baseIndex<first||baseIndex>=first+count);
++   SiaWord base=readReg(regs,rs);SiaWord bytes=zeroExtend(count)<<2;SiaAddr address=pre ? base-bytes:base;
++   if(!legal||!dataAligned(MemWord,address))begin
++    Bool alignment=legal;
++    failed<=alignment ? (isStore ? CpuFailureStoreAlignment:CpuFailureLoadAlignment):CpuFailureIllegalInstruction;
++    faultPcReg<=xPc;faultAddressReg<=alignment ? address:0;epcReg<=xPc;causeReg<=synchronousCause(alignment ? dataAlignmentCause(isStore):causeIllegalInstruction);
++    if(alignment)badaddrReg<=address;
++    statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;
++   end
++   else begin
++    Vector#(4,SiaWord)values=replicate(0);
++    for(Integer i=0;i<4;i=i+1)values[i]=readReg(regs,rd+fromInteger(i));
++    groupValues<=values;groupActive<=True;groupValidating<=True;groupWaiting<=False;groupIndex<=0;groupLast<=truncate(count-1);groupBase<=rs;groupUpdate<=updating;groupNewBase<=pre ? address:base+bytes;
++    dataOutstanding<=True;dataWrite<=isStore;dataRd<=rd;dataWidth<=MemWord;dataSignedLoad<=False;dataPc<=xPc;dataAddress<=address;dataInsn<=xInsn;xValid<=False;
++   end
++  end
++  else if(primary==4'h9)begin
++   // Literal loads use the virtual instruction PC, including negative offsets.
++   SiaWord displacement=xInsn[7]==1 ? {24'hffffff,xInsn[7:0]}:zeroExtend(xInsn[7:0]);
++   SiaAddr address=((xPc+4)&32'hfffffffc)+(displacement<<2);
++   if(memory.data.canRequest)begin
++    memory.data.request(CpuDataRequest {kind: CpuDataAccess, virtualAddress:address,width:MemWord,write:False,writeData:0,privilege:privilegeReg,translationEnabled:statusReg[3]==1'b1});
++    dataOutstanding<=True;dataWrite<=False;dataRd<=rd;dataWidth<=MemWord;dataSignedLoad<=False;dataPc<=xPc;dataAddress<=address;dataInsn<=xInsn;xValid<=False;
++   end
+   end
+-  else if(primary==4'h7&&fn<=4'h7)begin
+-   Bool isStore=fn>=4'h5;MemWidth width=scalarWidth(fn);SiaAddr address=readReg(regs,rs);
+-   if(!dataAligned(width,address))begin failed<=isStore ? CpuFailureStoreAlignment:CpuFailureLoadAlignment;faultPcReg<=xPc;faultAddressReg<=address;epcReg<=xPc;causeReg<=synchronousCause(dataAlignmentCause(isStore));badaddrReg<=address;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+-   else if(memory.data.canRequest)begin memory.data.request(CpuDataRequest{virtualAddress:address,width:width,write:isStore,writeData:readReg(regs,rd),privilege:privilegeReg,translationEnabled:False});dataOutstanding<=True;dataWrite<=isStore;dataRd<=rd;dataWidth<=width;dataSignedLoad<=scalarSignedLoad(fn);dataPc<=xPc;dataAddress<=address;dataInsn<=xInsn;xValid<=False;end
++  else if((primary==4'h7&&(fn<=4'h7||fn>=4'hc))||(primary==4'h2&&rd!=0)||primary==4'h3)begin
++   // Primary 2 with rd=0 remains CPOP. Indexed word addresses wrap before
++   // alignment/translation; source operands are sampled before any writeback.
++   Bool indexed=primary!=4'h7;
++   Bool updating=!indexed&&fn>=4'hc;
++   Bool isStore=indexed ? primary==4'h3:(updating ? fn[0]==1'b1:fn>=4'h5);
++   MemWidth width=(indexed||updating) ? MemWord:scalarWidth(fn);
++   SiaAddr base=readReg(regs,rs);
++   SiaAddr address=base+(indexed ? (readReg(regs,rc)<<2):(updating&&fn>=4'he ? 32'hfffffffc:0));
++   if(updating&&!isStore&&rd==rs)begin failed<=CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++   else if(!dataAligned(width,address))begin failed<=isStore ? CpuFailureStoreAlignment:CpuFailureLoadAlignment;faultPcReg<=xPc;faultAddressReg<=address;epcReg<=xPc;causeReg<=synchronousCause(dataAlignmentCause(isStore));badaddrReg<=address;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++   else if(memory.data.canRequest)begin memory.data.request(CpuDataRequest {kind: CpuDataAccess, virtualAddress:address,width:width,write:isStore,writeData:readReg(regs,rd),privilege:privilegeReg,translationEnabled:statusReg[3]==1'b1});dataOutstanding<=True;dataWrite<=isStore;dataRd<=rd;dataWidth<=width;scalarUpdate<=updating;scalarBase<=rs;scalarNewBase<=fn>=4'he ? address:base+4;dataSignedLoad<=!indexed&&!updating&&scalarSignedLoad(fn);dataPc<=xPc;dataAddress<=address;dataInsn<=xInsn;xValid<=False;end
+   end
+   else begin Bool legal=True;Bool arithmeticFault=False;Bool alignmentFault=False;Bool writeReg=False;Bool writeReg2=False;Bool redirect=False;Bit#(4)writeIndex=rd;Bit#(4)writeIndex2=0;SiaWord result=0;SiaWord result2=0;SiaWord a=readReg(regs,rd);SiaWord b=readReg(regs,rs);SiaWord c=readReg(regs,rc);Bit#(5)shiftCount=truncate(b);Bit#(5)bitIndex=truncate(b);Bit#(5)immediateShift={fn[0],xInsn[7:4]};SiaAddr sequentialPc=xPc+2;SiaAddr architecturalNextPc=sequentialPc;
+    case(primary)
+@@ -196,13 +335,14 @@ module mkLightingCpuWithTrapVector#(CpuMmuBoundary memory, SiaAddr trapVector)(L
+     4'hd:begin if(rd==rc)legal=False;else begin Bit#(1)carryIn=c!=0 ? 1:0;Bit#(33)sum=zeroExtend(a)+zeroExtend(b)+zeroExtend(carryIn);result=truncate(sum);result2=boolMask(sum[32]==1);writeReg=True;writeReg2=True;writeIndex2=rc;end end
+     4'he:begin if(rd==rc)legal=False;else begin Bit#(1)borrowIn=c!=0 ? 1:0;Bit#(33)lhs=zeroExtend(a);Bit#(33)rhs=zeroExtend(b)+zeroExtend(borrowIn);result=truncate(lhs-rhs);result2=boolMask(lhs<rhs);writeReg=True;writeReg2=True;writeIndex2=rc;end end default:legal=False;
+    endcase
+-   if(alignmentFault)begin failed<=CpuFailureInstructionAlignment;faultPcReg<=xPc;faultAddressReg<=b;epcReg<=xPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=b;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+-   else if(!legal||arithmeticFault)begin failed<=arithmeticFault ? CpuFailureArithmetic:CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(arithmeticFault ? causeArithmetic:causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++   if(alignmentFault)begin failed<=CpuFailureInstructionAlignment;faultPcReg<=xPc;faultAddressReg<=b;epcReg<=xPc;causeReg<=synchronousCause(causeInstructionAlign);badaddrReg<=b;statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
++   else if(!legal||arithmeticFault)begin failed<=arithmeticFault ? CpuFailureArithmetic:CpuFailureIllegalInstruction;faultPcReg<=xPc;faultAddressReg<=0;epcReg<=xPc;causeReg<=synchronousCause(arithmeticFault ? causeArithmetic:causeIllegalInstruction);statusReg<=trapStatus(statusReg,privilegeReg);privilegeReg<=PrivilegeSupervisor;fetchPc<=trapVector;trapEntryPending<=True;fetchEpoch<=fetchEpoch+1;xValid<=False;fValid<=False;dValid<=False;end
+    else begin Vector#(16,SiaWord)nextRegs=regs;Bit#(64)nextRetired=retired+1;if(writeReg&&writeIndex!=0)nextRegs=update(nextRegs,writeIndex,result);if(writeReg2&&writeIndex2!=0)nextRegs=update(nextRegs,writeIndex2,result2);nextRegs[0]=0;regs<=nextRegs;retired<=nextRetired;retirement<=RetireState{n:nextRetired,pc:xPc,insn:xInsn,nextPc:architecturalNextPc,regs:nextRegs};retirementPending<=True;retirementValid<=True;xValid<=False;if(redirect)begin fetchPc<=architecturalNextPc;fetchEpoch<=fetchEpoch+1;fValid<=False;dValid<=False;end end
+   end
+  endrule
+ 
+- method Action start(SiaAddr resetPc)if(!isRunning);regs<=replicate(0);fetchPc<=resetPc;retired<=0;fetchEpoch<=0;fetchOutstanding<=False;fValid<=False;dValid<=False;xValid<=False;dataOutstanding<=False;retirementPending<=False;retirementValid<=False;controlPending<=False;controlOutstanding<=False;failed<=CpuFailureNone;faultPcReg<=0;faultAddressReg<=0;privilegeReg<=PrivilegeSupervisor;statusReg<=0;epcReg<=0;causeReg<=0;badaddrReg<=0;scratchReg<=0;vmctxReg<=0;platformInterruptReg<=False;isRunning<=True;endmethod
++ method Action haltAfterRetirement if(isRunning&&retirementPending);platformHalt.send;endmethod
++ method Action start(SiaAddr resetPc)if(!isRunning);arithmetic.resetUnit;mathOutstanding<=False;scalarUpdate<=False;regs<=replicate(0);fetchPc<=resetPc;trapEntryPending<=False;retired<=0;fetchEpoch<=0;fetchOutstanding<=False;fValid<=False;dValid<=False;xValid<=False;dataOutstanding<=False;groupActive<=False;groupWaiting<=False;retirementPending<=False;retirementValid<=False;controlPending<=False;controlOutstanding<=False;failed<=CpuFailureNone;faultPcReg<=0;faultAddressReg<=0;privilegeReg<=PrivilegeSupervisor;statusReg<=0;epcReg<=0;causeReg<=0;badaddrReg<=0;scratchReg<=0;vmctxReg<=0;platformInterruptReg<=False;isRunning<=True;endmethod
+ // Level changes are state transitions.  Guarding no-op writes lets the board
+  // propagator continuously samples the board-local interrupt level.
+  method Action setPlatformInterrupt(Bool asserted);platformInterruptReg<=asserted;endmethod
+diff --git a/rtl/cpu/LightingMulDiv.bsv b/rtl/cpu/LightingMulDiv.bsv
+new file mode 100644
+index 0000000..30e3a2b
+--- /dev/null
++++ b/rtl/cpu/LightingMulDiv.bsv
+@@ -0,0 +1,81 @@
++package LightingMulDiv;
++
++// Iterative optional SIA-Zmul/SIA-M arithmetic. No combinational multiplier
++// or divider: one shift/add or restoring-division step per cycle.
++interface LightingMulDiv;
++ method Bool canStart;
++ method Action start(Bit#(4) op, Bit#(32) a, Bit#(32) b);
++ method Bool responseValid;
++ method Bit#(32) result;
++ method Bool arithmeticFault;
++ method Action consumeResponse;
++ method Action resetUnit;
++endinterface
++
++module mkLightingMulDiv(LightingMulDiv);
++ Reg#(Bool) active <- mkReg(False);
++ Reg#(Bool) valid <- mkReg(False);
++ Reg#(Bool) fault <- mkReg(False);
++ Reg#(Bit#(32)) outputValue <- mkReg(0);
++ Reg#(Bit#(4)) operation <- mkReg(0);
++ Reg#(Bit#(6)) count <- mkReg(0);
++ Reg#(Bit#(64)) accumulator <- mkReg(0);
++ Reg#(Bit#(64)) multiplicand <- mkReg(0);
++ Reg#(Bit#(32)) multiplier <- mkReg(0);
++ Reg#(Bit#(32)) dividend <- mkReg(0);
++ Reg#(Bit#(32)) divisor <- mkReg(0);
++ Reg#(Bit#(33)) remainder <- mkReg(0);
++ Reg#(Bit#(32)) quotient <- mkReg(0);
++ Reg#(Bool) negateProduct <- mkReg(False);
++ Reg#(Bool) negateQuotient <- mkReg(False);
++ Reg#(Bool) negateRemainder <- mkReg(False);
++
++ rule iterate(active);
++  if(operation<=9)begin
++   Bit#(64) sum=accumulator+(multiplier[0]==1 ? multiplicand:0);
++   accumulator<=sum;multiplicand<=multiplicand<<1;multiplier<=multiplier>>1;
++   if(count==31)begin
++    Bit#(64) product=negateProduct ? 0-sum:sum;
++    Bit#(32) low=truncate(product);
++    Bit#(32) high=truncate(product>>32);
++    Bool overflow=high!=(low[31]==1 ? 32'hffffffff:0);
++    outputValue<=operation>=6 && operation<=8 ? high:low;
++    fault<=operation==9 && overflow;active<=False;valid<=True;
++   end
++  end
++  else begin
++   Bit#(33) candidate=(remainder<<1)|zeroExtend(dividend[31]);
++   Bool subtract=candidate>=zeroExtend(divisor);
++   Bit#(33) nextRemainder=subtract ? candidate-zeroExtend(divisor):candidate;
++   Bit#(32) nextQuotient=(quotient<<1)|zeroExtend(pack(subtract));
++   remainder<=nextRemainder;quotient<=nextQuotient;dividend<=dividend<<1;
++   if(count==31)begin
++    Bit#(32) unsignedRemainder=truncate(nextRemainder);
++    outputValue<=operation>=12 ? (negateRemainder ? 0-unsignedRemainder:unsignedRemainder):(negateQuotient ? 0-nextQuotient:nextQuotient);
++    fault<=False;active<=False;valid<=True;
++   end
++  end
++  count<=count+1;
++ endrule
++
++ method Bool canStart=!active&&!valid;
++ method Action start(Bit#(4) op,Bit#(32) a,Bit#(32) b) if(!active&&!valid);
++  Bool signedA=op==6||op==8||op==9||op==10||op==12;
++  Bool signedB=op==6||op==9||op==10||op==12;
++  Bool negativeA=signedA&&a[31]==1;Bool negativeB=signedB&&b[31]==1;
++  Bit#(32) magnitudeA=negativeA ? 0-a:a;
++  Bit#(32) magnitudeB=negativeB ? 0-b:b;
++  Bool invalid=op<5||op>13;
++  Bool exceptional=invalid||(op>=10&&(b==0||(op==10&&a==32'h80000000&&b==32'hffffffff)));
++  operation<=op;count<=0;accumulator<=0;multiplicand<=zeroExtend(magnitudeA);multiplier<=magnitudeB;
++  dividend<=magnitudeA;divisor<=magnitudeB;remainder<=0;quotient<=0;
++  negateProduct<=negativeA!=negativeB;negateQuotient<=negativeA!=negativeB;negateRemainder<=negativeA;
++  active<=!exceptional;valid<=exceptional;fault<=exceptional;outputValue<=0;
++ endmethod
++ method Bool responseValid=valid;
++ method Bit#(32) result if(valid)=outputValue;
++ method Bool arithmeticFault if(valid)=fault;
++ method Action consumeResponse if(valid);valid<=False;endmethod
++ method Action resetUnit;active<=False;valid<=False;fault<=False;endmethod
++endmodule
++endpackage
+diff --git a/rtl/mmu/LightingMmu.bsv b/rtl/mmu/LightingMmu.bsv
+index e658fd8..5514f21 100644
+--- a/rtl/mmu/LightingMmu.bsv
++++ b/rtl/mmu/LightingMmu.bsv
+@@ -3,6 +3,7 @@ package LightingMmu;
+ import LightingTypes::*;
+ import CpuMmu::*;
+ import PhysicalMem::*;
++import Vector::*;
+ 
+ typedef enum {
+     PortIdle,
+@@ -23,6 +24,30 @@ typedef enum {
+     ControlResponse
+ } ControlState deriving (Bits, Eq, FShow);
+ 
++// Unified eight-entry fully associative TLB. Tags use equality rather than
++// address-range addition, including the last virtual page at 0xfffff800.
++typedef struct {
++    Bool valid;
++    Bool superpage;
++    Bit#(32) virtualBase;
++    Bit#(32) physicalBase;
++    Bit#(12) asid;
++    Bool globalMapping;
++    Bit#(4) permissions; // U/X/W/R, corresponding to PTE[4:1]
++} TlbEntry deriving (Bits, Eq, FShow);
++
++function Bool tlbCovers(TlbEntry entry, Bit#(32) va);
++    return entry.superpage ? va[31:20] == entry.virtualBase[31:20] :
++                             va[31:11] == entry.virtualBase[31:11];
++endfunction
++
++function Bool translationAllowed(Bit#(4) permissions, PrivilegeMode mode,
++                                 Bool instruction, Bool write);
++    Bool access = instruction ? permissions[2] == 1 :
++                               (write ? permissions[1] == 1 : permissions[0] == 1);
++    return access && (mode == PrivilegeSupervisor || permissions[3] == 1);
++endfunction
++
+ interface LightingMmu;
+     interface CpuMmuBoundary cpu;
+ endinterface
+@@ -36,7 +61,7 @@ function Bit#(4) instructionByteEnable(CpuInstructionRequest req);
+ endfunction
+ 
+ function PhysicalMemRequest instructionPhysicalRequest(CpuInstructionRequest req);
+-    return PhysicalMemRequest {
++    return PhysicalMemRequest {accessKind: 1, validate: False,
+         addr: wordBase(req.virtualAddress),
+         writeData: 0,
+         byteEnable: instructionByteEnable(req),
+@@ -76,7 +101,7 @@ function Bit#(32) laneWriteData(CpuDataRequest req);
+ endfunction
+ 
+ function PhysicalMemRequest dataPhysicalRequest(CpuDataRequest req);
+-    return PhysicalMemRequest {
++    return PhysicalMemRequest {accessKind: 0, validate: req.kind == CpuDataValidate,
+         addr: wordBase(req.virtualAddress),
+         writeData: laneWriteData(req),
+         byteEnable: dataByteEnable(req),
+@@ -104,11 +129,8 @@ function SiaWord extractData(CpuDataRequest req, Bit#(32) word);
+     endcase
+ endfunction
+ 
+-// M4.1 production MMU shell. The logical CPU-facing boundary and the physical
+-// memory dependency are separate so this module can become its own chip on the
+-// Lighting Compute Board. Translation is intentionally not implemented yet:
+-// translationEnabled=False is an identity physical mapping, while requesting
+-// translation produces a page fault rather than silently bypassing the MMU.
++// Serialized physical page walker with an ASID/global unified TLB. Controls
++// complete only after both ports drain; context writes never invalidate entries.
+ module mkLightingMmu#(PhysicalMemServer physical)(LightingMmu);
+     Reg#(PortState) instructionState <- mkReg(PortIdle);
+     Reg#(PortState) dataState <- mkReg(PortIdle);
+@@ -124,44 +146,162 @@ module mkLightingMmu#(PhysicalMemServer physical)(LightingMmu);
+     Reg#(ControlState) controlState <- mkReg(ControlIdle);
+     Reg#(MmuControlRequest) controlReq <- mkRegU;
+ 
+-    rule issueInstructionPhysical (
+-        instructionState == PortPending &&
+-        physicalOwner == PhysicalNone &&
+-        physical.canRequest &&
+-        (dataState != PortPending || !preferData)
+-    );
+-        physical.request(instructionPhysicalRequest(instructionReq));
+-        physicalOwner <= PhysicalInstruction;
+-        instructionState <= PortPhysical;
+-        preferData <= True;
++    // Snapshot the selected request so physical issue/completion rules do not
++    // depend on registers written by a newly accepted request on either port.
++    Reg#(CpuInstructionRequest) activeInstructionReq <- mkRegU;
++    Reg#(CpuDataRequest) activeDataReq <- mkRegU;
++    Reg#(Vector#(8, TlbEntry)) tlb <- mkReg(replicate(unpack(0)));
++    Reg#(Bit#(3)) replacement <- mkReg(0);
++    Reg#(Bool) lookupPending <- mkReg(False);
++    Reg#(Bool) walking <- mkReg(False);
++    Reg#(Bool) walkPending <- mkReg(False);
++    Reg#(Bit#(2)) walkLevel <- mkReg(2);
++    Reg#(Bit#(32)) walkAddress <- mkRegU;
++    Reg#(Bit#(32)) translatedAddress <- mkRegU;
++    Reg#(Bool) targetPending <- mkReg(False);
++
++    rule selectRequest (physicalOwner == PhysicalNone &&
++                        (instructionState == PortPending || dataState == PortPending));
++        Bool useData = dataState == PortPending &&
++                       (instructionState != PortPending || preferData);
++        Bit#(32) va = useData ? dataReq.virtualAddress : instructionReq.virtualAddress;
++        Bool enabled = useData ? dataReq.translationEnabled : instructionReq.translationEnabled;
++        activeInstructionReq <= instructionReq;
++        activeDataReq <= dataReq;
++        physicalOwner <= useData ? PhysicalData : PhysicalInstruction;
++        if (useData) dataState <= PortPhysical;
++        else instructionState <= PortPhysical;
++        preferData <= !useData;
++        translatedAddress <= va;
++        lookupPending <= enabled;
++        walking <= False;
++        walkPending <= False;
++        targetPending <= !enabled;
++        walkLevel <= 2;
++        walkAddress <= (activeVmctx & 32'hfffff000) + zeroExtend({va[31:26], 2'b00});
++    endrule
++
++    rule lookupTranslation (physicalOwner != PhysicalNone && lookupPending);
++        Bool instruction = physicalOwner == PhysicalInstruction;
++        Bit#(32) va = instruction ? activeInstructionReq.virtualAddress : activeDataReq.virtualAddress;
++        PrivilegeMode mode = instruction ? activeInstructionReq.privilege : activeDataReq.privilege;
++        Bool found = False;
++        TlbEntry hit = unpack(0);
++        for (Integer i = 0; i < 8; i = i + 1) begin
++            let entry = tlb[i];
++            if (!found && entry.valid && tlbCovers(entry, va) &&
++                (entry.globalMapping || entry.asid == activeVmctx[11:0])) begin
++                found = True;
++                hit = entry;
++            end
++        end
++        lookupPending <= False;
++        if (!found) begin
++            walking <= True;
++            walkPending <= True;
++        end
++        else if (!translationAllowed(hit.permissions, mode, instruction, activeDataReq.write)) begin
++            if (instruction) begin
++                instructionResp <= CpuInstructionResponse {instruction: 0, fault: MmuPageFault};
++                instructionState <= PortResponse;
++            end
++            else begin
++                dataResp <= CpuDataResponse {readData: 0, fault: MmuPageFault};
++                dataState <= PortResponse;
++            end
++            physicalOwner <= PhysicalNone;
++        end
++        else begin
++            translatedAddress <= hit.physicalBase | (hit.superpage ? va & 32'hfffff : va & 32'h7ff);
++            targetPending <= True;
++        end
++    endrule
++
++    rule issueWalk (physicalOwner != PhysicalNone && walkPending && physical.canRequest);
++        physical.request(PhysicalMemRequest {accessKind: 2, validate: False,
++            addr: walkAddress, writeData: 0, byteEnable: 4'b1111, write: False
++        });
++        walkPending <= False;
+     endrule
+ 
+-    rule issueDataPhysical (
+-        dataState == PortPending &&
+-        physicalOwner == PhysicalNone &&
+-        physical.canRequest &&
+-        (instructionState != PortPending || preferData)
+-    );
+-        physical.request(dataPhysicalRequest(dataReq));
+-        physicalOwner <= PhysicalData;
+-        dataState <= PortPhysical;
+-        preferData <= False;
++    rule issueTarget (physicalOwner != PhysicalNone && targetPending && physical.canRequest);
++        if (physicalOwner == PhysicalInstruction) begin
++            let req = instructionPhysicalRequest(activeInstructionReq);
++            req.addr = wordBase(translatedAddress);
++            physical.request(req);
++        end
++        else begin
++            let req = dataPhysicalRequest(activeDataReq);
++            req.addr = wordBase(translatedAddress);
++            physical.request(req);
++        end
++        targetPending <= False;
+     endrule
+ 
+-    rule completePhysical (physicalOwner != PhysicalNone && physical.responseValid);
++    rule completeWalk (physicalOwner != PhysicalNone && walking && !walkPending && physical.responseValid);
+         let r = physical.response;
+         physical.consumeResponse;
++        Bit#(32) pte = r.readData;
++        Bit#(32) va = physicalOwner == PhysicalInstruction ? activeInstructionReq.virtualAddress : activeDataReq.virtualAddress;
++        PrivilegeMode mode = physicalOwner == PhysicalInstruction ? activeInstructionReq.privilege : activeDataReq.privilege;
++        Bool leaf = pte[0] == 1 && pte[3:1] != 0;
++        Bool pointer = pte[0] == 1 && pte[3:1] == 0;
++        Bool fault = r.error;
++        if (walkLevel == 2) fault = fault || !pointer;
++        else if (walkLevel == 1) fault = fault || (!leaf && !pointer) || (leaf && pte[19:11] != 0);
++        else fault = fault || !leaf;
++        if (leaf && walkLevel != 2) begin
++            fault = fault || !translationAllowed(pte[4:1], mode,
++                         physicalOwner == PhysicalInstruction, activeDataReq.write);
++        end
++        if (fault) begin
++            if (physicalOwner == PhysicalInstruction) begin
++                instructionResp <= CpuInstructionResponse {instruction: 0, fault: MmuPageFault};
++                instructionState <= PortResponse;
++            end
++            else begin
++                dataResp <= CpuDataResponse {readData: 0, fault: MmuPageFault};
++                dataState <= PortResponse;
++            end
++            physicalOwner <= PhysicalNone;
++            walking <= False;
++        end
++        else if (leaf) begin
++            Bit#(32) mask = walkLevel == 1 ? 32'hfff00000 : 32'hfffff800;
++            TlbEntry entry = TlbEntry {
++                valid: True, superpage: walkLevel == 1,
++                virtualBase: va & mask, physicalBase: pte & 32'hfffff800,
++                asid: activeVmctx[11:0], globalMapping: pte[5] == 1,
++                permissions: pte[4:1]
++            };
++            tlb <= update(tlb, replacement, entry);
++            replacement <= replacement + 1;
++            translatedAddress <= (pte & 32'hfffff800) |
++                                 (walkLevel == 1 ? va & 32'h000fffff : va & 32'h000007ff);
++            walking <= False;
++            targetPending <= True;
++        end
++        else begin
++            walkAddress <= (pte & 32'hfffff800) +
++                           (walkLevel == 2 ? zeroExtend({va[25:20], 2'b00}) : zeroExtend({va[19:11], 2'b00}));
++            walkLevel <= walkLevel - 1;
++            walkPending <= True;
++        end
++    endrule
+ 
++    rule completePhysical (physicalOwner != PhysicalNone && !lookupPending && !walking && !targetPending && physical.responseValid);
++        let r = physical.response;
++        physical.consumeResponse;
+         if (physicalOwner == PhysicalInstruction) begin
+             instructionResp <= CpuInstructionResponse {
+-                instruction: extractInstruction(instructionReq, r.readData),
++                instruction: extractInstruction(activeInstructionReq, r.readData),
+                 fault: r.error ? MmuAccessFault : MmuNoFault
+             };
+             instructionState <= PortResponse;
+         end
+         else begin
+             dataResp <= CpuDataResponse {
+-                readData: dataReq.write ? 0 : extractData(dataReq, r.readData),
++                readData: activeDataReq.kind == CpuDataValidate ? translatedAddress : (activeDataReq.write ? 0 : extractData(activeDataReq, r.readData)),
+                 fault: r.error ? MmuAccessFault : MmuNoFault
+             };
+             dataState <= PortResponse;
+@@ -172,6 +312,19 @@ module mkLightingMmu#(PhysicalMemServer physical)(LightingMmu);
+     rule completeControl (controlState == ControlPending);
+         if (controlReq.kind == MmuControlWriteVmctx)
+             activeVmctx <= controlReq.value;
++        else begin
++            Vector#(8, TlbEntry) entries = tlb;
++            for (Integer i = 0; i < 8; i = i + 1) begin
++                let entry = entries[i];
++                Bool invalidate = controlReq.kind == MmuControlFenceAll ||
++                    (controlReq.kind == MmuControlFenceVa && tlbCovers(entry, controlReq.value) &&
++                     (entry.globalMapping || entry.asid == activeVmctx[11:0])) ||
++                    (controlReq.kind == MmuControlFenceAsid && !entry.globalMapping &&
++                     entry.asid == controlReq.value[11:0]);
++                if (invalidate) entries[i].valid = False;
++            end
++            tlb <= entries;
++        end
+         controlState <= ControlResponse;
+     endrule
+ 
+@@ -184,16 +337,7 @@ module mkLightingMmu#(PhysicalMemServer physical)(LightingMmu);
+             method Action request(CpuInstructionRequest req)
+                 if (instructionState == PortIdle && controlState == ControlIdle);
+                 instructionReq <= req;
+-                if (req.translationEnabled) begin
+-                    instructionResp <= CpuInstructionResponse {
+-                        instruction: 0,
+-                        fault: MmuPageFault
+-                    };
+-                    instructionState <= PortResponse;
+-                end
+-                else begin
+-                    instructionState <= PortPending;
+-                end
++                instructionState <= PortPending;
+             endmethod
+ 
+             method Bool responseValid;
+@@ -217,16 +361,7 @@ module mkLightingMmu#(PhysicalMemServer physical)(LightingMmu);
+             method Action request(CpuDataRequest req)
+                 if (dataState == PortIdle && controlState == ControlIdle);
+                 dataReq <= req;
+-                if (req.translationEnabled) begin
+-                    dataResp <= CpuDataResponse {
+-                        readData: 0,
+-                        fault: MmuPageFault
+-                    };
+-                    dataState <= PortResponse;
+-                end
+-                else begin
+-                    dataState <= PortPending;
+-                end
++                dataState <= PortPending;
+             endmethod
+ 
+             method Bool responseValid;
+diff --git a/rtl/module/LightingMemoryBus.bsv b/rtl/module/LightingMemoryBus.bsv
+index 023ad20..cce45d5 100644
+--- a/rtl/module/LightingMemoryBus.bsv
++++ b/rtl/module/LightingMemoryBus.bsv
+@@ -5,6 +5,10 @@ package LightingMemoryBus;
+ // bidirectional D[31:0] connector; synthesizable core logic keeps directions
+ // explicit.
+ typedef struct {
++    Bit#(2) accessKind; // 0=data, 1=instruction, 2=page table, 3=reserved
++    // Version 2: accessKind is stable for the entire granted transaction.
++    // Version 1: NORMAL word-range check, no target read/write.
++    Bool     validate;
+     Bit#(32) addr;
+     Bit#(32) writeData;
+     Bit#(4)  byteEnable;
+diff --git a/rtl/module/ModuleBusAdapter.bsv b/rtl/module/ModuleBusAdapter.bsv
+index 11459b1..7cb0830 100644
+--- a/rtl/module/ModuleBusAdapter.bsv
++++ b/rtl/module/ModuleBusAdapter.bsv
+@@ -37,7 +37,9 @@ module mkModuleBusAdapter(ModuleBusAdapter);
+         state <= AdapterIdle;
+     endrule
+ 
+-    rule acquireBus (!resetInput && state == AdapterWaitGrant && busInputs.busGrant);
++    // Registered mainboards may retain the previous completion with BG high.
++    // Only a grant without READY/ERROR can authorize this new transaction.
++    rule acquireBus (!resetInput && state == AdapterWaitGrant && busInputs.busGrant && !busInputs.ready && !busInputs.error);
+         state <= AdapterActive;
+     endrule
+ 
+@@ -89,7 +91,7 @@ module mkModuleBusAdapter(ModuleBusAdapter);
+         endmethod
+ 
+         method LightingBusPayload payload;
+-            return LightingBusPayload {
++            return LightingBusPayload {accessKind: pending.accessKind, validate: pending.validate,
+                 addr: pending.addr,
+                 writeData: pending.writeData,
+                 byteEnable: pending.byteEnable,
+diff --git a/sim/FlatCpuMemory.bsv b/sim/FlatCpuMemory.bsv
+index 47bc213..b037b09 100644
+--- a/sim/FlatCpuMemory.bsv
++++ b/sim/FlatCpuMemory.bsv
+@@ -137,7 +137,7 @@ module mkFlatCpuMemory(FlatCpuMemory);
+             if (fault == MmuNoFault && (!aligned || !inRange))
+                 fault = MmuAccessFault;
+ 
+-            if (fault == MmuNoFault) begin
++            if (fault == MmuNoFault && dataRequest.kind != CpuDataValidate) begin
+                 oldWord = words.sub(wordIndex(wordBase(dataRequest.virtualAddress)));
+                 if (dataRequest.write)
+                     words.upd(wordIndex(wordBase(dataRequest.virtualAddress)),
+@@ -148,7 +148,7 @@ module mkFlatCpuMemory(FlatCpuMemory);
+             end
+ 
+             dataResponse <= CpuDataResponse {
+-                readData: dataRequest.write ? 0 : readValue,
++                readData: dataRequest.kind == CpuDataValidate ? dataRequest.virtualAddress : (dataRequest.write ? 0 : readValue),
+                 fault: fault
+             };
+             dataState <= FlatResponse;
+diff --git a/sim/TestMachine.bsv b/sim/TestMachine.bsv
+index de27e81..6cdaa74 100644
+--- a/sim/TestMachine.bsv
++++ b/sim/TestMachine.bsv
+@@ -69,7 +69,7 @@ module mkTestMachine(TestMachine);
+     // scheduling cycle.
+     Wire#(Bool) observedBusRequest <- mkDWire(False);
+     Wire#(Bool) observedRequest <- mkDWire(False);
+-    Wire#(LightingBusPayload) observedPayload <- mkDWire(LightingBusPayload {
++    Wire#(LightingBusPayload) observedPayload <- mkDWire(LightingBusPayload {accessKind: 0, validate: False,
+         addr: 0,
+         writeData: 0,
+         byteEnable: 0,
+@@ -125,17 +125,17 @@ module mkTestMachine(TestMachine);
+                     Bool alignmentError = captured.addr[1:0] != 2'b00;
+                     Bool addressError = !isRamAddress(captured.addr) && !isRomAddress(captured.addr);
+                     Bool romWriteError = isRomAddress(captured.addr) && captured.write;
+-                    Bool fail = activeForceError || alignmentError || addressError || romWriteError;
++                    Bool fail = activeForceError || (captured.validate && captured.byteEnable != 15) || alignmentError || addressError || romWriteError;
+                     Bit#(32) data = 0;
+ 
+-                    if (!fail && !captured.write) begin
++                    if (!fail && !captured.validate && !captured.write) begin
+                         if (isRamAddress(captured.addr))
+                             data = ram.sub(wordIndex(captured.addr));
+                         else if (isRomAddress(captured.addr))
+                             data = rom.sub(wordIndex(captured.addr));
+                     end
+ 
+-                    if (!fail && captured.write && isRamAddress(captured.addr)) begin
++                    if (!fail && !captured.validate && captured.write && isRamAddress(captured.addr)) begin
+                         let oldValue = ram.sub(wordIndex(captured.addr));
+                         ram.upd(wordIndex(captured.addr), mergeBytes(oldValue, captured.writeData, captured.byteEnable));
+                     end
+diff --git a/tests/boot/workload.fg b/tests/boot/workload.fg
+new file mode 100644
+index 0000000..5e5c673
+--- /dev/null
++++ b/tests/boot/workload.fg
+@@ -0,0 +1,18 @@
++module lighting.hardware_boot;
++
++type Word = *volatile u32;
++
++fn main() -> i32 {
++    var total: u32 = 0;
++    var i: u32 = 1;
++    while (i < 11) {
++        total = total + i;
++        i = i + 1;
++    }
++    unsafe {
++        val address: u32 = 0x2100;
++        val result: Word = Word(address);
++        *result = total;
++    }
++    return 55;
++}
+diff --git a/tests/bsv/TbLightingComputeBoardMulti.bsv b/tests/bsv/TbLightingComputeBoardMulti.bsv
+new file mode 100644
+index 0000000..6b0b310
+--- /dev/null
++++ b/tests/bsv/TbLightingComputeBoardMulti.bsv
+@@ -0,0 +1,60 @@
++package TbLightingComputeBoardMulti;
++import LightingTypes::*;
++import LightingCpu::*;
++import LightingComputeBoard::*;
++import LightingMemoryBus::*;
++import FakeMainboard::*;
++module mkTbLightingComputeBoardMulti(Empty);
++    LightingComputeBoardDebug board<-mkLightingComputeBoardCore;
++    FakeMainboard mainboard<-mkFakeMainboard;
++    Reg#(Bit#(4))phase<-mkReg(0);
++    Reg#(Bit#(16))cycles<-mkReg(0);
++    Reg#(Bit#(4))validations<-mkReg(0);
++    Reg#(Bit#(4))accesses<-mkReg(0);
++    Reg#(Bool)active<-mkReg(False);
++    rule init(phase<9);
++        case(phase)
++            0:mainboard.pokeRamWord(0,32'h51666081);
++            1:mainboard.pokeRamWord(4,32'h6216618b);
++            2:mainboard.pokeRamWord(8,32'h60818313);
++            3:mainboard.pokeRamWord(12,32'h85105166);
++            4:mainboard.pokeRamWord(16,32'h8720920a);
++            5:mainboard.pokeRamWord(20,32'hcfffcfff);
++            6:mainboard.pokeRamWord(64,32'hdeadbeef);
++            7:mainboard.pokeRamWord(68,32'h12345678);
++            8:mainboard.pokeRamWord(60,32'hfff03000);
++        endcase
++        phase<=phase+1;
++    endrule
++    rule handlerInit(phase==9);mainboard.pokeRomWord(32'hfffff000,32'hcfffcfff);phase<=10;endrule
++    rule configure(phase==10);mainboard.configure(3,5,False);phase<=11;endrule
++    rule start(phase==11);board.start(0);phase<=12;endrule
++    rule connect(phase==12);mainboard.connect(board.mainboard.busRequest,board.mainboard.request,board.mainboard.payload);endrule
++    rule drive(phase==12);board.mainboard.driveInputs(mainboard.inputs);endrule
++    rule monitor(phase==12);
++        cycles<=cycles+1;
++        if(cycles==3000||mainboard.protocolError)begin $display("FAIL multi board protocol/timeout pc=%08x epc=%08x cause=%08x bad=%08x validations=%0d accesses=%0d req=%0d addr=%08x",board.debugCpu.nextFetchPc,board.debugCpu.epc,board.debugCpu.cause,board.debugCpu.badaddr,validations,accesses,board.mainboard.request,board.mainboard.payload.addr);$finish(1);end
++        if(board.mainboard.request&&!active)begin
++            let p=board.mainboard.payload;
++            active<=True;
++            if(p.validate)begin
++                validations<=validations+1;
++                if(p.byteEnable!=15)begin $display("FAIL validation width");$finish(1);end
++            end
++            else if(p.addr==64||p.addr==68)begin
++                accesses<=accesses+1;
++                if(validations<2)begin $display("FAIL board transfer before validation");$finish(1);end
++            end
++            else if(p.addr==32'hfff03000)begin $display("FAIL MMIO target access");$finish(1);end
++        end
++        if(!board.mainboard.request)active<=False;
++    endrule
++    rule finish(phase==12&&board.debugCpu.retireValid&&board.debugCpu.retire.pc==32'hfffff000);
++        let r=board.debugCpu.registers;
++        if(board.debugCpu.epc!=18||board.debugCpu.badaddr!=32'hfff03000||r[1]!=64||r[3]!=11||r[4]!=22||r[5]!=11||r[6]!=22||r[7]!=0||validations!=5||accesses!=4||mainboard.peekRamWord(64)!=11||mainboard.peekRamWord(68)!=22)begin
++            $display("FAIL production multi board state epc=%08x badaddr=%08x validation=%0d accesses=%0d",board.debugCpu.epc,board.debugCpu.badaddr,validations,accesses);$finish(1);
++        end
++        $display("PASS production CPU/MMU/bus multi-store/load validation and MMIO rejection under stalls");$finish(0);
++    endrule
++endmodule
++endpackage
+diff --git a/tests/bsv/TbLightingComputeBoardTranslation.bsv b/tests/bsv/TbLightingComputeBoardTranslation.bsv
+new file mode 100644
+index 0000000..04b4df1
+--- /dev/null
++++ b/tests/bsv/TbLightingComputeBoardTranslation.bsv
+@@ -0,0 +1,62 @@
++package TbLightingComputeBoardTranslation;
++import LightingTypes::*;
++import LightingCpu::*;
++import LightingComputeBoard::*;
++import LightingMemoryBus::*;
++import FakeMainboard::*;
++module mkTbLightingComputeBoardTranslation(Empty);
++    LightingComputeBoardDebug board <- mkLightingComputeBoardCore;
++    FakeMainboard mainboard <- mkFakeMainboard;
++    Reg#(Bit#(5)) phase <- mkReg(0);
++    Reg#(Bit#(16)) cycles <- mkReg(0);
++    Reg#(Bool) sawL2 <- mkReg(False);
++    Reg#(Bool) sawL1 <- mkReg(False);
++    Reg#(Bool) sawL0 <- mkReg(False);
++    Reg#(Bool) sawStore <- mkReg(False);
++    Reg#(Bool) sawLoad <- mkReg(False);
++    rule init(phase<13);
++        Bit#(32) addr=0;Bit#(32) value=0;
++        case(phase)
++            0:begin addr=0;value=32'h51c66081;end
++            1:begin addr=4;value=32'h6088f115;end
++            2:begin addr=8;value=32'hcfeff110;end
++            3:begin addr=32'h1000;value=32'h2001;end
++            4:begin addr=32'h2000;value=32'h2801;end
++            5:begin addr=32'h2800;value=32'h401b;end
++            6:begin addr=32'h2810;value=32'h5007;end
++            7:begin addr=32'h4008;value=32'h6081cfff;end
++            8:begin addr=32'h400c;value=32'h721451d6;end
++            9:begin addr=32'h4010;value=32'h7217612a;end
++            10:begin addr=32'h4014;value=32'h72146100;end
++            11:begin addr=32'h4018;value=32'hcfffcfff;end
++            12:begin addr=32'h5000;value=32'hdeadbeef;end
++        endcase
++        mainboard.pokeRamWord(addr,value);phase<=phase+1;
++    endrule
++    rule configure(phase==13);mainboard.configure(3,5,False);phase<=14;endrule
++    rule startBoard(phase==14);board.start(0);phase<=15;endrule
++    rule connect(phase==15);
++        mainboard.connect(board.mainboard.busRequest,board.mainboard.request,board.mainboard.payload);
++    endrule
++    rule drive(phase==15);board.mainboard.driveInputs(mainboard.inputs);endrule
++    rule observe(phase==15 && board.mainboard.request);
++        let p=board.mainboard.payload;
++        if(p.addr==32'h1000)sawL2<=True;
++        if(p.addr==32'h2000)sawL1<=True;
++        if(p.addr==32'h2800)sawL0<=True;
++        if(p.addr==32'h5000)begin
++            if(p.byteEnable!=15 || (p.write && p.writeData!=42))begin $display("FAIL translated board data lanes");$finish(1);end
++            if(p.write)sawStore<=True;else sawLoad<=True;
++        end
++    endrule
++    rule watchdog(phase==15);
++        cycles<=cycles+1;
++        if(cycles==3000 || mainboard.protocolError || board.debugCpu.failure!=CpuFailureNone)begin $display("FAIL translated board cycle=%0d failure=%0d",cycles,board.debugCpu.failure);$finish(1);end
++    endrule
++    rule finish(phase==15 && board.debugCpu.retireValid && board.debugCpu.retire.n==13);
++        let r=board.debugCpu.retire;
++        if(r.pc!=24 || r.insn!=16'hcfff || r.regs[2]!=42 || board.debugCpu.status!=8 || board.mmuVmctx!=32'h1000 || !sawL2 || !sawL1 || !sawL0 || !sawStore || !sawLoad)begin $display("FAIL translated board retirement pc=%08x n=%0d",r.pc,r.n);$finish(1);end
++        $display("PASS production board translated fetch/load/store and three-level page walks over stalled mainboard bus");$finish(0);
++    endrule
++endmodule
++endpackage
+diff --git a/tests/bsv/TbLightingCpuMulDivInterrupt.bsv b/tests/bsv/TbLightingCpuMulDivInterrupt.bsv
+new file mode 100644
+index 0000000..cab1dcd
+--- /dev/null
++++ b/tests/bsv/TbLightingCpuMulDivInterrupt.bsv
+@@ -0,0 +1,46 @@
++package TbLightingCpuMulDivInterrupt;
++import LightingTypes::*;
++import LightingCpu::*;
++import FlatCpuMemory::*;
++module mkTbLightingCpuMulDivInterrupt(Empty);
++ FlatCpuMemory memory <- mkFlatCpuMemory;
++ LightingCpu cpu <- mkLightingCpuWithTrapVector(memory.cpu,32'h80);
++ Reg#(Bit#(4)) phase <- mkReg(0);
++ Reg#(Bit#(16)) cycles <- mkReg(0);
++ Reg#(Bool) driven <- mkReg(False);
++ Reg#(Bool) sawProduct <- mkReg(False);
++ rule initialize(phase<8);
++  case(phase)
++   0:memory.pokeInstruction(0,16'h6081); // LI r1,1: IE
++   1:memory.pokeInstruction(2,16'hf110); // STATUS
++   2:memory.pokeInstruction(4,16'h6107); // LI r2,7
++   3:memory.pokeInstruction(6,16'h6183); // LI r3,3
++   4:memory.pokeInstruction(8,16'hc235); // MUL r2,r3
++   5:memory.pokeInstruction(10,16'h6201); // younger LI r4,1
++   6:memory.pokeInstruction(32'h80,16'hcfff);
++   7:cpu.start(0);
++  endcase
++  phase<=phase+1;
++ endrule
++ rule assertInterrupt(phase==8&&!driven&&cpu.retireValid&&cpu.retire.pc==6);
++  cpu.setPlatformInterrupt(True);driven<=True;
++ endrule
++ rule observe(phase==8&&cpu.retireValid);
++  let r=cpu.retire;
++  if(r.pc==8)begin
++   if(r.regs[2]!=21||r.n!=5)begin $display("FAIL arithmetic retirement");$finish(1);end
++   sawProduct<=True;
++  end
++  if(r.pc==32'h80)begin
++   if(!sawProduct||!driven||cpu.epc!=10||cpu.cause!=32'h80000001||r.regs[2]!=21||r.regs[4]!=0)begin
++    $display("FAIL arithmetic interrupt epc=%08x cause=%08x",cpu.epc,cpu.cause);$finish(1);
++   end
++   $display("PASS arithmetic precise interrupt boundary");$finish(0);
++  end
++ endrule
++ rule watchdog(phase==8);
++  cycles<=cycles+1;
++  if(cycles==2000)begin $display("FAIL arithmetic interrupt timeout");$finish(1);end
++ endrule
++endmodule
++endpackage
+diff --git a/tests/bsv/TbLightingMulDiv.bsv b/tests/bsv/TbLightingMulDiv.bsv
+new file mode 100644
+index 0000000..0e7a4e0
+--- /dev/null
++++ b/tests/bsv/TbLightingMulDiv.bsv
+@@ -0,0 +1,30 @@
++package TbLightingMulDiv;
++import RegFile::*;
++import LightingMulDiv::*;
++module mkTbLightingMulDiv(Empty);
++ LightingMulDiv dut <- mkLightingMulDiv;
++ RegFile#(Bit#(12),Bit#(32)) vectors <- mkRegFileLoad("muldiv.hex",0,4095);
++ Reg#(Bit#(12)) offset <- mkReg(1);
++ Reg#(Bit#(32)) completed <- mkReg(0);
++ Reg#(Bool) waiting <- mkReg(False);
++ Reg#(Bit#(6)) latency <- mkReg(0);
++ Reg#(Bit#(3)) hold <- mkReg(0);
++ Reg#(Bit#(32)) cycles <- mkReg(0);
++ rule timeout;cycles<=cycles+1;if(cycles==50000)begin $display("FAIL muldiv timeout");$finish(1);end endrule
++ rule start(!waiting && dut.canStart);
++  dut.start(truncate(vectors.sub(offset)),vectors.sub(offset+1),vectors.sub(offset+2));waiting<=True;latency<=0;hold<=0;
++ endrule
++ rule waitResult(waiting && !dut.responseValid);latency<=latency+1;endrule
++ rule check(waiting && dut.responseValid);
++  Bool expectedFault=vectors.sub(offset+4)!=0;
++  if(dut.arithmeticFault!=expectedFault || (!expectedFault && dut.result!=vectors.sub(offset+3)) || (!expectedFault && latency!=32) || dut.canStart)begin
++   $display("FAIL muldiv vector=%0d result=%08x expected=%08x fault=%0d expected=%0d latency=%0d",completed,dut.result,vectors.sub(offset+3),dut.arithmeticFault,expectedFault,latency);$finish(1);
++  end
++  if(hold==5)begin
++   dut.consumeResponse;waiting<=False;offset<=offset+5;completed<=completed+1;
++   if(completed+1==vectors.sub(0))begin $display("PASS iterative muldiv %0d vectors and held responses",completed+1);$finish(0);end
++  end
++  else hold<=hold+1;
++ endrule
++endmodule
++endpackage
+diff --git a/tests/bsv/TbModuleBusAdapterStaleGrant.bsv b/tests/bsv/TbModuleBusAdapterStaleGrant.bsv
+new file mode 100644
+index 0000000..978fac9
+--- /dev/null
++++ b/tests/bsv/TbModuleBusAdapterStaleGrant.bsv
+@@ -0,0 +1,31 @@
++package TbModuleBusAdapterStaleGrant;
++import PhysicalMem::*;
++import LightingMemoryBus::*;
++import ModuleBusAdapter::*;
++module mkTbModuleBusAdapterStaleGrant(Empty);
++ ModuleBusAdapter dut <- mkModuleBusAdapter;
++ Reg#(Bit#(4)) phase <- mkReg(0);
++ Reg#(Bit#(8)) cycles <- mkReg(0);
++ rule timeout;cycles<=cycles+1;if(cycles==30)begin $display("FAIL stale grant timeout");$finish(1);end endrule
++ rule pins;
++  dut.bus.driveInputs(LightingBusInputs{busGrant:True,ready:phase<5 || phase==7,error:phase==5,readData:phase==7 ? 32'h12345678:32'hdeadbeef});
++ endrule
++ rule issue(phase==0 && dut.physical.canRequest);
++  dut.physical.request(PhysicalMemRequest{accessKind: 0, validate:False,addr:32'h80,writeData:0,byteEnable:15,write:False});phase<=1;
++ endrule
++ rule waitForFreshGrant(phase>=1 && phase<=6);
++  if(!dut.bus.busRequest || dut.bus.request || dut.physical.responseValid || dut.bus.payload.addr!=32'h80)begin
++   $display("FAIL stale completion acquired/changed new request phase=%0d",phase);$finish(1);
++  end
++  phase<=phase+1;
++ endrule
++ rule complete(phase==7);
++  if(!dut.bus.request)begin $display("FAIL fresh grant did not activate request");$finish(1);end
++  phase<=8;
++ endrule
++ rule check(phase==8 && dut.physical.responseValid);
++  if(dut.physical.response.error || dut.physical.response.readData!=32'h12345678 || dut.bus.request)begin $display("FAIL wrong completion from stale grant");$finish(1);end
++  $display("PASS adapter ignores stale READY/ERROR grants before a fresh grant");$finish(0);
++ endrule
++endmodule
++endpackage
+diff --git a/tests/bsv/muldiv_fixture.py b/tests/bsv/muldiv_fixture.py
+new file mode 100644
+index 0000000..6a8352b
+--- /dev/null
++++ b/tests/bsv/muldiv_fixture.py
+@@ -0,0 +1,18 @@
++"""Build deterministic arithmetic vectors shared with the CPU differential corpus."""
++import importlib.util
++from pathlib import Path
++import sys
++
++def prepare(build):
++    source=Path(__file__).resolve().parents[1]/"translation-diff"
++    sys.path.insert(0,str(source))
++    spec=importlib.util.spec_from_file_location("lighting_cpu_vectors",source/"cpu_run.py")
++    module=importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    vectors=list(module.muldiv_vectors())
++    words=[len(vectors)]
++    for op,a,b,rd,rs,name in vectors:
++        result,fault=module.muldiv_expected(op,a,b)
++        words.extend([op,a&0xffffffff,b&0xffffffff,result,int(fault)])
++    words.extend([0]*(4096-len(words)))
++    (build/"muldiv.hex").write_text("".join(f"{word:08x}\n" for word in words))
+diff --git a/tests/privilege-diff/run.py b/tests/privilege-diff/run.py
+new file mode 100644
+index 0000000..92cf1df
+--- /dev/null
++++ b/tests/privilege-diff/run.py
+@@ -0,0 +1,276 @@
++#!/usr/bin/env python3
++"""Compare real SIA32-P Rust execution with RTL, including privileged state."""
++from __future__ import annotations
++
++import argparse
++from dataclasses import dataclass
++import hashlib
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++
++ROOT = Path(__file__).resolve().parents[2]
++VECTOR = 0x100
++NOP = 0xCFFF
++
++
++def li(reg: int, value: int) -> int:
++    assert -64 <= value <= 63
++    return 0x6000 | reg << 7 | (value & 127)
++
++
++def swrite(reg: int, selector: int) -> int:
++    return 0xF100 | reg << 4 | selector
++
++
++@dataclass
++class Scenario:
++    name: str
++    words: dict[int, int]
++    stop: int
++    reset: int = 0
++    vector: int = VECTOR
++    irq: bool = False
++    expected_cause: int | None = None
++    fatal: bool = False
++
++
++def words_at(words: list[int], base: int = 0) -> dict[int, int]:
++    return {base + 2 * i: word for i, word in enumerate(words)}
++
++
++def corpus() -> list[Scenario]:
++    cases = []
++
++    def trap_case(name, program, *, user=False, cause=0):
++        words = words_at(program)
++        words[VECTOR] = NOP
++        reset = 0
++        if user:
++            # Architectural bootstrap: no test-only privilege setter in RTL.
++            words.update(words_at([li(1, 0), swrite(1, 1), swrite(1, 0), 0xF300], 0x80))
++            reset = 0x80
++        cases.append(Scenario(name, words, VECTOR, reset=reset, expected_cause=cause))
++
++    # Exhaust all system-register selectors in both modes. Defined forms in U
++    # must raise PRIVILEGE before validating a selector or write restriction.
++    for user in (False, True):
++        mode = "u" if user else "s"
++        for op in (0, 1, 2):
++            for selector in range(16):
++                insn = 0xF000 | op << 8 | 2 << 4 | selector
++                legal = (op == 0 and selector < 6) or (op == 1 and selector in (0, 1, 4, 5)) or (op == 2 and selector == 4)
++                if not user and legal:
++                    program = [li(2, 37), insn, NOP]
++                    cases.append(Scenario(f"{mode}-system-{op}-{selector}", words_at(program), 4))
++                else:
++                    trap_case(f"{mode}-system-{op}-{selector}", [li(2, 37), insn, li(3, 59)], user=user, cause=1 if user else 0)
++
++    # Structurally reserved words remain ILLEGAL, including in User mode.
++    for insn in (0xF310, 0xF320, 0xF410, 0xF403, 0xF510, 0xF501, 0xF610, 0xF601, 0xF710, 0xF701, 0xF800, 0xFFFF):
++        for user in (False, True):
++            trap_case(f"reserved-{insn:04x}-{'u' if user else 's'}", [insn, li(3, 59)], user=user)
++
++    for user in (False, True):
++        for insn in (0xF300, 0xF321, 0xF400, 0xF421, 0xF422, 0xF500):
++            if user:
++                trap_case(f"user-privileged-{insn:04x}", [insn], user=True, cause=1)
++        for imm in (0, 1, 0x5A, 253):
++            trap_case(f"trap-{imm}-{'u' if user else 's'}", [0xC00F | imm << 4], user=user, cause=3 | imm << 8)
++        trap_case(f"break-{'u' if user else 's'}", [0xCFEF], user=user, cause=2)
++        for insn in (0xF600, 0xF700):
++            words = words_at([insn, NOP])
++            reset = 0
++            if user:
++                words.update(words_at([swrite(0, 1), swrite(0, 0), 0xF300], 0x80))
++                reset = 0x80
++            cases.append(Scenario(f"unprivileged-{insn:04x}-{user}", words, 2, reset=reset))
++
++    for status in range(8):
++        trap_case(f"supervisor-trap-status-{status}", [li(1, status), swrite(1, 0), 0xC5AF], cause=0x5A03)
++    for status in (0, 2):
++        words = words_at([0xC5AF])
++        words[VECTOR] = NOP
++        words.update(words_at([swrite(0, 1), li(1, status), swrite(1, 0), 0xF300], 0x80))
++        cases.append(Scenario(f"user-trap-ie-{status >> 1}", words, VECTOR, reset=0x80, expected_cause=0x5A03))
++
++    # STATUS reserved bits, R0 destinations/sources, SCRATCH swap and VMCTX.
++    program = [li(1, -9), swrite(1, 0), 0xF020, li(1, 23), swrite(1, 4),
++               0xF004, 0xF204, 0xF034, 0xF205, NOP]
++    # Final SSWAP VMCTX is deliberately illegal; BADADDR must stay unchanged.
++    trap_case("status-mask-and-r0", program)
++    cases.append(Scenario("scratch-swap-r0", words_at([li(1, 31), swrite(1, 4), li(2, -7), 0xF224, 0xF204, 0xF034, NOP]), 12))
++    cases.append(Scenario("vmctx-and-fences", words_at([li(1, -1), swrite(1, 5), 0xF025, 0xF400, 0xF411, 0xF412, 0xF035, NOP]), 14))
++    cases.append(Scenario("wfi-terminal", words_at([0xF500]), 0))
++
++    for status in (0, 2, 4, 6):
++        for ctx in (False, True):
++            program = [li(1, 32), swrite(1, 1), li(1, status), swrite(1, 0), li(2, 45), 0xF321 if ctx else 0xF300]
++            words = words_at(program)
++            words[32] = NOP
++            cases.append(Scenario(f"return-{status}-ctx-{ctx}", words, 32))
++    for ctx in (False, True):
++        trap_case(f"odd-return-ctx-{ctx}", [li(1, 9), swrite(1, 5), li(1, 3), swrite(1, 1), li(2, 45), 0xF321 if ctx else 0xF300], cause=4)
++
++    # Faulting destinations and younger instructions must not commit.
++    trap_case("odd-jalr", [li(1, 3), 0xC210, li(3, 59)], cause=4)
++    trap_case("load-align", [li(1, 3), 0x7214, li(3, 59)], cause=6)
++    trap_case("store-align", [li(1, 3), 0x7217, li(3, 59)], cause=8)
++    trap_case("load-access", [li(1, -4), 0x7214, li(3, 59)], cause=11)
++    trap_case("store-access", [li(1, -4), 0x7217, li(3, 59)], cause=12)
++    trap_case("checked-overflow", [li(1, -1), 0x5118, li(2, 1), 0x4121, li(3, 59)], cause=13)
++    cases.append(Scenario("fetch-access", {VECTOR: NOP}, VECTOR, reset=4096, expected_cause=10))
++    cases.append(Scenario("fetch-align", {VECTOR: NOP}, VECTOR, reset=3, expected_cause=4))
++
++    # Handler advances EPC and SRET resumes the first nonfaulting instruction.
++    words = words_at([0xC5AF, li(3, 59), NOP])
++    words.update(words_at([0xF011, 0x6882, swrite(1, 1), 0xF300], VECTOR))
++    cases.append(Scenario("trap-handler-return", words, 4, expected_cause=0x5A03))
++
++    # A load-alignment fault sets BADADDR; a later TRAP must preserve it.
++    words = words_at([li(1, 3), 0x7214, 0xC00F, NOP])
++    words.update(words_at([0xF021, 0x6902, swrite(2, 1), 0xF300], VECTOR))
++    cases.append(Scenario("badaddr-preserved-by-trap", words, 6, expected_cause=3))
++
++    words = words_at([li(1, 1), swrite(1, 0), li(3, 59)])
++    words.update(words_at([0xF022, 0xF031, NOP], VECTOR))
++    cases.append(Scenario("interrupt-after-ie-enable", words, VECTOR + 4, irq=True, expected_cause=0x80000001))
++    words = words_at([li(4, 2), swrite(0, 1), li(1, 2), swrite(1, 0), 0xF300])
++    words.update(words_at([0x6981, 0xAA01, NOP, 0xF300], VECTOR))
++    cases.append(Scenario("held-interrupt-reenters-after-sret", words, VECTOR + 4, irq=True, expected_cause=0x80000001))
++    trap_case("synchronous-before-masked-interrupt", [0xC5AF, li(3, 59)], cause=0x5A03)
++    cases[-1].irq = True
++
++    for origin, program, irq, cause in (
++        ("trap", [li(1, 29), swrite(1, 4), swrite(1, 5), 0xC5AF], False, 0x5A03),
++        ("load-align", [li(1, 3), 0x7214], False, 6),
++        ("interrupt", [li(1, 1), swrite(1, 0)], True, 0x80000001),
++    ):
++        cases.append(Scenario(f"fatal-vector-{origin}", words_at(program), VECTOR, vector=4096, irq=irq, expected_cause=cause, fatal=True))
++    cases.append(Scenario("fatal-vector-misaligned", words_at([0xC5AF]), VECTOR, vector=VECTOR + 1, expected_cause=0x5A03, fatal=True))
++
++    return cases
++
++
++def run(command, *, cwd, env):
++    result = subprocess.run([str(x) for x in command], cwd=cwd, env=env,
++                            text=True, capture_output=True, timeout=180)
++    if result.returncode or any(line.lstrip().startswith("FAIL") for line in result.stdout.splitlines()):
++        raise RuntimeError(f"command failed: {command}\n{result.stdout}\n{result.stderr}")
++    return result.stdout
++
++
++def records(output):
++    return [(line.split(" ", 1)[0], json.loads(line.split(" ", 1)[1]))
++            for line in output.splitlines() if line.startswith(("RETIRE ", "FINAL "))]
++
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--bsc", default=".toolchain/bsc/bin/bsc")
++    parser.add_argument("--simulation", type=Path, default=ROOT.parent / "LightingSimulation")
++    parser.add_argument("--only", default="")
++    parser.add_argument("--verilator", help="also compare generated Verilog with Rust and Bluesim")
++    args = parser.parse_args()
++    bsc = Path(args.bsc).resolve()
++    simulation = args.simulation.resolve()
++    build = ROOT / "build" / "privilege-diff"
++    build.mkdir(parents=True, exist_ok=True)
++    env = os.environ.copy()
++    env["PATH"] = str(bsc.parent) + os.pathsep + env.get("PATH", "")
++    env["BLUESPECDIR"] = str(bsc.parent.parent / "lib")
++    search = "+:" + ":".join(str(ROOT / p) for p in ("rtl", "rtl/common", "rtl/cpu", "sim"))
++    top = "mkTbLightingCpuPrivilegeDiff"
++    run([bsc, "-u", "-sim", "-g", top, "-bdir", build, "-simdir", build, "-p", search,
++         ROOT / "tests/bsv/TbLightingCpuPrivilegeDiff.bsv"], cwd=ROOT, env=env)
++    exe = build / "runner"
++    run([bsc, "-sim", "-e", top, "-o", exe, "-bdir", build, "-simdir", build, "-p", search], cwd=ROOT, env=env)
++    verilog_exe = None
++    if args.verilator:
++        vdir = build / "verilog"
++        vdir.mkdir(exist_ok=True)
++        run([bsc, "-u", "-verilog", "-g", top, "-bdir", vdir, "-vdir", vdir, "-p", search,
++             ROOT / "tests/bsv/TbLightingCpuPrivilegeDiff.bsv"], cwd=ROOT, env=env)
++        wrapper = vdir / "sim_top.sv"
++        wrapper.write_text(f"""module sim_top;
++  logic CLK = 0;
++  logic RST_N = 0;
++  always #5 CLK = ~CLK;
++  initial #20 RST_N = 1;
++  {top} dut(.CLK(CLK), .RST_N(RST_N));
++endmodule
++""")
++        objdir = build / "verilator"
++        run([args.verilator, "--binary", "--timing", "-Wno-fatal", "-j", "2",
++             "--top-module", "sim_top", "--Mdir", objdir, "-o", "runner",
++             "-y", bsc.parent.parent / "lib/Verilog", wrapper, *sorted(vdir.glob("*.v"))], cwd=ROOT, env=env)
++        verilog_exe = objdir / "runner"
++    # Cargo's path dependency deliberately consumes the sibling checkout, not
++    # a Python translation of its semantics or a copied interpreter.
++    if simulation != ROOT.parent / "LightingSimulation":
++        raise ValueError("the oracle must be the sibling LightingSimulation checkout (Cargo path dependency)")
++    reference_target = build / "reference-target"
++    run(["cargo", "build", "--offline", "--manifest-path", ROOT / "tests/privilege-diff/reference/Cargo.toml",
++         "--target-dir", reference_target], cwd=ROOT, env=env)
++    reference = reference_target / "debug/sia-privilege-reference"
++    provenance = {}
++    for repo, source_dir, suffix in ((ROOT, "rtl", "*.bsv"), (simulation, "src", "*.rs")):
++        revision = run(['git', 'rev-parse', 'HEAD'], cwd=repo, env=env).strip()
++        digest = hashlib.sha256()
++        for source in sorted((repo / source_dir).rglob(suffix)):
++            digest.update(str(source.relative_to(repo)).encode() + b"\0" + source.read_bytes() + b"\0")
++        provenance[repo.name] = {"revision": revision, "source_sha256": digest.hexdigest()}
++        print(f"dependency {repo.name}: {revision}; source SHA256 {digest.hexdigest()}", flush=True)
++    (build / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
++    filters = args.only.split(",")
++    selected = [case for case in corpus() if any(term in case.name for term in filters)]
++    if not selected:
++        raise ValueError("no privilege scenario matched --only")
++    count = 0
++    for case in selected:
++        for delay in (0, 11):
++            directory = build / f"{case.name}-delay-{delay}"
++            directory.mkdir(exist_ok=True)
++            image = bytearray(4096)
++            for addr, word in case.words.items():
++                image[addr:addr + 2] = word.to_bytes(2, "little")
++            (directory / "program.bin").write_bytes(image)
++            (directory / "program.hex").write_text("\n".join(f"{int.from_bytes(image[i:i+2], 'little'):04x}" for i in range(0, 4096, 2)) + "\n")
++            config = [case.vector, case.reset, case.stop, int(case.irq), delay, 0, 0, 0]
++            (directory / "config.hex").write_text("\n".join(f"{x:08x}" for x in config) + "\n")
++            ref = records(run([reference, directory / "program.bin", case.vector, case.reset, case.stop, int(case.irq)], cwd=directory, env=env))
++            rtl = records(run([exe], cwd=directory, env=env))
++            (directory / "reference.json").write_text(json.dumps(ref, indent=2) + "\n")
++            (directory / "rtl.json").write_text(json.dumps(rtl, indent=2) + "\n")
++            if not ref or ref[-1][0] != "FINAL" or sum(kind == "FINAL" for kind, _ in ref) != 1:
++                raise AssertionError(f"{case.name}: missing/duplicate reference final record")
++            final = ref[-1][1]
++            if case.expected_cause is not None and final["cause"] != case.expected_cause:
++                raise AssertionError(f"{case.name}: oracle cause {final['cause']} != architectural expectation {case.expected_cause}")
++            if (final["stop"] == "trap_entry_failure") != case.fatal:
++                raise AssertionError(f"{case.name}: incorrect reference termination")
++            if ref != rtl:
++                for index in range(max(len(ref), len(rtl))):
++                    lhs = ref[index] if index < len(ref) else None
++                    rhs = rtl[index] if index < len(rtl) else None
++                    if lhs != rhs:
++                        raise AssertionError(f"{case.name} delay={delay} record={index}:\nreference: {lhs}\nRTL: {rhs}\nreplay: {directory}")
++            if verilog_exe:
++                generated = records(run([verilog_exe], cwd=directory, env=env))
++                (directory / "verilog.json").write_text(json.dumps(generated, indent=2) + "\n")
++                if ref != generated:
++                    raise AssertionError(f"{case.name} delay={delay}: generated Verilog differs from Rust; replay: {directory}")
++            count += 1
++        print(f"PASS {case.name}: Rust/RTL retirement + six system registers (delays 0,11)", flush=True)
++    print(f"PASS {count} privilege differential runs" + (" (Rust, Bluesim, generated Verilog)" if verilog_exe else ""), flush=True)
++    return 0
++
++
++if __name__ == "__main__":
++    try:
++        raise SystemExit(main())
++    except (RuntimeError, AssertionError, ValueError, subprocess.TimeoutExpired) as error:
++        print(error, file=sys.stderr)
++        raise SystemExit(1)
+diff --git a/tests/system/TbLightingCpuBoardBridge.bsv b/tests/system/TbLightingCpuBoardBridge.bsv
+new file mode 100644
+index 0000000..f50496f
+--- /dev/null
++++ b/tests/system/TbLightingCpuBoardBridge.bsv
+@@ -0,0 +1,52 @@
++package TbLightingCpuBoardBridge;
++import Vector::*;
++import LightingComputeBoard::*;
++import LightingCpu::*;
++import LightingTypes::*;
++import LightingMemoryBus::*;
++import LightingInterrupts::*;
++function Bit#(8) byteOf(int x);return truncate(pack(x));endfunction
++function Bit#(32) readWord(int a,int b,int c,int d);return {byteOf(d),byteOf(c),byteOf(b),byteOf(a)};endfunction
++module mkTbLightingCpuBoardBridge(Empty);
++ LightingComputeBoardDebug board <- mkLightingComputeBoardCore;
++ Reg#(Bool) pending <- mkReg(False);
++ Reg#(Bool) grant <- mkReg(False);
++ Reg#(Bool) decoded <- mkReg(False);
++ Reg#(Bit#(8)) opcode <- mkReg(0);
++ Reg#(Bit#(8)) flags <- mkReg(0);
++ Reg#(Bit#(32)) value <- mkReg(0);
++ Reg#(Bit#(64)) observed <- mkReg(0);
++ Reg#(Bit#(32)) pc <- mkReg(0);
++ rule retirement(board.debugCpu.retireValid && board.debugCpu.retire.n!=observed);
++  observed<=board.debugCpu.retire.n;pc<=board.debugCpu.retire.nextPc;
++ endrule
++ rule reply(pending);
++  pending<=False;
++  // A bridge microstep must preserve the sampled grant while withholding a
++  // second completion. No physical request is serviced inside this process.
++  let p=board.mainboard.payload;let r=board.debugCpu.registers;
++  $display("CPU|%0d|%0d|%08x|%08x|%01x|%0d|%0d|%0d|%08x|%08x|%08x|%08x|%0d|%0d|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%08x|%0d",
++   pack(board.mainboard.busRequest),pack(board.mainboard.request),p.addr,p.writeData,p.byteEnable,pack(p.write),pack(p.validate),observed,pc,board.debugCpu.cause,board.debugCpu.epc,board.debugCpu.badaddr,pack(board.debugCpu.running),pack(board.debugCpu.failure),r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15],p.accessKind);
++  $fflush(stdout);
++ endrule
++ rule holdGrant(!decoded || opcode!=67);
++  board.mainboard.driveInputs(LightingBusInputs{busGrant:grant,ready:False,error:False,readData:0});
++ endrule
++ rule initialize(decoded && opcode==83);
++  board.start(value);pc<=value;decoded<=False;pending<=True;
++ endrule
++ rule step(decoded && opcode==67);
++  board.mainboard.driveInputs(LightingBusInputs{busGrant:flags[0]==1,ready:flags[1]==1,error:flags[2]==1,readData:value});
++  board.driveInterrupts(LightingModuleInterrupts{plioIrq:flags[3]==1,timerIrq:flags[4]==1,machineFault:flags[5]==1});
++  grant<=flags[0]==1 && flags[1]==0 && flags[2]==0;decoded<=False;pending<=True;
++ endrule
++ rule command(!pending && !decoded);
++  int op <- $fgetc(stdin);
++  if(op==-1 || op==81)$finish(0);
++  else begin
++   int f <- $fgetc(stdin);int a <- $fgetc(stdin);int b <- $fgetc(stdin);int c <- $fgetc(stdin);int d <- $fgetc(stdin);
++   opcode<=truncate(pack(op));flags<=truncate(pack(f));value<=readWord(a,b,c,d);decoded<=True;
++  end
++ endrule
++endmodule
++endpackage
+diff --git a/tests/translation-diff/cpu_run.py b/tests/translation-diff/cpu_run.py
+new file mode 100644
+index 0000000..1fd9507
+--- /dev/null
++++ b/tests/translation-diff/cpu_run.py
+@@ -0,0 +1,395 @@
++#!/usr/bin/env python3
++"""Real CPU+MMU execution, compared at each retirement with Rust."""
++from pathlib import Path
++import argparse, os, struct, random
++from run import ROOT, run, helper
++li=helper.li
++NOP=0xcfff
++
++def corpus():
++    # Physical boot installs root+ASID, enables VM, then resumes at a
++    # different physical frame. Wrong physical continuation is a BREAK.
++    for name in ('page','superpage','load-page-fault','store-page-fault','fetch-page-fault','load-access-fault','user-protection','sretctx','vmctx-switch','vm-disable','fatal-handler'):
++        image=bytearray(65536)
++        def word(pa,v):struct.pack_into('<I',image,pa,v)
++        def code(pa,words):
++            for i,v in enumerate(words):struct.pack_into('<H',image,pa+i*2,v)
++        boot=[li(1,1),0x51c6,0xf115,li(1,8),0xf110]
++        code(0,boot+[0xcfef,NOP,NOP,NOP,NOP,NOP])
++        word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x401f)
++        word(0x2810,0x5017) # VA0x2000 -> data PA0x5000 RWU
++        word(0x5000,0x12345678)
++        vector=0x100;stop=24
++        program=[li(1,1),0x51d6,0x7214,li(2,42),0x7217,0x7214,NOP,NOP]
++        if name=='superpage':
++            word(0x2000,0x1f);code(10,program);word(0x2000,0x1f)
++            # Data at VA0x2000 overlaps table: use VA0x8000 instead.
++            program[1]=0x51f6;code(10,program);word(0x8000,0x12345678)
++        else:code(0x400a,program)
++        if name=='load-page-fault':word(0x2810,0x5015);stop=vector
++        if name=='store-page-fault':word(0x2810,0x5013);stop=vector
++        if name=='load-access-fault':word(0x2810,0x10017);stop=vector
++        if name=='fetch-page-fault':word(0x2800,0x4013);stop=vector
++        if name=='fatal-handler':word(0x2800,0);stop=vector
++        if name=='user-protection':
++            # Return to User with VM retained, then deny U on data mapping.
++            code(0x400a,[li(3,32),0xf131,0xf300])
++            code(0x4020,program);word(0x2810,0x5007);stop=vector
++        if name in ('sretctx','vmctx-switch'):
++            # New root changes instruction frame on return; VM remains on.
++            word(0x3000,0x3801);word(0x3800,0x6001);word(0x6000,0x701f);word(0x6010,0x5017)
++            code(0x400a,[li(3,32),0xf131,li(1,3),0x51c6,0x6881,0xf311 if name=='sretctx' else 0xf115,0xb004]);code(0x7020,program);stop=46
++        if name=='vm-disable':
++            code(0x400a,[li(1,0),0xf110,0xcfef]);code(14,[li(4,37),NOP]);stop=16
++        if name!='fatal-handler':
++            handler_pa=vector if name=='superpage' else 0x4000+vector
++            # A supervisor-only second page holds the handler for NX code.
++            if name=='fetch-page-fault':
++                vector=0x800;stop=vector;word(0x2804,0x581b);handler_pa=0x5800
++            code(handler_pa,[li(7,31),NOP,NOP])
++        yield name,image,vector,stop
++
++    image=bytearray(65536)
++    def word(pa,v):struct.pack_into('<I',image,pa,v)
++    def code(pa,words):
++        for i,v in enumerate(words):struct.pack_into('<H',image,pa+i*2,v)
++    code(0,[li(1,1),0x51c6,0xf115,li(1,8),0xf110,0xcfef])
++    word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x401f);word(0x2804,0x602b)
++    word(0x3000,0x3801);word(0x3800,0x6801);word(0x6800,0x701f);word(0x6804,0x602b)
++    code(0x400a,[li(3,32),0xf131,0xf300])
++    code(0x4020,[li(4,11),0xc00f,li(7,33),NOP])
++    code(0x7020,[li(5,22),0xc00f,0xcfef,NOP])
++    code(0x6000,[0x6b01,li(3,36),0xf131,li(1,1),0x51c6,0xa285,
++                 li(1,3),0x51c6,0x6881,li(3,32),0xf131,0xf311,NOP])
++    yield 'warm-context-return',image,0x800,36
++
++def publication_corpus():
++    for name in ('sync-next-word','sync-user','pte-publish-all','pte-publish-va','pte-publish-asid','pte-publish-new-code','ldpc-negative','ldpc-page-fault'):
++        image=bytearray(65536)
++        def word(pa,v):struct.pack_into('<I',image,pa,v)
++        def code(pa,words):
++            for i,v in enumerate(words):struct.pack_into('<H',image,pa+i*2,v)
++        vector=0x100;stop=16
++        if name.startswith('sync'):
++            # Rewrite the very next instruction after SYNC.I. No branch flush
++            # may conceal stale prefetch/decode state in this test.
++            code(0,[0x910f,li(2,16),0x7127,NOP,NOP,NOP,NOP,0xf600,li(7,1),NOP])
++            word(64,li(7,37)|(NOP<<16))
++            if name=='sync-user':
++                code(0,[li(3,32),0xf131,0xf300])
++                code(32,[0x910f,li(2,48),0x7127,NOP,NOP,NOP,NOP,0xf600,li(7,1),NOP])
++                word(96,li(7,37)|(NOP<<16));stop=48
++        elif name=='pte-publish-new-code':
++            # Populate a writable, non-executable page through guest stores,
++            # grant X with a PTE update, then fence translation and instruction
++            # streams. The store warms a data TLB entry that must be discarded.
++            code(0,[li(1,1),0x51c6,0xf115,li(1,8),0xf110])
++            word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x401f)
++            word(0x2804,0x6017);word(0x2810,0x2817)
++            vector=0x180
++            code(0x400a,[0x913d,0x923e,0x7217,0x923e,0x933f,0x7237,0xf411,0xf600,0xc010])
++            word(0x4100,0x800);word(0x4108,li(7,37)|(NOP<<16))
++            word(0x410c,0x601f);word(0x4110,0x2004)
++            code(0x6000,[li(7,1),NOP,NOP]);stop=0x804
++        elif name=='ldpc-negative':
++            code(0,[0xb003,NOP,NOP,NOP,0x93fe,NOP]);word(4,0x12345678);stop=8
++        elif name=='ldpc-page-fault':
++            code(0,[li(1,1),0x51c6,0xf115,li(1,8),0xf110])
++            word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x400b)
++            code(0x400a,[0x9100]);code(0x4100,[NOP]);stop=vector
++        else:
++            # Warm VA0x800's old executable frame, replace its PTE through a
++            # writable alias, fence the selected scope, then publish new code.
++            code(0,[li(1,1),0x51c6,0xf115,li(1,8),0xf110])
++            word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x401f)
++            word(0x2804,0x501f);word(0x2810,0x2817)
++            # LDPC literal constants live in the current executable frame.
++            vector=0x180
++            code(0x400a,[0x913d,0xce10,NOP,0x923d,0x933e,0x7237,0x943e,
++                         {'pte-publish-all':0xf400,'pte-publish-va':0xf441,'pte-publish-asid':0xf442}[name],0xf600,0xc010,NOP])
++            word(0x4100,0x800);word(0x4108,0x601f);word(0x410c,0x2004)
++            word(0x4110,0 if name=='pte-publish-asid' else 0x800)
++            code(0x5000,[li(7,11),0xc0e0]);code(0x6000,[li(7,37),NOP,NOP]);stop=0x804
++        code(0x4000+vector if name.startswith('pte') or name=='ldpc-page-fault' else vector,[NOP])
++        yield name,image,vector,stop
++
++def multi_corpus():
++    # Noncontiguous frames across a 2 KiB page boundary. Store tests read back
++    # every constituent, so register parity also checks actual memory effects.
++    cases=[(f'multi-op-{fn}',fn,None) for fn in range(10)]
++    cases += [(f'multi-{kind}-fault-{position}',6 if kind=='load' else 8,position)
++              for kind in ('load','store') for position in range(4)]
++    cases += [(f'multi-{kind}-access-fault-{position}',6 if kind=='load' else 8,f'physical-{position}')
++              for kind in ('load','store') for position in range(4)]
++    cases += [('multi-user-load-fault-1',6,'user'),('multi-user-store-fault-1',8,'user')]
++    cases += [('multi-mmio-load',0,'mmio'),('multi-mmio-store',2,'mmio'),
++              ('multi-wrap',5,'wrap'),('multi-overlap-load',6,'overlap'),
++              ('multi-align-load',0,'align'),('multi-align-store',9,'align'),
++              ('multi-reserved',10,'reserved'),('multi-r0',5,'r0'),
++              ('multi-store-base-overlap',8,'store-overlap')]
++    for name,fn,fault in cases:
++        image=bytearray(65536)
++        def word(pa,v):struct.pack_into('<I',image,pa,v)
++        def code(pa,words):
++            for j,v in enumerate(words):struct.pack_into('<H',image,pa+j*2,v)
++        word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x401f)
++        count=2 if fn<5 else 4;store=fn in (2,3,4,7,8,9)
++        # For fault position N, exactly N words occupy the first mapped page.
++        split=fault if isinstance(fault,int) else (int(fault.rsplit('-',1)[1]) if isinstance(fault,str) and fault.startswith('physical-') else 1)
++        address=0x2800-split*4
++        word(0x2810,0x5017);word(0x2814,0x7817)
++        if isinstance(fault,int):word(0x2814,0x7813 if store else 0x7815)
++        if isinstance(fault,str) and fault.startswith('physical-'):word(0x2814,0x10017)
++        if fault=='user':word(0x2814,0x7807)
++        for j in range(4):
++            va=address+j*4;pa=0x5000+(va-0x2000) if va<0x2800 else 0x7800+(va-0x2800)
++            word(pa,0xabc000+j)
++        base=address+count*4 if fn in (4,9) else address
++        if fault=='mmio':
++            base=0xfff03000
++            word(0x10fc,0x3001);word(0x30fc,0x3801);word(0x3818,0xfff03017)
++        if fault=='align':base+=1
++        first=14 if fault=='wrap' else (0 if fault=='r0' else 3)
++        base_reg=4 if fault in ('overlap','store-overlap') else 1
++        code(0,[li(1,1),0x51c6,0xf115,li(1,8),0xf110,0xcfef])
++        program=[li(3,11),li(4,22),li(5,33),li(6,44)]
++        # LDPC at VA18 points at VA64.
++        program += [0x9000|(base_reg<<8)|11,0x8000|(first<<8)|(base_reg<<4)|fn]
++        stop=22
++        if store and not isinstance(fault,int) and fault not in ('mmio','align'):
++            # Reload original start independently of writeback/base overlap.
++            program += [0x910a,0x8810 if count==2 else 0x8815,NOP];stop=26
++        else:program += [NOP]
++        if fault=='user':
++            program[4]=0x9107
++            code(0x400a,[li(2,24),0xf121,0xf300]);code(0x4018,program)
++        else:code(0x400a,program)
++        word(0x4040,base);word(0x4044,address)
++        # LDPC at VA22 aligns PC+4 to24 + 10*4 =64, use original literal for
++        # predecrement stores and the original start literal for every store.
++        if store and stop==26:struct.pack_into('<H',image,0x4016,0x910b)
++        vector=0x100
++        if fault not in (None,'r0','store-overlap'):stop=vector
++        code(0x4100,[NOP,NOP])
++        yield name,image,vector,stop
++
++def scaled_corpus():
++    # Directed instruction execution: aliasing, wrapping, zero registers and
++    # precise alignment/translation/physical faults. Store successes reload the
++    # same indexed address, checking memory as well as architectural registers.
++    variants=('basic','base-alias','index-alias','zero-base','zero-index',
++              'shift-wrap','add-wrap','negative-index','next-page','physical',
++              'alignment','permission','user','access')
++    for store in (False,True):
++        for variant in variants:
++            name=f'scaled-{"sta" if store else "lda"}-{variant}'
++            yield scaled_image(name,store,variant)
++    yield scaled_image('scaled-sta-zero-source',True,'zero-source')
++    yield scaled_image('scaled-sta-all-zero',True,'all-zero')
++    yield scaled_image('scaled-cpop-escape',False,'cpop')
++
++def scaled_image(name,store,variant):
++    image=bytearray(65536)
++    def word(pa,value):struct.pack_into('<I',image,pa,value)
++    def code(pa,words):
++        for i,value in enumerate(words):struct.pack_into('<H',image,pa+2*i,value)
++    vm=variant!='physical';start=32 if variant=='user' else (10 if vm else 0)
++    base=0x2000;index=1;rb=1;ri=2;rv=3
++    if variant=='base-alias':rv=rb
++    if variant=='index-alias':rv=ri
++    if variant=='zero-base':base=0;rb=0;index=0x801
++    if variant=='zero-index':base=0x2004;ri=0;index=0
++    if variant=='shift-wrap':index=0x40000001
++    if variant=='add-wrap':base=0xfffffffc;index=0x802
++    if variant=='negative-index':base=0x2008;index=0xffffffff
++    if variant=='next-page':base=0x27fc
++    if variant=='alignment':base=0x2001
++    if variant=='zero-source':rv=0
++    if variant=='all-zero':rb=0;ri=0;rv=0;base=0;index=0
++    if variant=='cpop':rv=0;base=0xfffffffc;index=0xffffffff
++    word(0x1000,0x2001);word(0x2000,0x2801);word(0x2800,0x401f)
++    word(0x2810,0x5017);word(0x2814,0x7817)
++    if variant=='permission':word(0x2810,0x5013 if store else 0x5015)
++    if variant=='user':word(0x2810,0x5007)
++    if variant=='access':word(0x2810,0x10017)
++    word(0x5004,0x89abcdef);word(0x7800,0x89abcdef)
++    if not vm:word(0x2004,0x89abcdef)
++    if vm:
++        code(0,[li(1,1),0x51c6,0xf115,li(1,8),0xf110,0xcfef])
++        if variant=='user':code(0x400a,[li(4,start),0xf141,0xf300])
++    prefix=[]
++    for r,value in ((1,base),(2,index),(3,0x76543210)):
++        pc=start+2*len(prefix);literal=0x80+4*(r-1)
++        prefix.append(0x9000|(r<<8)|((literal-((pc+4)&~3))//4))
++        word(literal+(0x4000 if vm else 0),value)
++    op=(0x3000 if store else 0x2000)|(rv<<8)|(rb<<4)|ri
++    program=prefix+[op]
++    if store:program.append(0x2800|(rb<<4)|ri)
++    program.append(NOP)
++    code(start+(0x4000 if vm else 0),program)
++    vector=0x100;code(vector+(0x4000 if vm else 0),[NOP,NOP])
++    stop=vector if variant in ('alignment','permission','user','access') else start+2*(len(program)-1)
++    return name,image,vector,stop
++
++def updating_corpus():
++    for mode in range(12,16):
++        for variant in ('basic','overlap','zero-value','alignment','permission','user','access','next-page','wrap','zero-base'):
++            store=bool(mode&1);pre=mode>=14
++            name=f'updating-{mode:x}-{variant}'
++            _,image,vector,_=scaled_image(name,store,variant if variant in ('permission','user','access') else 'basic')
++            start=32 if variant=='user' else 10
++            rv=1 if variant=='overlap' else (0 if variant=='zero-value' else 3)
++            address=0x27fc if variant=='next-page' else (0x2005 if variant=='alignment' else 0x2004)
++            if variant=='wrap':address=0xfffffffc
++            if variant=='zero-base':address=0xfffffffc if pre else 0
++            base=(address+4 if pre else address)&0xffffffff
++            rb=0 if variant=='zero-base' else 1
++            # Final virtual word exercises wrapping writeback, independently of PA.
++            struct.pack_into('<I',image,0x10fc,0x2001)
++            struct.pack_into('<I',image,0x20fc,0x2801)
++            struct.pack_into('<I',image,0x2ffc,0x5017)
++            struct.pack_into('<I',image,0x4080,base)
++            struct.pack_into('<I',image,0x57fc,0x89abcdef)
++            pc=start+6
++            struct.pack_into('<H',image,0x4000+pc,0x7000|(rv<<8)|(rb<<4)|mode)
++            # Reload stores through the old access address, independently of updated base.
++            tail=[]
++            if store:
++                literal=0x408c
++                struct.pack_into('<I',image,literal,address)
++                tail=[0x9400|((0x8c-((pc+6)&~3))//4),0x7844]
++            tail.append(NOP)
++            for i,insn in enumerate(tail):struct.pack_into('<H',image,0x4000+pc+2+2*i,insn)
++            fault=variant in ('alignment','permission','user','access') or (variant=='overlap' and not store)
++            yield name,image,vector,vector if fault else pc+2*len(tail)
++
++def muldiv_expected(op,a,b):
++    mask=0xffffffff
++    signed=lambda x:x if x<0x80000000 else x-0x100000000
++    sa,sb=signed(a),signed(b)
++    if op in (5,6,7,8,9):
++        product=(sa if op in (6,8,9) else a)*(sb if op in (6,9) else b)
++        fault=op==9 and not -0x80000000<=product<=0x7fffffff
++        return ((product>>32) if op in (6,7,8) else product)&mask,fault
++    fault=b==0 or (op==10 and a==0x80000000 and b==mask)
++    if fault:return 0,True
++    if op in (10,12):
++        quotient=abs(sa)//abs(sb)
++        if (sa<0)!=(sb<0):quotient=-quotient
++        value=quotient if op==10 else sa-quotient*sb
++    else:value=a//b if op==11 else a%b
++    return value&mask,False
++
++def muldiv_vectors():
++    pairs=[(0,0),(1,0),(0,1),(1,1),(7,3),(0xfffffff9,3),(7,0xfffffffd),
++           (0xfffffff9,0xfffffffd),(0xffffffff,0xffffffff),(0x80000000,0xffffffff),
++           (0x80000000,1),(0x7fffffff,2),(0x80000000,0x80000000),
++           (0xffffffff,2),(0x40000000,2),(0x7fffffff,0xffffffff)]
++    rng=random.Random(0x51a32)
++    pairs += [(rng.getrandbits(32),rng.getrandbits(32)) for _ in range(12)]
++    for op in range(5,14):
++        for i,(a,b) in enumerate(pairs):yield op,a,b,1,2,f'muldiv-{op:x}-{i}'
++        for i,a in enumerate((0,7,0x80000000,0xffffffff)):
++            yield op,a,a,1,1,f'muldiv-{op:x}-alias-{i}'
++        for i,b in enumerate((0,3,0xffffffff)):
++            yield op,0,b,0,2,f'muldiv-{op:x}-r0-{i}'
++
++def muldiv_corpus():
++    for op,a,b,rd,rs,name in muldiv_vectors():
++        image=bytearray(65536)
++        struct.pack_into('<I',image,0x80,a);struct.pack_into('<I',image,0x84,b)
++        insns=[0x911f,0x9220,0xc000|(rd<<8)|(rs<<4)|op,NOP]
++        for i,insn in enumerate(insns):struct.pack_into('<H',image,i*2,insn)
++        struct.pack_into('<H',image,0x100,NOP)
++        _,fault=muldiv_expected(op,a,b)
++        yield name,image,0x100,0x100 if fault else 6
++
++def main():
++    p=argparse.ArgumentParser();p.add_argument('--bsc',default='/tmp/cosmicc-l21-bsc/bin/bsc');p.add_argument('--verilator');a=p.parse_args()
++    bsc=Path(a.bsc).resolve();build=ROOT/'build/translated-cpu';build.mkdir(parents=True,exist_ok=True)
++    env=os.environ.copy();env['PATH']=str(bsc.parent)+os.pathsep+env.get('PATH','');env['BLUESPECDIR']=str(bsc.parent.parent/'lib')
++    search='+:'+':'.join(str(ROOT/d) for d in ('rtl','rtl/common','rtl/cpu','rtl/mmu','sim'))
++    top='mkTbLightingCpuTranslationDiff';src=ROOT/'tests/bsv/TbLightingCpuTranslationDiff.bsv'
++    run([bsc,'-u','-sim','-g',top,'-bdir',build,'-simdir',build,'-p',search,src],cwd=ROOT,env=env)
++    exe=build/'runner';run([bsc,'-sim','-e',top,'-o',exe,'-bdir',build,'-simdir',build,'-p',search],cwd=ROOT,env=env)
++    vexe=None
++    if a.verilator:
++        vd=build/'verilog';vd.mkdir(exist_ok=True)
++        run([bsc,'-u','-verilog','-g',top,'-bdir',vd,'-vdir',vd,'-p',search,src],cwd=ROOT,env=env)
++        wrapper=vd/'sim_top.sv';wrapper.write_text(f'module sim_top; logic CLK=0; logic RST_N=0; always #5 CLK=~CLK; initial #20 RST_N=1; {top} dut(.CLK(CLK),.RST_N(RST_N)); endmodule\n')
++        obj=build/'verilator';run([a.verilator,'--binary','--timing','-Wno-fatal','-j','2','--top-module','sim_top','--Mdir',obj,'-o','runner','-y',bsc.parent.parent/'lib/Verilog',wrapper,*sorted(vd.glob('*.v'))],cwd=ROOT,env=env);vexe=obj/'runner'
++    target=build/'reference-target';run(['cargo','build','--offline','--manifest-path',ROOT/'tests/translation-diff/reference/Cargo.toml','--target-dir',target],cwd=ROOT,env=env)
++    oracle=target/'debug/sia-translated-cpu-reference'
++    cases=[*corpus(),*publication_corpus(),*multi_corpus(),*scaled_corpus(),*updating_corpus(),*muldiv_corpus()]
++    arithmetic_cases={name:(op,a,b,rd,rs) for op,a,b,rd,rs,name in muldiv_vectors()}
++    for name,image,vector,stop in cases:
++        d=build/name;d.mkdir(exist_ok=True);(d/'memory.bin').write_bytes(image)
++        (d/'memory.hex').write_text(''.join(f'{w:08x}\n' for (w,) in struct.iter_unpack('<I',image)))
++        validation_count=0;access_count=0
++        if name.startswith('multi'):
++            if '-op-' in name:
++                fn=int(name.rsplit('-',1)[1]);count=2 if fn<5 else 4
++                store=fn in (2,3,4,7,8,9)
++                validation_count=count*(2 if store else 1);access_count=validation_count
++            elif '-fault-' in name:validation_count=int(name.rsplit('-',1)[1])+(1 if '-access-' in name else 0)
++            elif 'mmio' in name:validation_count=1
++            elif name=='multi-r0':validation_count=4;access_count=4
++            elif name=='multi-store-base-overlap':validation_count=8;access_count=8
++        mode=1 if name.startswith('multi') else 0
++        if name.startswith('scaled'):
++            mode=2
++            fault=any(name.endswith('-'+v) for v in ('alignment','permission','user'))
++            access_count=0 if fault or name=='scaled-cpop-escape' else (1 if name.endswith('-access') else (2 if name.startswith('scaled-sta') else 1))
++        if name.startswith('updating'):
++            mode=2
++            m=int(name.split('-')[1],16);v=name.split('-',2)[2]
++            fault=v in ('alignment','permission','user') or (v=='overlap' and not m&1)
++            access_count=0 if fault else (1 if v=='access' else (2 if m&1 else 1))
++        (d/'config.hex').write_text(''.join(f'{w:08x}\n' for w in [vector,0,stop,0,3 if name=='warm-context-return' else 0,validation_count,access_count,mode]))
++        expected=helper.records(run([oracle,'memory.bin',str(vector),'0',str(stop),'0'],cwd=d,env=env))
++        if name.startswith(('sync','pte-publish')) and expected[-1][1]['regs'][7]!=37:
++            raise AssertionError(f'{name}: publication checkpoint did not execute new code')
++        if name.startswith('scaled'):
++            final=expected[-1][1]
++            variant=name.removeprefix('scaled-sta-').removeprefix('scaled-lda-')
++            if variant in ('alignment','permission','user','access'):
++                assert final['epc']==(38 if variant=='user' else 16), name
++                assert final['badaddr']==(0x2005 if variant=='alignment' else 0x2004), name
++                assert final['regs'][3]==0x76543210, name
++            elif name=='scaled-cpop-escape':
++                assert final['regs'][1]==32 and final['cause']==0, name
++            elif name.startswith('scaled-sta'):
++                value=0 if variant in ('zero-source','all-zero') else (0x2000 if variant=='base-alias' else (1 if variant=='index-alias' else 0x76543210))
++                assert final['regs'][8]==value and final['cause']==0, name
++            else:
++                destination=1 if variant=='base-alias' else (2 if variant=='index-alias' else 3)
++                assert final['regs'][destination]==0x89abcdef and final['cause']==0, name
++        if name.startswith('updating'):
++            m=int(name.split('-')[1],16);v=name.split('-',2)[2];f=expected[-1][1]
++            address=0x27fc if v=='next-page' else (0x2005 if v=='alignment' else 0x2004)
++            if v=='wrap':address=0xfffffffc
++            if v=='zero-base':address=0xfffffffc if m>=14 else 0
++            base=((address+4) if m>=14 else address)&0xffffffff
++            fault=v in ('alignment','permission','user','access') or (v=='overlap' and not m&1)
++            assert f['regs'][1]==(base if fault or v=='zero-base' else (address if m>=14 else (base+4)&0xffffffff)), name
++            if fault:
++                assert f['epc']==(38 if v=='user' else 16), name
++                if v!='overlap':assert f['badaddr']==address, name
++                assert f['regs'][3]==0x76543210, name
++            elif m&1:
++                assert f['regs'][8]==(base if v=='overlap' else (0 if v=='zero-value' else 0x76543210)), name
++            elif v!='zero-value':assert f['regs'][3]==(0 if v=='zero-base' and m==12 else 0x89abcdef), name
++        if name.startswith('muldiv'):
++            op,va,vb,rd,rs=arithmetic_cases[name];value,fault=muldiv_expected(op,va,vb);f=expected[-1][1]
++            assert f['regs'][rd]==(0 if rd==0 else (va if fault else value)),name
++            assert f['regs'][2]==vb,name
++            if fault:assert f['epc']==4 and f['cause']==13 and f['badaddr']==0,name
++            else:assert f['cause']==0,name
++        for runner in [exe]+([vexe] if vexe else []):
++            actual=helper.records(run([runner],cwd=d,env=env))
++            if actual!=expected:
++                (d/'expected.txt').write_text(repr(expected));(d/'actual.txt').write_text(repr(actual))
++                raise AssertionError(f'{name}: retirement mismatch; see {d}')
++        print(f'PASS translated CPU {name}',flush=True)
++    print(f'PASS {len(cases)} translated CPU cases: Rust/Bluesim'+('/Verilog' if vexe else ''))
++if __name__=='__main__':main()
+diff --git a/tests/translation-diff/run.py b/tests/translation-diff/run.py
+new file mode 100644
+index 0000000..7996bf8
+--- /dev/null
++++ b/tests/translation-diff/run.py
+@@ -0,0 +1,102 @@
++#!/usr/bin/env python3
++"""Compare real MMU RTL with the sibling Rust MMU, including Verilog."""
++import argparse
++import importlib.util
++import os
++from pathlib import Path
++import struct
++
++ROOT = Path(__file__).resolve().parents[2]
++spec = importlib.util.spec_from_file_location('privilege_runner', ROOT/'tests/privilege-diff/run.py')
++helper = importlib.util.module_from_spec(spec)
++import sys
++sys.modules[spec.name] = helper
++spec.loader.exec_module(helper)
++run = helper.run
++
++def cases():
++    va = 0x0c502806  # nonzero 6/6/9 indices; high halfword lane
++    for superpage in (False, True):
++        for flags in range(64):
++            for access in range(3):
++                for supervisor in range(2):
++                    yield f'permissions-{superpage}-{flags}-{access}-{supervisor}', va, flags, superpage, access, supervisor, '', 2
++    for address in (0x00000000,0xfffff806,0x03fff806,0x04000000):
++        for access in range(3):
++            yield f'boundary-{address:08x}-{access}', address, 0x7ff, False, access, 0, '', 2
++    for fault in ('invalid-l2','leaf-l2','invalid-l1','pointer-l0','invalid-l0','misaligned-superpage','bus-l2','bus-l1','bus-l0','bus-target'):
++        for access in range(3):
++            yield f'{fault}-{access}', va, 63, fault=='misaligned-superpage', access, 1, fault, 2
++    for width in (1,2,4):
++        for offset in range(0,8,width):
++            for access in (1,2):
++                yield f'lane-{width}-{offset}-{access}', (va & ~7)+offset, 63, False, access, 0, '', width
++
++def image_for(va, flags, superpage, fault):
++    image=bytearray(65536)
++    def put(pa,value): struct.pack_into('<I',image,pa,value)
++    root=0x1000; l1=0x2800; l0=0x3800; frame=0x5000
++    # Superpage target must fit test RAM: use PA base zero and a low VA offset.
++    if superpage: va=(va&0xfff00000)|0x2806
++    p2=root+((va>>26)&63)*4
++    p1=l1+((va>>20)&63)*4
++    p0=l0+((va>>11)&511)*4
++    put(p2,l1|1);put(p1,flags if superpage else l0|1)
++    put(p0,frame|flags)
++    pa=(va&0xfffff) if superpage else frame|(va&2047)
++    put(pa&~3,0x98765432)
++    changes={'invalid-l2':(p2,0),'leaf-l2':(p2,l1|15),'invalid-l1':(p1,0),'pointer-l0':(p0,frame|1),'invalid-l0':(p0,0),'misaligned-superpage':(p1,0x800|flags),'bus-l1':(p2,0x10000|1),'bus-l0':(p1,0x10000|1),'bus-target':(p0,0x10000|flags)}
++    if fault in changes: put(*changes[fault])
++    ctx=0x1000|0xabc
++    if fault=='bus-l2': ctx=0x10000|0xabc
++    return image,va,ctx
++
++def main():
++    parser=argparse.ArgumentParser()
++    parser.add_argument('--bsc',default='/tmp/cosmicc-l21-bsc/bin/bsc')
++    parser.add_argument('--verilator')
++    parser.add_argument('--only',default='')
++    a=parser.parse_args();bsc=Path(a.bsc).resolve()
++    build=ROOT/'build/translation-diff';build.mkdir(parents=True,exist_ok=True)
++    env=os.environ.copy();env['PATH']=str(bsc.parent)+os.pathsep+env.get('PATH','');env['BLUESPECDIR']=str(bsc.parent.parent/'lib')
++    search='+: '+':'.join(str(ROOT/p) for p in ('rtl','rtl/common','rtl/mmu','sim')).strip()
++    search=search.replace('+: ','+:')
++    top='mkTbLightingMmuTranslationDiff';source=ROOT/'tests/bsv/TbLightingMmuTranslationDiff.bsv'
++    run([bsc,'-u','-sim','-g',top,'-bdir',build,'-simdir',build,'-p',search,source],cwd=ROOT,env=env)
++    exe=build/'runner'
++    run([bsc,'-sim','-e',top,'-o',exe,'-bdir',build,'-simdir',build,'-p',search],cwd=ROOT,env=env)
++    vexe=None
++    if a.verilator:
++        vdir=build/'verilog';vdir.mkdir(exist_ok=True)
++        run([bsc,'-u','-verilog','-g',top,'-bdir',vdir,'-vdir',vdir,'-p',search,source],cwd=ROOT,env=env)
++        wrapper=vdir/'sim_top.sv'
++        wrapper.write_text(f'module sim_top; logic CLK=0; logic RST_N=0; always #5 CLK=~CLK; initial #20 RST_N=1; {top} dut(.CLK(CLK),.RST_N(RST_N)); endmodule\n')
++        obj=build/'verilator'
++        run([a.verilator,'--binary','--timing','-Wno-fatal','-j','2','--top-module','sim_top','--Mdir',obj,'-o','runner','-y',bsc.parent.parent/'lib/Verilog',wrapper,*sorted(vdir.glob('*.v'))],cwd=ROOT,env=env)
++        vexe=obj/'runner'
++    target=build/'reference-target'
++    run(['cargo','build','--offline','--manifest-path',ROOT/'tests/translation-diff/reference/Cargo.toml','--target-dir',target],cwd=ROOT,env=env)
++    reference=target/'debug/sia-translation-reference'
++    n=0
++    for name,va,flags,superpage,access,mode,fault,width in cases():
++        if a.only and a.only not in name:continue
++        image,va,ctx=image_for(va,flags,superpage,fault)
++        directory=build/name;directory.mkdir(exist_ok=True)
++        (directory/'memory.bin').write_bytes(image)
++        (directory/'memory.hex').write_text(''.join(f'{w:08x}\n' for (w,) in struct.iter_unpack('<I',image)))
++        pa=(va&0xfffff) if superpage else 0x5000|(va&2047)
++        old=struct.unpack_from('<I',image,pa&~3)[0]
++        shift=(pa&3)*8;mask=((1<<(width*8))-1)<<shift
++        stored=(old&~mask)|((0xdeadcafe<<shift)&mask)
++        cfg=[ctx,va,access,mode,width,pa,stored,0]
++        (directory/'config.hex').write_text(''.join(f'{w:08x}\n' for w in cfg))
++        def result(output):return next(line for line in output.splitlines() if line.startswith('RESULT '))
++        expected=result(run([reference,'memory.bin','config.hex'],cwd=directory,env=env))
++        for runner in [exe]+([vexe] if vexe else []):
++            actual=result(run([runner],cwd=directory,env=env))
++            if actual!=expected:raise AssertionError(f'{name}: {runner}: Rust {expected}; RTL {actual}')
++        n+=1
++        print(f'PASS {name}',flush=True)
++    if not n:raise ValueError('no cases selected')
++    print(f'PASS {n} translation cases: Rust/Bluesim'+('/Verilog' if vexe else ''))
++if __name__=='__main__':main()
+diff --git a/tools/build-cpu-integration-bridges.py b/tools/build-cpu-integration-bridges.py
+new file mode 100755
+index 0000000..69ef835
+--- /dev/null
++++ b/tools/build-cpu-integration-bridges.py
+@@ -0,0 +1,13 @@
++#!/usr/bin/env python3
++"""Compile fresh production CPU and RealCard mainboard bridge executables."""
++import argparse,os,pathlib,subprocess
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++p=argparse.ArgumentParser();p.add_argument('--bsc',required=True);p.add_argument('--lighting',type=pathlib.Path,required=True);p.add_argument('--timeout',type=int,default=240);a=p.parse_args()
++bsc=pathlib.Path(a.bsc).resolve();lighting=a.lighting.resolve();env=dict(os.environ);env['PATH']=str(bsc.parent)+os.pathsep+env['PATH'];env['BLUESPECDIR']=str(bsc.parent.parent/'lib')
++v=lighting/'vendor/rax-plio-qdx/hardware'
++cases=[('cpu','mkTbLightingCpuBoardBridge',ROOT/'tests/system/TbLightingCpuBoardBridge.bsv',[ROOT/d for d in ['rtl','rtl/common','rtl/cpu','rtl/mmu','rtl/module','rtl/board','tests/system']]),('mainboard','mkTbMainboardMultiSlotBridge',lighting/'hardware/m6/TbMainboardMultiSlotBridge.bsv',[v/d/'bluespec' for d in ['qli','qic','pti','plio-tx','plio-rax-host','memory-controller','mainboard-fpga']]+[lighting/'hardware/m6'])]
++for name,top,source,dirs in cases:
++ build=ROOT/'build/hardware-cpu-integration'/name;build.mkdir(parents=True,exist_ok=True);args=['-p',':'.join(['+']+list(map(str,dirs))),'-bdir',str(build),'-simdir',str(build),'-info-dir',str(build)]
++ with (build/'build.log').open('w') as log:
++  for cmd in [[str(bsc),'-u','-sim','-g',top,*args,str(source)],[str(bsc),'-sim','-e',top,*args,'-o',str(build/'bridge')]]:subprocess.run(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=a.timeout)
++ print(name+' bridge BUILD PASS',flush=True)
+diff --git a/tools/check-cpu-integration-rtl.py b/tools/check-cpu-integration-rtl.py
+new file mode 100755
+index 0000000..bf915df
+--- /dev/null
++++ b/tools/check-cpu-integration-rtl.py
+@@ -0,0 +1,22 @@
++#!/usr/bin/env python3
++"""Fresh bounded directed RTL checks for the hardware CPU integration closure."""
++import argparse, importlib.util, os, pathlib, subprocess, sys
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++TESTS=['LightingCpu','LightingCpuMulDivInterrupt','LightingMulDiv','ModuleBusAdapterStaleGrant','LightingComputeBoardMulti','LightingComputeBoardTranslation']
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--bsc',required=True);p.add_argument('--timeout',type=int,default=240);a=p.parse_args()
++ env=dict(os.environ);bsc=pathlib.Path(a.bsc).resolve();env['PATH']=str(bsc.parent)+os.pathsep+env['PATH'];env['BLUESPECDIR']=str(bsc.parent.parent/'lib')
++ search='+:'+':'.join(str(ROOT/d) for d in ['rtl','rtl/common','rtl/cpu','rtl/mmu','rtl/module','rtl/board','sim','tests/bsv'])
++ for name in TESTS:
++  top='mkTb'+name;build=ROOT/'build/hardware-cpu-integration'/name;build.mkdir(parents=True,exist_ok=True)
++  if name=='LightingMulDiv':
++   sys.path.insert(0,str(ROOT/'tests/bsv'));from muldiv_fixture import prepare;prepare(build)
++  args=['-p',search,'-bdir',str(build),'-simdir',str(build),'-info-dir',str(build)]
++  with (build/'gate.log').open('w') as log:
++   for cmd in [[str(bsc),'-u','-sim','-g',top,*args,str(ROOT/'tests/bsv'/('Tb'+name+'.bsv'))],[str(bsc),'-sim','-e',top,*args,'-o',str(build/'runner')]]:
++    subprocess.run(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=a.timeout)
++   result=subprocess.run([str(build/'runner')],cwd=build if name=='LightingMulDiv' else ROOT,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,check=True,timeout=a.timeout)
++   log.write(result.stdout)
++   if 'FAIL' in result.stdout or 'PASS' not in result.stdout:raise RuntimeError(result.stdout)
++  print(name+' PASS',flush=True)
++if __name__=='__main__':main()
+diff --git a/tools/prepare-cpu-integration-inputs.py b/tools/prepare-cpu-integration-inputs.py
+new file mode 100755
+index 0000000..d7cf8c6
+--- /dev/null
++++ b/tools/prepare-cpu-integration-inputs.py
+@@ -0,0 +1,12 @@
++#!/usr/bin/env python3
++"""Generate six encoded guest fixtures from the checked-in deterministic corpus."""
++import pathlib,sys
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++sys.path.insert(0,str(ROOT/'tests/translation-diff'))
++from cpu_run import updating_corpus,multi_corpus
++out=ROOT/'build/hardware-cpu-integration/fixtures'
++names={'updating-c-basic','updating-d-basic','updating-e-basic','updating-f-basic','multi-op-2','multi-op-8'}
++for name,image,vector,stop in list(updating_corpus())+list(multi_corpus()):
++ if name not in names:continue
++ d=out/name;d.mkdir(parents=True,exist_ok=True);(d/'memory.bin').write_bytes(image);(d/'config.hex').write_text(''.join(f'{w:08x}\n' for w in [vector,0,stop,0,0,0,0,0]))
++print(out)
+-- 
+2.43.0
+

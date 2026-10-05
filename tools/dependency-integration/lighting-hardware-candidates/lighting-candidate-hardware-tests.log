@@ -1,0 +1,60 @@
+   Compiling qdx-a-model v0.1.0 (/tmp/lighting-hardware-integration-20261005/vendor/rax-plio-qdx/hardware/qdx-a/rust)
+   Compiling qdx-a-card-model v0.1.0 (/tmp/lighting-hardware-integration-20261005/vendor/rax-plio-qdx/hardware/qdx-a-card/rust)
+   Compiling qdx-b-model v0.1.0 (/tmp/lighting-hardware-integration-20261005/vendor/rax-plio-qdx/hardware/qdx-b/rust)
+   Compiling qdx-b-card-model v0.1.0 (/tmp/lighting-hardware-integration-20261005/vendor/rax-plio-qdx/hardware/qdx-b-card/rust)
+   Compiling lighting-simulation v0.1.0 (/tmp/lighting-hardware-integration-20261005)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.60s
+     Running tests/hardware_cpu_board.rs (LightingSimulation/target/debug/deps/hardware_cpu_board-68772cbb76823c60)
+
+running 6 tests
+test normal_validation_is_side_effect_free_and_bounded ... ok
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 1: bluetcl: not found
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 1: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 1: bluetcl: not foundbluetcl: not found
+
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 1: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 1: bluetcl: not foundbluetcl: not found
+
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge: 1: bluetcl: not found
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge: 1: bluetcl: not found
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 12: exec: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 12: exec: /tcllib/bluespec/bluesim.tcl: not found/tcllib/bluespec/bluesim.tcl: not found
+
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 12: exec: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 12: exec: /tcllib/bluespec/bluesim.tcl: not found/tcllib/bluespec/bluesim.tcl: not found
+
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge: 12: exec: /tcllib/bluespec/bluesim.tcl: not found
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge: 12: exec: /tcllib/bluespec/bluesim.tcl: not found
+
+thread 'real_mainboard_validation_rejects_mmio_and_bad_shapes_without_target_access' (1034) panicked at tests/hardware_cpu_board.rs:193:22:
+called `Result::unwrap()` on an `Err` value: "M6.4 bridge timeout cycle 0: channel is empty and sending half is closed"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'real_mainboard_preserves_access_class_and_rejects_mmio_before_target_access' (1033) panicked at tests/hardware_cpu_board.rs:47:16:
+called `Result::unwrap()` on an `Err` value: "M6.4 bridge timeout cycle 0: channel is empty and sending half is closed"
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge: 12: exec: /tcllib/bluespec/bluesim.tcl: not found
+
+thread 'compiled_forge_workload_returns_through_production_cpu_and_mainboard' (1030) panicked at tests/hardware_cpu_board.rs:254:6:
+called `Result::unwrap()` on an `Err` value: "hardware CPU reply: channel is empty and sending half is closed"
+test real_mainboard_validation_rejects_mmio_and_bad_shapes_without_target_access ... FAILED
+test real_mainboard_preserves_access_class_and_rejects_mmio_before_target_access ... FAILED
+test compiled_forge_workload_returns_through_production_cpu_and_mainboard ... FAILED
+
+thread 'production_cpu_executes_updating_and_grouped_transfers_through_real_mainboard' (1032) panicked at tests/hardware_cpu_board.rs:138:6:
+called `Result::unwrap()` on an `Err` value: "hardware CPU reply: channel is empty and sending half is closed"
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge: 1: bluetcl: not found
+test production_cpu_executes_updating_and_grouped_transfers_through_real_mainboard ... FAILED
+/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge: 12: exec: /tcllib/bluespec/bluesim.tcl: not found
+
+thread 'translated_execution_matches_rust_through_real_cpu_and_mainboard' (1038) panicked at tests/hardware_cpu_board.rs:300:78:
+called `Result::unwrap()` on an `Err` value: "hardware CPU reply: channel is empty and sending half is closed"
+test translated_execution_matches_rust_through_real_cpu_and_mainboard ... FAILED
+
+failures:
+
+failures:
+    compiled_forge_workload_returns_through_production_cpu_and_mainboard
+    production_cpu_executes_updating_and_grouped_transfers_through_real_mainboard
+    real_mainboard_preserves_access_class_and_rejects_mmio_before_target_access
+    real_mainboard_validation_rejects_mmio_and_bad_shapes_without_target_access
+    translated_execution_matches_rust_through_real_cpu_and_mainboard
+
+test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test hardware_cpu_board`
