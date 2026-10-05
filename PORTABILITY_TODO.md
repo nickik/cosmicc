@@ -329,10 +329,13 @@ TARGET_OUTPUT_STATUS.md. Remaining ABI/frontend gaps are explicitly recorded.
   The first profile passes 587/1,216 on SIA; the 567 GCC-accepted differences
   remain categorized for compiler/linker/runtime work. See the raw report and
   interpretation in tools/compatibility.
-- [ ] Add a defined-behavior Csmith differential corpus with pinned generator
-  seeds and GCC/Clang O0/O2 checksums. Source review, optimization agreement and
-  expected-output assertions complement each other; compiler agreement is not
-  an infallible oracle.
+- [x] Add a pinned, defined-behavior Csmith SIA differential runner. First
+  32-seed integer profile: 19 execute/checksum passes, 13 Cosmic compile
+  rejections, zero SIA runtime mismatches. See tools/compatibility.
+- [ ] Define the conformance contract (recommended: ISO C17 freestanding for
+  SIA), document implementation-defined behavior and diagnostic policy, obtain
+  a licensed standards-directed validation suite, and run its positive and
+  negative cases through the LightingMachine output hook.
 - [ ] Expand native runtime measurements to representative full applications and
   broader inputs; small hot-cache kernels do not establish universal performance.
 - [ ] Add backend-only timing with equivalent IR if isolating Cranelift vs LLVM;

@@ -170,3 +170,38 @@ The first pinned run and exact per-case outcomes are retained in
 GCC-accepted failure as a triage item: the corpus includes GNU extensions and
 some target-sensitive or undefined programs, and passing this filter is not a
 standard-conformance score.
+
+## Defined-behavior randomized differential testing with Csmith
+
+Csmith complements fixed feature tests with deterministic generated programs.
+Its project describes it as a random C-program generator for differential
+compiler testing that emits programs intended to avoid undefined behavior
+([project documentation](https://github.com/csmith-project/csmith)). This is
+bug-finding evidence, not an ISO conformance test. The SIA profile runs each
+seed on LightingMachine, checking the generated Csmith checksum against the
+GCC reference. It uses Csmith minimal runtime, a no-output target shim, and the
+integer-only SIA floating-point runtime closure; generated floating-point syntax
+is currently disabled in this first profile.
+
+The generator source revision and redistribution license are recorded in
+[`csmith.lock.json`](csmith.lock.json). Build the pinned Csmith source to an
+`install/` prefix under its checkout, then run a fresh output directory:
+
+```sh
+python3 tools/compatibility/csmith-differential-sia.py \
+  /path/to/csmith-checkout /tmp/cosmic-csmith-sia --seeds 32 --timeout 20
+```
+
+The JSON stores the exact seed set, options, source hashes, GCC checksums,
+toolchain/runtime hashes, and per-seed compile/execute results. Generated source
+and logs are kept in the output directory for review and minimization. Compile
+rejections are separate from checksum mismatches and timeouts.
+
+For an actual standards-conformance claim, randomized testing and GCC's own
+regressions are not enough. Plum Hall's current CV-Suite maps releases to ISO C
+editions, including C11, C17 and C23, and publishes coverage/commentary
+reports. Its guide specifically supports freestanding tests by configuring the
+output hook for a simulator/emulator. It is a licensed suite, and must be
+configured for Cosmic's chosen standard and implementation-defined behavior
+([CV-Suite guide](https://plumhall.com/newsite/doc/cvs25a.pdf),
+[freestanding setup](https://www.plumhall.com/newsite/index.html)).

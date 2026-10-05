@@ -1,0 +1,22 @@
+{
+  "source": "https://github.com/csmith-project/csmith.git",
+  "revision": "0cdc710315cfee9035e22ef4363ca479270d1934",
+  "revision_date": "2026-03-01",
+  "license": "BSD-3-Clause (Csmith source; see upstream COPYING)",
+  "suite_role": "Deterministic random defined-behavior C generation for differential bug finding; not ISO C conformance certification",
+  "profile": {
+    "seeds": "1..N, default N=32",
+    "options": [
+      "--no-argc",
+      "--no-float",
+      "--concise",
+      "--max-block-depth 2",
+      "--max-block-size 3",
+      "--max-expr-complexity 4",
+      "--max-funcs 3"
+    ],
+    "reference": "GCC -std=c11 -O0 with CSMITH_MINIMAL checksum output",
+    "target": "Cosmic C SIA32 and LightingMachine architectural simulator",
+    "runtime": "Csmith minimal runtime, exact checksum return check, fail-closed print shim, and integer-only soft-float runtime"
+  }
+}

@@ -247,3 +247,23 @@ the object/archive input. ELF and suite logs are retained in
 This private SIA ELF machine is not supported by ordinary GNU/LLVM host linkers,
 and the simulator result does not establish a protected-OS or physical-board
 loader contract.
+
+## Pinned Csmith differential run on SIA (2026-10-05)
+
+The Csmith 2.4.0 generator at pinned revision
+`0cdc710315cfee9035e22ef4363ca479270d1934` produced 32 reproducible integer-
+focused seeds. All 32 GCC 13.3 references compiled and ran. Nineteen compiled
+and matched their checksum on SIA/LightingMachine; Cosmic rejected 13 during
+compilation, chiefly nonconstant global scalar initializers and pointer type /
+qualifier handling. No SIA runtime mismatch occurred among accepted programs.
+The exact seed set, generated-source hashes, checksums, tools and runtime hashes
+are in the [raw run report](tools/compatibility/results/2026-10-05-csmith-sia/summary.json)
+and [run notes](tools/compatibility/results/2026-10-05-csmith-sia/README.md).
+
+Csmith is a random defined-behavior bug-finding complement, not a standards
+conformance score. For a standards-directed claim, the recommended next step is
+to select a standard and target profile, then evaluate a licensed conformance
+suite. Plum Hall CV-Suite currently lists C11/C17/C23 and documents how to
+configure a freestanding test output hook for an emulator/simulator. A full run
+requires licensed suite files and a Cosmic-specific configuration; none are
+present in this checkout.
