@@ -1,0 +1,450 @@
+{
+  "machine": {
+    "platform": "Linux-7.1.5-76070105-generic-x86_64-with-glibc2.39",
+    "cpu_model": "AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics",
+    "logical_cpus": 16,
+    "original_allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "measurement_cpu": 0,
+    "affinity": [
+      0
+    ],
+    "cpufreq": {
+      "scaling_governor": "powersave",
+      "scaling_driver": "amd-pstate-epp",
+      "cpuinfo_min_freq": "419175",
+      "cpuinfo_max_freq": "5134889",
+      "scaling_cur_freq": "3933323"
+    },
+    "boost": "1",
+    "loadavg": [
+      10.15869140625,
+      11.54833984375,
+      8.8251953125
+    ],
+    "no_system_settings_changed": true
+  },
+  "versions": {
+    "cosmic": "cosmicc 0.12.0 (SIA32, amd64 Linux)",
+    "gcc": "gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+  },
+  "tool_hashes": {
+    "cosmic": "7e7f64f3bd7f6bf2794b2b82d2639f7adfc7dd09fd24cab66652fbff4fc631d3",
+    "gcc": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+    "clang": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+  },
+  "system_component_hashes": {
+    "cc1": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/13/cc1",
+      "sha256": "5d1679131184e2de4435b426eb264bf13472fe026db8e5c6bc97445814e8e2f4"
+    },
+    "collect2": {
+      "path": "/usr/libexec/gcc/x86_64-linux-gnu/13/collect2",
+      "sha256": "4d1f341ae5b763b513258ee2812422a45e063c30a2f1924a0cf63d3699f3a158"
+    },
+    "ld": {
+      "path": "/usr/bin/x86_64-linux-gnu-ld.bfd",
+      "sha256": "e9ceb054c12207970f2726dfc07e9a66b411602748628baf27399f02a9bbb31b"
+    }
+  },
+  "sources": {
+    "kernels.c": "94d5aecb49c1c891fe04b786f6c72e2dfc52228c05f19e26f2c7bad4134a4c44",
+    "harness.c": "26d6bb4ca7508d6c8eb482a059d1041d91636bf0fb6b7dfeb30fd345911f5bc0",
+    "compare.py": "8b4581920c1134f8863b8276de474a61d917791f134c275b71bf6a461c07894d",
+    "zlib": {
+      "adler32": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+      "crc32": "da37f3483e77c20f64c28cf55d62d7bed9d62af33eb401be906835d84539b9c9",
+      "deflate": "ea9ca4eb51b1a71aaf214b99f4a9fab177253d6268cae8e4c26d44d1812e52c2",
+      "infback": "bf9788af31e08a4242fc9d36bc0ce1a7a667bbfd9edc51ff26146195ee2e528a",
+      "inffast": "f96787a11bb7131ffd2221fb40db27f6a5a1dfb12f59c0bc388807010749c34a",
+      "inflate": "90221ea7d762e7044057f6ad5013e969086c6ba3d3051716b7aa786d7a6362ec",
+      "inftrees": "f7ee9ce5925fc9d1579c76e574feed85f5ca4ccddc446a7795578854bbc65743",
+      "trees": "a16217d5ea6d8342ff08afe5207b1dab620f05610e121dda55b4f9aae9de4f68",
+      "zutil": "1279908a15580224a2c1f377555ffdd150327fed71801aa77fc35978dcb741c8"
+    }
+  },
+  "compiler_sha256": "7e7f64f3bd7f6bf2794b2b82d2639f7adfc7dd09fd24cab66652fbff4fc631d3",
+  "cosmic_generated_optimization": {
+    "O0": "Cranelift none",
+    "O2": "Cranelift speed (not equivalent optimization pipeline to GCC/Clang O2)"
+  },
+  "iterations": 20000,
+  "variants": [
+    {
+      "name": "cosmic-O0",
+      "tool": "cosmic",
+      "level": "O0",
+      "executable": "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot"
+    },
+    {
+      "name": "cosmic-O2",
+      "tool": "cosmic",
+      "level": "O2",
+      "executable": "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot"
+    },
+    {
+      "name": "gcc-O0",
+      "tool": "gcc",
+      "level": "O0",
+      "executable": "/usr/bin/gcc-13"
+    },
+    {
+      "name": "gcc-O2",
+      "tool": "gcc",
+      "level": "O2",
+      "executable": "/usr/bin/gcc-13"
+    },
+    {
+      "name": "clang-O0",
+      "tool": "clang",
+      "level": "O0",
+      "executable": "/usr/bin/clang-18"
+    },
+    {
+      "name": "clang-O2",
+      "tool": "clang",
+      "level": "O2",
+      "executable": "/usr/bin/clang-18"
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "gcc-13",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/harness.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o"
+      ],
+      "log": "harness-build.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o"
+      ],
+      "log": "cosmic-O0-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0"
+      ],
+      "log": "cosmic-O0-link-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O0",
+        "20000"
+      ],
+      "log": "cosmic-O0-validate.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o"
+      ],
+      "log": "cosmic-O2-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2"
+      ],
+      "log": "cosmic-O2-link-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/cosmic-O2",
+        "20000"
+      ],
+      "log": "cosmic-O2-validate.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o"
+      ],
+      "log": "gcc-O0-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0"
+      ],
+      "log": "gcc-O0-link-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O0",
+        "20000"
+      ],
+      "log": "gcc-O0-validate.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/gcc-13",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o"
+      ],
+      "log": "gcc-O2-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2"
+      ],
+      "log": "gcc-O2-link-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/gcc-O2",
+        "20000"
+      ],
+      "log": "gcc-O2-validate.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O0",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o"
+      ],
+      "log": "clang-O0-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0"
+      ],
+      "log": "clang-O0-link-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O0",
+        "20000"
+      ],
+      "log": "clang-O0-validate.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/usr/bin/clang-18",
+        "-fPIC",
+        "-O2",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/benchmarks/kernels.c",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o"
+      ],
+      "log": "clang-O2-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "gcc-13",
+        "/tmp/cosmic-laptop-benchmark-final2/harness.o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2.o",
+        "-o",
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2"
+      ],
+      "log": "clang-O2-link-prepare.log",
+      "timeout_seconds": 120
+    },
+    {
+      "command": [
+        "/tmp/cosmic-laptop-benchmark-final2/clang-O2",
+        "20000"
+      ],
+      "log": "clang-O2-validate.log",
+      "timeout_seconds": 120
+    }
+  ],
+  "validation": {
+    "cosmic-O0": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    },
+    "cosmic-O2": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    },
+    "gcc-O0": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    },
+    "gcc-O2": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    },
+    "clang-O0": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    },
+    "clang-O2": {
+      "validation": {
+        "hash": 4628935535685827459,
+        "branch": 11863772229687728815,
+        "divide": 562949860355754,
+        "matrix": 6523820685074985805
+      },
+      "aggregate": {
+        "hash": 12948951842019170912,
+        "branch": 176039915778805902,
+        "divide": 11258996867221378514,
+        "matrix": 18446744073709545791
+      }
+    }
+  },
+  "reference_checksums": {
+    "validation": {
+      "hash": 4628935535685827459,
+      "branch": 11863772229687728815,
+      "divide": 562949860355754,
+      "matrix": 6523820685074985805
+    },
+    "aggregate": {
+      "hash": 12948951842019170912,
+      "branch": 176039915778805902,
+      "divide": 11258996867221378514,
+      "matrix": 18446744073709545791
+    }
+  },
+  "artifact_hashes": {
+    "harness.o": "abf66152327e48095948559f0073d9110fab0d6da70fe02011a9120e67f7f726",
+    "cosmic-O0": "0c3f24eb32294c92ac8fff07732d444d1fd10ecb53afc465da5a2bef2b9d463f",
+    "cosmic-O0.o": "0d7bd7a5358cae05b563d4c30d79ebc198c49bc183c772fe2c0c8007d9aee0ca",
+    "cosmic-O2": "d38ef68859708e90967b03bb56238e84067e3c1a60a084dd4e2460ade8d02526",
+    "cosmic-O2.o": "d62f6beb26d5b145e9af1f4431ae33809fa2a6b7094dcd49bb73f9e8f3f74f91",
+    "gcc-O0": "b6e4f396260cf1ae2e5cbe4c06bafeed724fd8bf6903e43869e112932e28e372",
+    "gcc-O0.o": "0d0c1faecf55cbe7525bb47d306bc9f1cfd8e6be556c1220c0ef7135c64d6552",
+    "gcc-O2": "b945bd52abee0fcaf56c9c97c4aa5474749a23b9a03c3481537e74bb2c0313c6",
+    "gcc-O2.o": "72756eb7f4e07a95badc011990b2fbd371ac9f7a6363a415894329650f818989",
+    "clang-O0": "a32f4bc53d5ad17f05aba958f83a1544f3340158ca4761ae8e7eee1689b52953",
+    "clang-O0.o": "1378ac4b7eeb77cbc0964959745b0bc27f9f38397c16e8e99f6cfa3c66a1f22b",
+    "clang-O2": "0f918331c5c542ab85e089f1ec06cc21614f3114f11eda6bd018caea4cc2baaf",
+    "clang-O2.o": "f0d50b1b96b2d121627296521606726dfed23a7b5716c8f2811d4994b4eb5ed4"
+  }
+}

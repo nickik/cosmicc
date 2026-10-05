@@ -8,3 +8,6 @@
 
 /tools/l21-execution/target/
 !/tools/l21-execution/Cargo.lock
+
+__pycache__/
+*.pyc

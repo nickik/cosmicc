@@ -1,0 +1,1 @@
+PASS validation read/write, alignment, BE, MMIO/range and qualified-write/validate/reserved/MMIO rejection; no mutation

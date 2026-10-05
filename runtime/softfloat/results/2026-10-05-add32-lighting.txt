@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running `cosmicc/tools/l21-execution/target/debug/sia-source-native /tmp/cosmic-softfloat-add32-final-flat.c`
+PASS SIA source /tmp/cosmic-softfloat-add32-final-flat.c; 453343 instructions; board=false

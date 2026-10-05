@@ -10,5 +10,6 @@ void free(void *ptr);
 void abort(void);
 void exit(int status);
 int atexit(void (*function)(void));
+unsigned long strtoul(const char *restrict str, char **restrict endptr, int base);
 
 #endif

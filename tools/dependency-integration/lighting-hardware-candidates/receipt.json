@@ -1,0 +1,99 @@
+{
+  "publication": "local feature candidates only; RealCard feature push rejected by automatic review; no main merge",
+  "git_dependencies": {
+    "SIA": "ae9d5771a788d374c7be86e77da3724252b5fd06",
+    "RealCard": "b09117c762a36f6d25256fc3d0de3c212ada2d61"
+  },
+  "candidates": {
+    "LightingSimulation": {
+      "commit": "7a0c16aff324f678a72a05df163c208f8031914f",
+      "branch": "cosmicc-hardware-cpu-integration",
+      "base": "83a6acf8421356473a61336b0d58a504f7b40da8",
+      "path": "/tmp/lighting-hardware-integration-20261005"
+    },
+    "LightingChips": {
+      "commit": "6d4a03e1ae31a008685cad68072ad1a652c62a85",
+      "branch": "cosmicc-hardware-cpu-integration",
+      "base": "b4f4cee0524ebbfa61a5a9049f27755e05f6492e",
+      "path": "/tmp/lighting-chips-cpu-integration-20261005"
+    }
+  },
+  "tests": {
+    "direct_rtl": "6/6 PASS, fresh source builds",
+    "configured_hardware": "6/6 PASS, no skips",
+    "reference": "10/10 PASS",
+    "compiler_Generic": "parent log /tmp/cosmicc-013-generic-fresh-production.log: PASS595"
+  },
+  "files": {
+    "/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge": "bf2e2b5eeb6b1d7f4a25766a1c874723653a581ef46666a286bf006981fda69e",
+    "/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/cpu/bridge.so": "03fc29a706710d96b42dd48aad207f402e376aaecce0ec8fed1d085961ed55bf",
+    "/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge": "52e41062d9f2f33431c3ffd52d53477f16c336a7c2379eaa12b3f9107051ba98",
+    "/tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/mainboard/bridge.so": "c071e4c4ee5ed887ab40b15863e3e5e2fbd302fc14844fa9a15e1bc623919c5b",
+    "LightingChips.patch": "242953a8bf0cbf1a570b1e67dc6a1223727868995b00165e13bc270f3c5f91c5",
+    "LightingComputeBoardMulti.log": "256567332fdcec9a7b8f671c9b77bbe1b0b42465d8e9f08b133be3f401fa309d",
+    "LightingComputeBoardTranslation.log": "28a6f41a3428bd0f673f6554a5bb525f0c2641696f6cbcb321ad1417ccf8c790",
+    "LightingCpu.log": "d30c579bf62eae009f6af28045cb3dbf3074e1aad0f1d36de9ada6312b8f1958",
+    "LightingCpuMulDivInterrupt.log": "312b23b8f17b6ca693119c58011b45e71220eb309b0d564d86b989457b554ed3",
+    "LightingMulDiv.log": "471c00e4244b2d24f88ee608830ba076452ba6a0189cd0be8bf9da9b8f2822a0",
+    "LightingSimulation.patch": "b1d74a2d22e0bcdfe3e63807b6d0e75bef56c197bdacc36fd32fe56bf9d5c813",
+    "ModuleBusAdapterStaleGrant.log": "32c92bc080a3934789694e1677e851abeedebfc10298e3da344a9e3f1c44fd6a",
+    "lighting-candidate-cpu-bridge-build.log": "3576a145ee8d44d7047f07dce1ed96679a5b62314877f21209876c28cf7f0671",
+    "lighting-candidate-directed-rtl.log": "63b0a88dea07db9b0e12b30f9c0e753a9cc06aba8b27f53bef69d4311352b28f",
+    "lighting-candidate-hardware-tests-final.log": "14baf21cf5d1554ba2684bebdceea96e37133ced379a7de3cabd65f17ba27bc1",
+    "lighting-candidate-hardware-tests.log": "53631e29547d7dcdaf820c463dfc9341ede878ea75724c0ec34eb3eee116c39c",
+    "lighting-candidate-hardware-wrapper-final.log": "f340c758a79491ddbdd5cb324beff6f84acb2e4152f6b8cf50e1093cd639580c",
+    "lighting-candidate-mainboard-bridge-build.log": "70343e0901b7c42f56bb9748ec46f9ef9f0e8b54649b53ac97a57c4fd2151402",
+    "lighting-hardware-integration-reference-tests-final.log": "ceebcfa33570f2d2b286b5eda66dbe187ef9d05bccd6d709803bbacf67e62209",
+    "lighting-hardware-integration-reference-tests.log": "5ce4abbe69d5d9bc06658fad02183fe3b8e5c434c30a7075664ee7f50d562743",
+    "README.md": "7c405b31c58fd35976f112da574298a9f7f414e495deb5ef316cb23ec826a16a"
+  },
+  "source_files": {
+    "LightingSimulation": {
+      "Cargo.lock": "29732ef410c8ebef2625ad7c805aaf91a5bbc1f45a582e2221185d472492e93b",
+      "Cargo.toml": "55b6f3b11b6e661fc94328921c4f45c092a084f0876c7182dc0a009437423b5d",
+      "docs/HARDWARE-CPU-INTEGRATION.md": "fa48fb0e82696b7e8d047a0adf5f4df1980279ac294ff85d817caf207b950904",
+      "hardware/m6/TbMainboardMultiSlotBridge.bsv": "7a65413300b46973a0d89d32cb4105686d5616ba5cad3aff79dd6cdda4665359",
+      "src/board_machine.rs": "8378598624c30fc311c1159f3ac319071c39895a064b0ab9b5a1866c58fbe1d7",
+      "src/bus.rs": "296cd5c781b4d7fc5c5934d8b3785c44dea63ee8270e01bbfca5ee87ae58c188",
+      "src/cpu_board.rs": "79536cbc5e3bc1ddce9d9473f00bd2c2246537bdc776f5ab4e7ecd2b55b570b1",
+      "src/hardware_cpu_board.rs": "0619c962e0bdf4011a92653055bfb89d2c136475aebc33515380e49ab2290b9e",
+      "src/lib.rs": "b45a34328f4a50d5a2d94e7884f19b1746635b3d2155e96517718aa60d9152ff",
+      "src/mainboard_fpga_multislot_peer.rs": "82e307476dd0c43fcc07e6c9310af62893f976333136ad46e75b66ba0a5bee66",
+      "src/mainboard_fpga_peer.rs": "eff8c90f156786b90b8e1597594dc0e2992385d11d7ee361860971edb16ebcdc",
+      "src/native_board_call.rs": "beaebb659831ff1dda88b8246f9b7c1e873e8814303c68d991c06112b8d7da43",
+      "src/privilege.rs": "ded7dc74e85942a6c3a52b2078dc25790031441c6a8e11ab63f7899185fe30ab",
+      "tests/hardware_cpu_board.rs": "99b492bbcb9e8c92087914063500e17a814eb731e26b1d549d2cef3697a8cf52",
+      "tools/check-hardware-cpu.py": "f210e1ce372f846891963674423fd8f69c57fc993b7334a190ce83d8497f55a3"
+    },
+    "LightingChips": {
+      "docs/HARDWARE-CPU-INTEGRATION.md": "9e452fa0479f2b7be708571fb79418bde1efec108b98d740096fb4bab6062bd5",
+      "rtl/common/CpuMmu.bsv": "ce6a7281c143f207bfab4236547e24f570d2e384a3b9a8adad9ab85ab741aaec",
+      "rtl/common/PhysicalMem.bsv": "04445a3315f6f2234b714803bfb96cecf99f4ca219a8d71f478214a078433076",
+      "rtl/cpu/LightingCpu.bsv": "4ceb87c11aab05ed35d542d5b9678237ccb0db55a17430bc175709e8ee492ee3",
+      "rtl/cpu/LightingMulDiv.bsv": "24c2fb761ec3dd9f012274f643127f470783191f90535923e2e9c1aa4b63307d",
+      "rtl/mmu/LightingMmu.bsv": "ded5d9a324ad74a4f614301915cf76b0730538ad8472385db04204e46696d286",
+      "rtl/module/LightingMemoryBus.bsv": "81400caa8185bf808ba52b287368a9ed5d6c573224da64d2f24b9ad5bc379c87",
+      "rtl/module/ModuleBusAdapter.bsv": "9fbfae24eaa1565f6e112479a841a41559b72cfabaa5d49fff05c1f478d8f153",
+      "sim/FlatCpuMemory.bsv": "0f27523f17b6a5c6d84c33eedfefe5c55bf9067e8fb1695599b799167d03c559",
+      "sim/TestMachine.bsv": "6ef352e71ce16820d4bbd09d3d405e60dcdf327b2f6e2a235e743c6c077f5084",
+      "tests/boot/workload.fg": "f2ac9f4bcb6fcb71be7d99deb16a74482f716af5d6152510954f2b833a2db579",
+      "tests/bsv/TbLightingComputeBoardMulti.bsv": "e40498be4049d3229629a8245386cefd5b3d194f8d5a378b2f54409ece370d30",
+      "tests/bsv/TbLightingComputeBoardTranslation.bsv": "1bed50fa946a1e309d55f3603b6a17fcfe1ba79f5812acfec799c02992aacad7",
+      "tests/bsv/TbLightingCpuMulDivInterrupt.bsv": "ee7f5aeafd586acc45d3ebdc331557e0cc9651f037a1c5a3f2d1ddd1953f3033",
+      "tests/bsv/TbLightingMulDiv.bsv": "fc6b8ee380732ef63409c9e5f6512db9c89a96a4829a379357b5b813d025a153",
+      "tests/bsv/TbModuleBusAdapterStaleGrant.bsv": "81106ddbf85adc0647803cb3fe694e6ce163224fb16d1cc2dad9957ba2afe501",
+      "tests/bsv/muldiv_fixture.py": "e91357af3e417fb1cb2646a9d36ecdc80d36a8eccda486704867daac09fd64cb",
+      "tests/privilege-diff/run.py": "1e4865d65b6120aed7eddbb50525cababaade84ea7420f303d7a90cd8490d90c",
+      "tests/system/TbLightingCpuBoardBridge.bsv": "3ee32b5948f87706975a28d28b6a40b3166661510f1ff4077d5a3b41fb836dc1",
+      "tests/translation-diff/cpu_run.py": "194954663920350773e3966dca4d4effa92fa9f2b315b010631697f2de58d87f",
+      "tests/translation-diff/run.py": "3a915cce36e96ca593826c813d05b3608d5088e07df8fded821cef09329bee5d",
+      "tools/build-cpu-integration-bridges.py": "1025921be33630ff96f8835ef14574746d7094084a7f1f60a53432c5efd378ea",
+      "tools/check-cpu-integration-rtl.py": "35d229c505bdd3f57830791d5663e3a40551813aa7b4eac5761ddf6f9d4b1837",
+      "tools/prepare-cpu-integration-inputs.py": "640e8f9b1b59fc3ceb1756fc3a2d722b1037e3bb0f223aee27928707ed503a45"
+    }
+  },
+  "tools": {
+    "bsc_sha256": "4e8b29bedbf4d27f146c28e6b56bf4d8dec59c7bf133276267575286ca57e4e8",
+    "forge_sha256": "532c47f1cc4dc162c75b5c871cf434bde452741b9c7d28aacba7b9927b513ff2"
+  }
+}

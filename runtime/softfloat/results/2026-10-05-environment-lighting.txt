@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running `tools/l21-execution/target/debug/sia-float-language runtime/softfloat/environment-vectors-test.c --max-instructions 20000000`
+PASS SIA C software floating-point source runtime/softfloat/environment-vectors-test.c; 1891004 instructions; board=false

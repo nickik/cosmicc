@@ -10,6 +10,9 @@ impl FunctionAnalyzer<'_> {
         use ast::StmtType::*;
         use StmtType as S;
 
+        // A nested statement must not consume temporaries belonging to its
+        // parent's condition or loop expressions.
+        let pending = std::mem::take(&mut self.analyzer.decl_side_channel);
         // ugh so much boilerplate
         let data = match stmt.data {
             Compound(stmts) => {
@@ -106,6 +109,7 @@ impl FunctionAnalyzer<'_> {
         } else {
             data
         };
+        self.analyzer.decl_side_channel = pending;
         Locatable::new(data, stmt.location)
     }
     // 6.8.1 Labeled statements
@@ -117,7 +121,7 @@ impl FunctionAnalyzer<'_> {
     ) -> StmtType {
         use super::expr::literal;
 
-        let expr = match self.expr(expr).const_fold() {
+        let expr = match self.expr(expr).const_fold_for(self.analyzer.target) {
             Ok(e) => e,
             Err(err) => {
                 self.analyzer.error_handler.push_back(err);

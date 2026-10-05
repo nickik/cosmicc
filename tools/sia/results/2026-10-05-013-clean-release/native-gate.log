@@ -1,0 +1,42 @@
+Cloning into '/tmp/cosmicc-013-clean-git-release/tools/l21-execution/target/git/LightingChips-6d4a03e1ae31a008685cad68072ad1a652c62a85'...
+HEAD is now at 6d4a03e Add production CPU bridge dependency closure and bounded RTL gates
+cpu bridge BUILD PASS
+mainboard bridge BUILD PASS
+   Compiling plio-logical-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling pti-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling sia32-tools v0.1.0 (https://github.com/nickik/SIA?rev=ae9d5771a788d374c7be86e77da3724252b5fd06#ae9d5771)
+   Compiling saltwater-parser v0.13.0 (/tmp/cosmicc-013-clean-git-release/saltwater-parser)
+   Compiling plio-tx-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling qli-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling plio-host-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling plio-qic-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling qdx-a-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling qli16-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling qdx-b-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling plio-testbench v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling qdx-a-card-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling qdx-b-card-model v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling lighting-simulation v0.1.0 (https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16af)
+   Compiling saltwater-sia v0.13.0 (/tmp/cosmicc-013-clean-git-release/saltwater-sia)
+   Compiling cosmicc-l21-execution v0.1.0 (/tmp/cosmicc-013-clean-git-release/tools/l21-execution)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.10s
+     Running `/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution/target/debug/cosmicc-l21-execution`
+L21 PASS normal_scope: result=496 SP=000f0000 instructions=3427 cycles=26714
+L21 PASS nested_scope: result=13 SP=000f0000 instructions=2034 cycles=16065
+L21 PASS return_nested: result=42 SP=000f0000 instructions=58 cycles=677
+L21 PASS return_conditional: result=16 SP=000f0000 instructions=99 cycles=1027
+L21 PASS return_early: result=9 SP=000f0000 instructions=58 cycles=685
+L21 PASS continue: result=496 SP=000f0000 instructions=3824 cycles=29709
+L21 PASS break: result=120 SP=000f0000 instructions=2162 cycles=16729
+L21 PASS goto_out: result=120 SP=000f0000 instructions=1977 cycles=15196
+L21 PASS goto_same_scope: result=16 SP=000f0000 instructions=954 cycles=7840
+L21 PASS multidimensional: result=42 SP=000f0000 instructions=77 cycles=858
+L21 PASS sizeof: result=20 SP=000f0000 instructions=21 cycles=370
+L21 PASS conditional_return_then_break: result=11 SP=000f0000 instructions=314 cycles=2643
+L21 PASS conditional_return_in_loop: result=11 SP=000f0000 instructions=84 cycles=881
+L21 PASS loop_exits_preserve_outer: result=7 SP=000f0000 instructions=432 cycles=3535
+L21 PASS goto_preserves_outer: result=55 SP=000f0000 instructions=762 cycles=5960
+L21 PASS 48 signed/unsigned comparison cases
+L21 PASS bounded execution failure diagnostics
+L21 PASS architectural fault diagnostics
+L21 PASS rejected entry into active VLA scope

@@ -1,0 +1,1103 @@
+From 7a0c16aff324f678a72a05df163c208f8031914f Mon Sep 17 00:00:00 2001
+From: Niklaus Zbinden <niklaus.zbinden@gmail.com>
+Date: Mon, 5 Oct 2026 04:48:38 +0200
+Subject: [PATCH] Integrate production RTL CPU board and qualified memory
+ protocol
+
+---
+ Cargo.lock                                 |   2 +-
+ Cargo.toml                                 |   2 +-
+ docs/HARDWARE-CPU-INTEGRATION.md           |  15 +
+ hardware/m6/TbMainboardMultiSlotBridge.bsv |   6 +-
+ src/board_machine.rs                       |  29 +-
+ src/bus.rs                                 |  18 ++
+ src/cpu_board.rs                           | 101 +++++-
+ src/hardware_cpu_board.rs                  | 171 +++++++++++
+ src/lib.rs                                 |   1 +
+ src/mainboard_fpga_multislot_peer.rs       |  10 +-
+ src/mainboard_fpga_peer.rs                 |   2 +
+ src/native_board_call.rs                   |  52 +++-
+ src/privilege.rs                           |  13 +-
+ tests/hardware_cpu_board.rs                | 340 +++++++++++++++++++++
+ tools/check-hardware-cpu.py                |   9 +
+ vendor/rax-plio-qdx                        |   2 +-
+ 16 files changed, 741 insertions(+), 32 deletions(-)
+ create mode 100644 docs/HARDWARE-CPU-INTEGRATION.md
+ create mode 100644 src/hardware_cpu_board.rs
+ create mode 100644 tests/hardware_cpu_board.rs
+ create mode 100755 tools/check-hardware-cpu.py
+
+diff --git a/Cargo.lock b/Cargo.lock
+index 76d4919..7c12632 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -595,7 +595,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+ [[package]]
+ name = "sia32-tools"
+ version = "0.1.0"
+-source = "git+https://github.com/nickik/SIA?rev=c800c693ffdd0328e5209184a0a5a1ce534cfe01#c800c693ffdd0328e5209184a0a5a1ce534cfe01"
++source = "git+https://github.com/nickik/SIA?rev=ae9d5771a788d374c7be86e77da3724252b5fd06#ae9d5771a788d374c7be86e77da3724252b5fd06"
+ 
+ [[package]]
+ name = "smallvec"
+diff --git a/Cargo.toml b/Cargo.toml
+index 5ea7035..c649713 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -22,7 +22,7 @@ name = "lighting-memory-bench"
+ path = "src/bin/lighting-memory-bench.rs"
+ 
+ [dependencies]
+-sia32-tools = { git = "https://github.com/nickik/SIA", rev = "c800c693ffdd0328e5209184a0a5a1ce534cfe01" }
++sia32-tools = { git = "https://github.com/nickik/SIA", rev = "ae9d5771a788d374c7be86e77da3724252b5fd06" }
+ plio-host-model = { path = "vendor/rax-plio-qdx/hardware/plio-rax-host/rust" }
+ plio-logical-model = { path = "vendor/rax-plio-qdx/hardware/plio-logical/rust" }
+ plio-qic-model = { path = "vendor/rax-plio-qdx/hardware/qic/rust" }
+diff --git a/docs/HARDWARE-CPU-INTEGRATION.md b/docs/HARDWARE-CPU-INTEGRATION.md
+new file mode 100644
+index 0000000..60fd411
+--- /dev/null
++++ b/docs/HARDWARE-CPU-INTEGRATION.md
+@@ -0,0 +1,15 @@
++# Hardware CPU dependency integration
++
++This candidate starts at published LightingSimulation 83a6acf8421356473a61336b0d58a504f7b40da8. It exports HardwareCpuBoard and makes native_board_call execute the production RTL CPU through the real MainboardFPGA bridge. Missing bridge configuration is an error. SoftwareCpuBoard remains a separately named reference implementation.
++
++CPU replies have 32 fields; mainboard replies have 17. Validation and accessKind travel through CPU, Rust transport, mainboard and memory controller. Instruction/page-table requests reject MMIO before target access. Validation does not read or modify target storage.
++
++Own Git dependencies: SIA ae9d5771a788d374c7be86e77da3724252b5fd06; RealCard b09117c762a36f6d25256fc3d0de3c212ada2d61. SIA's update changes only repository metadata/Cargo.lock; registry dependencies remain unchanged. RealCard is a local tested candidate awaiting explicit feature publication authorization; this candidate cannot be fetched reproducibly from GitHub until that commit is published.
++
++## Reproduce
++
++Use the matching LightingChips integration candidate. Run its tools/build-cpu-integration-bridges.py with --bsc and --lighting pointing here, then tools/check-cpu-integration-rtl.py. Run tools/prepare-cpu-integration-inputs.py and compile tests/boot/workload.fg with Forge's forge-lighting-firmware SOURCE --raw-image --text-base 0x1000 -o IMAGE.
++
++Export PATH containing BSC/bin and BLUESPECDIR=BSC/lib. Set LIGHTING_CPU_BOARD_BRIDGE and LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE to the freshly built bridge executables, LIGHTING_COMPILED_BOARD_WORKLOAD to IMAGE, and LIGHTING_TRANSLATED_BOARD_FIXTURES to the generated fixtures directory. Run cargo test --offline --locked --test hardware_cpu_board -- --nocapture. Reject SKIP output; all six tests must run. Ten independent encoding/assembler/software-board reference tests also passed with the new SIA pin.
++
++This proves Bluesim production RTL integration, not physical FPGA timing or board bring-up. No physical FPGA part, pin constraints or timing closure is selected here. Unrelated Cosmic M29/M30, storage, DMA-priority and QDX changes are excluded.
+diff --git a/hardware/m6/TbMainboardMultiSlotBridge.bsv b/hardware/m6/TbMainboardMultiSlotBridge.bsv
+index 3337192..066dba9 100644
+--- a/hardware/m6/TbMainboardMultiSlotBridge.bsv
++++ b/hardware/m6/TbMainboardMultiSlotBridge.bsv
+@@ -58,6 +58,8 @@ module mkTbMainboardMultiSlotBridge(Empty);
+             else if (f[0] == 8'h43) begin
+                 LightingBusMasterDrive cpu = lightingBusMasterDriveDefault();
+                 cpu.busRequest = f[1][0] == 1; cpu.request = f[1][1] == 1;
++                cpu.payload.validate = f[1][3] == 1;
++                cpu.payload.accessKind = f[1][5:4];
+                 cpu.payload.write = f[1][2] == 1; cpu.payload.byteEnable = truncate(f[2]);
+                 cpu.payload.addr = le32(f[4],f[5],f[6],f[7]);
+                 cpu.payload.writeData = le32(f[8],f[9],f[10],f[11]);
+@@ -95,11 +97,11 @@ module mkTbMainboardMultiSlotBridge(Empty);
+                     backendReadDataValid, backendReadData, reset);
+                 drainPending <= True; physicalCycles <= physicalCycles + 1;
+ 
+-                $display("C|%0d|%0d|%0d|%08x|%0d|%0d|%08x|%01x|%08x|%0d|%0d|%0d|%0d|%0d",
++                $display("C|%0d|%0d|%0d|%08x|%0d|%0d|%08x|%01x|%08x|%0d|%0d|%0d|%0d|%0d|%0d|%0d",
+                     pack(bus.busGrant), pack(bus.ready), pack(bus.error), bus.readData,
+                     pack(backendReq), pack(backendWrite), backendAddress, backendByteEnable,
+                     backendWriteData, pack(backendResponseReady), pack(irqs.plioIrq),
+-                    pack(irqs.timerIrq), pack(irqs.machineFault), physicalCycles);
++                    pack(irqs.timerIrq), pack(irqs.machineFault), physicalCycles, pack(board.memoryBackendValidate), board.memoryBackendAccessKind);
+                 for (Integer slot = 0; slot < 8; slot = slot + 1) begin
+                     PlioIn p = slots[slot];
+                     $display("S|%0d|%0d|%0d|%0d|%0d|%08x|%0d|%01x|%0d|%0d|%0d|%0d|%01x|%0d|%0d|%01x",
+diff --git a/src/board_machine.rs b/src/board_machine.rs
+index c4a22f7..e033d02 100644
+--- a/src/board_machine.rs
++++ b/src/board_machine.rs
+@@ -34,6 +34,12 @@ pub trait CpuBoardFpga: Send {
+ /// the CPU; only MainboardFPGA's registered backend handshake reaches it.
+ pub trait BoardMemoryBackend: Send {
+     fn access(&mut self, request: MainboardBackendRequest) -> MainboardBackendResponse;
++    /// Reject classified reads unless this backend can prove the region valid.
++    fn qualified_read_allowed(&self, _request: MainboardBackendRequest) -> bool { false }
++    /// Side-effect-free full-word NORMAL memory classification. Backends must opt in.
++    fn validate(&self, _request: MainboardBackendRequest) -> bool {
++        false
++    }
+     fn host_write_word(&mut self, address: u32, value: u32) -> Result<(), String>;
+     fn host_read_word(&self, address: u32) -> Result<u32, String>;
+ }
+@@ -63,6 +69,17 @@ impl InMemoryBoardBackend {
+     }
+ }
+ impl BoardMemoryBackend for InMemoryBoardBackend {
++    fn qualified_read_allowed(&self, request: MainboardBackendRequest) -> bool {
++        !request.write && !request.validate && self.word_index(request.address).is_ok()
++            && match request.access_kind {
++                1 => matches!(request.byte_enable, 3 | 12),
++                2 => request.byte_enable == 15,
++                _ => false,
++            }
++    }
++    fn validate(&self, request: MainboardBackendRequest) -> bool {
++        request.byte_enable == 15 && self.word_index(request.address).is_ok()
++    }
+     fn access(&mut self, request: MainboardBackendRequest) -> MainboardBackendResponse {
+         let Ok(index) = self.word_index(request.address) else {
+             return MainboardBackendResponse {
+@@ -357,7 +374,17 @@ impl LightingBoardMachine {
+                     self.diagnostic_text()
+                 ));
+             }
+-            Some(self.backend.access(request))
++            Some(if request.access_kind != 0 && !self.backend.qualified_read_allowed(request) {
++                MainboardBackendResponse { fault: true, read_data: None }
++            } else if request.validate {
++                let valid = self.backend.validate(request);
++                MainboardBackendResponse {
++                    fault: !valid,
++                    read_data: (valid && !request.write).then_some(0),
++                }
++            } else {
++                self.backend.access(request)
++            })
+         } else if sent_response.is_some() && !result.backend_response_ready {
+             sent_response
+         } else {
+diff --git a/src/bus.rs b/src/bus.rs
+index 51a0eb6..a350438 100644
+--- a/src/bus.rs
++++ b/src/bus.rs
+@@ -75,6 +75,13 @@ pub trait PhysicalBus {
+     fn write8(&mut self, pa: u32, value: u8) -> Result<(), BusError>;
+     fn write16(&mut self, pa: u32, value: u16) -> Result<(), BusError>;
+     fn write32(&mut self, pa: u32, value: u32) -> Result<(), BusError>;
++    /// Side-effect-free NORMAL-memory classification; old implementations fail closed.
++    fn validate_read(&mut self, pa: u32, _len: usize) -> Result<(), BusError> {
++        Err(BusError::new(
++            pa,
++            "multi-load validation unsupported by this bus",
++        ))
++    }
+     fn validate_write(&mut self, pa: u32, len: usize) -> Result<(), BusError>;
+     fn read_page_table32(&mut self, pa: u32) -> Result<u32, BusError>;
+     /// Host/platform instruction-side state invalidation. Other bus models may
+@@ -697,6 +704,17 @@ impl PhysicalBus for LightingBus {
+             _ => self.write_bytes(pa, value.to_le_bytes()),
+         }
+     }
++    fn validate_read(&mut self, pa: u32, len: usize) -> Result<(), BusError> {
++        let end = Self::checked_end(pa, len)?;
++        match self.region(pa) {
++            PhysicalRegion::Ram if end <= self.ram.len() as u64 => Ok(()),
++            PhysicalRegion::Rom if end <= 0x1_0000_0000 => Ok(()),
++            _ => Err(BusError::new(
++                pa,
++                "multi-load requires a complete NORMAL memory range",
++            )),
++        }
++    }
+     fn validate_write(&mut self, pa: u32, len: usize) -> Result<(), BusError> {
+         if matches!(
+             self.region(pa),
+diff --git a/src/cpu_board.rs b/src/cpu_board.rs
+index cc7a783..190834c 100644
+--- a/src/cpu_board.rs
++++ b/src/cpu_board.rs
+@@ -6,10 +6,12 @@ use crate::{ExecResult, Stop};
+ /// mainboard. This mirrors LightingChips::LightingBusPayload.
+ #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+ pub struct LightingBusPayload {
++    pub access_kind: u8,
+     pub addr: u32,
+     pub write_data: u32,
+     pub byte_enable: u8,
+     pub write: bool,
++    pub validate: bool,
+ }
+ 
+ /// Mainboard inputs sampled by the compute-board memory adapter.
+@@ -66,6 +68,9 @@ impl LightingModuleInterrupts {
+ /// supplied CPU-board pins driven for that cycle and returns the inputs sampled
+ /// by the CPU board for that cycle.
+ pub trait LightingMemoryBusPeer {
++    fn supports_validation(&self) -> bool {
++        false
++    }
+     fn cycle(&mut self, drive: LightingBusMasterDrive) -> LightingBusInputs;
+ }
+ 
+@@ -179,11 +184,12 @@ impl<'a, P: LightingMemoryBusPeer + ?Sized> SoftwareCpuBoardBus<'a, P> {
+             4 => 0b1111,
+             _ => unreachable!(),
+         };
+-        let word = self.transaction(LightingBusPayload {
++        let word = self.transaction(LightingBusPayload {access_kind: 0,
+             addr: pa & !3,
+             write_data: 0,
+             byte_enable,
+             write: false,
++            validate: false,
+         })?;
+         Ok(match len {
+             1 => (word >> (lane * 8)) & 0xff,
+@@ -205,11 +211,12 @@ impl<'a, P: LightingMemoryBusPeer + ?Sized> SoftwareCpuBoardBus<'a, P> {
+             4 => (0b1111, value),
+             _ => unreachable!(),
+         };
+-        self.transaction(LightingBusPayload {
++        self.transaction(LightingBusPayload {access_kind: 0,
+             addr: pa & !3,
+             write_data,
+             byte_enable,
+             write: true,
++            validate: false,
+         })?;
+         Ok(())
+     }
+@@ -240,16 +247,54 @@ impl<P: LightingMemoryBusPeer + ?Sized> PhysicalBus for SoftwareCpuBoardBus<'_,
+         self.write_lanes(pa, 4, value)
+     }
+ 
++    fn validate_read(&mut self, pa: u32, len: usize) -> Result<(), BusError> {
++        if !self.peer.supports_validation() {
++            return Err(BusError::new(
++                pa,
++                "peer does not support NORMAL-memory validation",
++            ));
++        }
++        Self::check_shape(pa, len)?;
++        if len != 4 {
++            return Err(BusError::new(pa, "validation requires a complete word"));
++        }
++        self.transaction(LightingBusPayload {access_kind: 0,
++            addr: pa,
++            write_data: 0,
++            byte_enable: 15,
++            write: false,
++            validate: true,
++        })
++        .map(|_| ())
++    }
++
+     fn validate_write(&mut self, pa: u32, len: usize) -> Result<(), BusError> {
+-        // The physical board interface has no speculative/non-mutating write
+-        // validation transaction. Preserve the interpreter hook only as a shape
+-        // check; address/target faults are delivered by the real transaction.
+-        // This limitation is tracked explicitly in FPGA-COMPOSITION-TODO.md.
+-        Self::check_shape(pa, len)
++        if !self.peer.supports_validation() {
++            return Err(BusError::new(
++                pa,
++                "peer does not support NORMAL-memory validation",
++            ));
++        }
++        Self::check_shape(pa, len)?;
++        if len != 4 {
++            return Err(BusError::new(pa, "validation requires a complete word"));
++        }
++        self.transaction(LightingBusPayload {access_kind: 0,
++            addr: pa,
++            write_data: 0,
++            byte_enable: 15,
++            write: true,
++            validate: true,
++        })
++        .map(|_| ())
+     }
+ 
+     fn read_page_table32(&mut self, pa: u32) -> Result<u32, BusError> {
+-        self.read32(pa)
++        Self::check_shape(pa, 4)?;
++        self.transaction(LightingBusPayload {
++            access_kind: 2, addr: pa, write_data: 0,
++            byte_enable: 15, write: false, validate: false,
++        })
+     }
+ }
+ 
+@@ -411,11 +456,12 @@ impl SoftwareCpuBoardWorkerBus {
+             4 => 0b1111,
+             _ => unreachable!(),
+         };
+-        let word = self.transaction(LightingBusPayload {
++        let word = self.transaction(LightingBusPayload {access_kind: 0,
+             addr: pa & !3,
+             write_data: 0,
+             byte_enable,
+             write: false,
++            validate: false,
+         })?;
+         Ok(match len {
+             1 => (word >> (lane * 8)) & 0xff,
+@@ -437,11 +483,12 @@ impl SoftwareCpuBoardWorkerBus {
+             4 => (0b1111, value),
+             _ => unreachable!(),
+         };
+-        self.transaction(LightingBusPayload {
++        self.transaction(LightingBusPayload {access_kind: 0,
+             addr: pa & !3,
+             write_data,
+             byte_enable,
+             write: true,
++            validate: false,
+         })?;
+         Ok(())
+     }
+@@ -466,11 +513,41 @@ impl PhysicalBus for SoftwareCpuBoardWorkerBus {
+     fn write32(&mut self, pa: u32, value: u32) -> Result<(), BusError> {
+         self.write_lanes(pa, 4, value)
+     }
++    fn validate_read(&mut self, pa: u32, len: usize) -> Result<(), BusError> {
++        Self::check_shape(pa, len)?;
++        if len != 4 {
++            return Err(BusError::new(pa, "validation requires a complete word"));
++        }
++        self.transaction(LightingBusPayload {access_kind: 0,
++            addr: pa,
++            write_data: 0,
++            byte_enable: 15,
++            write: false,
++            validate: true,
++        })
++        .map(|_| ())
++    }
++
+     fn validate_write(&mut self, pa: u32, len: usize) -> Result<(), BusError> {
+-        Self::check_shape(pa, len)
++        Self::check_shape(pa, len)?;
++        if len != 4 {
++            return Err(BusError::new(pa, "validation requires a complete word"));
++        }
++        self.transaction(LightingBusPayload {access_kind: 0,
++            addr: pa,
++            write_data: 0,
++            byte_enable: 15,
++            write: true,
++            validate: true,
++        })
++        .map(|_| ())
+     }
+     fn read_page_table32(&mut self, pa: u32) -> Result<u32, BusError> {
+-        self.read32(pa)
++        Self::check_shape(pa, 4)?;
++        self.transaction(LightingBusPayload {
++            access_kind: 2, addr: pa, write_data: 0,
++            byte_enable: 15, write: false, validate: false,
++        })
+     }
+ }
+ 
+diff --git a/src/hardware_cpu_board.rs b/src/hardware_cpu_board.rs
+new file mode 100644
+index 0000000..397ce91
+--- /dev/null
++++ b/src/hardware_cpu_board.rs
+@@ -0,0 +1,171 @@
++//! Opaque process boundary for the production Lighting CPU/MMU/module RTL.
++//! Rust transports pins and snapshots; instruction execution stays in Bluespec.
++use crate::board_machine::CpuBoardFpga;
++use crate::isa::cpu_board::{
++    LightingBusInputs, LightingBusMasterDrive, LightingBusPayload, LightingModuleInterrupts,
++    SoftwareCpuBoardSnapshot,
++};
++use std::io::{BufRead, BufReader, Write};
++use std::process::{Child, ChildStdin, Command, Stdio};
++use std::sync::{mpsc, Arc, Mutex};
++use std::time::Duration;
++
++#[derive(Clone)]
++pub struct HardwareCpuBoardControl(Arc<Mutex<SoftwareCpuBoardSnapshot>>);
++impl HardwareCpuBoardControl {
++    pub fn snapshot(&self) -> SoftwareCpuBoardSnapshot {
++        self.0
++            .lock()
++            .expect("hardware CPU snapshot poisoned")
++            .clone()
++    }
++}
++pub struct HardwareCpuBoard {
++    child: Child,
++    stdin: ChildStdin,
++    replies: mpsc::Receiver<String>,
++    drive: LightingBusMasterDrive,
++    state: Arc<Mutex<SoftwareCpuBoardSnapshot>>,
++    return_address: Option<u32>,
++    instruction_limit: usize,
++}
++impl HardwareCpuBoard {
++    pub fn spawn(
++        path: &str,
++        reset_pc: u32,
++        instruction_limit: usize,
++    ) -> Result<(Self, HardwareCpuBoardControl), String> {
++        let mut child = Command::new(path)
++            .stdin(Stdio::piped())
++            .stdout(Stdio::piped())
++            .stderr(Stdio::inherit())
++            .spawn()
++            .map_err(|e| format!("start hardware CPU bridge: {e}"))?;
++        let stdin = child.stdin.take().ok_or("missing hardware CPU stdin")?;
++        let stdout = child.stdout.take().ok_or("missing hardware CPU stdout")?;
++        let (tx, replies) = mpsc::channel();
++        std::thread::spawn(move || {
++            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
++                if tx.send(line).is_err() {
++                    break;
++                }
++            }
++        });
++        let state = Arc::new(Mutex::new(SoftwareCpuBoardSnapshot::default()));
++        let control = HardwareCpuBoardControl(state.clone());
++        let mut board = Self {
++            child,
++            stdin,
++            replies,
++            drive: LightingBusMasterDrive::default(),
++            state,
++            return_address: None,
++            instruction_limit,
++        };
++        board.exchange(b'S', 0, reset_pc)?;
++        Ok((board, control))
++    }
++    pub fn stop_at_return_boundary(mut self, address: u32) -> Self {
++        self.return_address = Some(address);
++        self
++    }
++    fn exchange(&mut self, opcode: u8, flags: u8, value: u32) -> Result<(), String> {
++        let mut packet = [0u8; 6];
++        packet[0] = opcode;
++        packet[1] = flags;
++        packet[2..].copy_from_slice(&value.to_le_bytes());
++        self.stdin
++            .write_all(&packet)
++            .and_then(|_| self.stdin.flush())
++            .map_err(|e| format!("hardware CPU input: {e}"))?;
++        let line = self
++            .replies
++            .recv_timeout(Duration::from_secs(30))
++            .map_err(|e| format!("hardware CPU reply: {e}"))?;
++        let f: Vec<_> = line.split('|').collect();
++        if f.len() != 32 || f[0] != "CPU" {
++            return Err(format!("invalid hardware CPU reply: {line}"));
++        }
++        let dec = |i: usize| {
++            f[i].parse::<u64>()
++                .map_err(|e| format!("CPU decimal field {i}: {e}"))
++        };
++        let hex = |i: usize| {
++            u32::from_str_radix(f[i], 16).map_err(|e| format!("CPU hexadecimal field {i}: {e}"))
++        };
++        self.drive = LightingBusMasterDrive {
++            bus_request: dec(1)? != 0,
++            request: dec(2)? != 0,
++            payload: LightingBusPayload {access_kind: dec(31)? as u8, 
++                addr: hex(3)?,
++                write_data: hex(4)?,
++                byte_enable: hex(5)? as u8,
++                write: dec(6)? != 0,
++                validate: dec(7)? != 0,
++            },
++        };
++        let mut state = self
++            .state
++            .lock()
++            .map_err(|_| "hardware CPU snapshot poisoned")?;
++        state.completed_instructions = dec(8)? as usize;
++        state.pc = hex(9)?;
++        state.cause = hex(10)?;
++        state.epc = hex(11)?;
++        state.badaddr = hex(12)?;
++        if dec(13)? == 0 {
++            state.failure = Some(format!("hardware CPU halted: diagnostic {}", dec(14)?));
++        }
++        for i in 0..16 {
++            state.registers[i] = hex(15 + i)?;
++        }
++        if self.return_address == Some(state.pc) && state.completed_instructions > 0 {
++            state.stopped = Some("return boundary".into());
++            self.drive = LightingBusMasterDrive::default();
++        }
++        Ok(())
++    }
++}
++impl CpuBoardFpga for HardwareCpuBoard {
++    fn drive(&mut self) -> LightingBusMasterDrive {
++        self.drive
++    }
++    fn finish_cycle(
++        &mut self,
++        inputs: LightingBusInputs,
++        interrupts: LightingModuleInterrupts,
++    ) -> Result<(), String> {
++        let state = self
++            .state
++            .lock()
++            .map_err(|_| "hardware CPU snapshot poisoned")?
++            .clone();
++        if state.stopped.is_some() {
++            return Ok(());
++        }
++        if let Some(f) = state.failure {
++            return Err(f);
++        }
++        if state.completed_instructions >= self.instruction_limit {
++            return Err("hardware CPU instruction limit".into());
++        }
++        let flags = (inputs.bus_grant as u8)
++            | ((inputs.ready as u8) << 1)
++            | ((inputs.error as u8) << 2)
++            | ((interrupts.plio_irq as u8) << 3)
++            | ((interrupts.timer_irq as u8) << 4)
++            | ((interrupts.machine_fault as u8) << 5);
++        self.exchange(b'C', flags, inputs.read_data)
++    }
++    fn diagnostic(&self) -> String {
++        format!("hardware CPU {:?}", self.state.lock().ok())
++    }
++}
++impl Drop for HardwareCpuBoard {
++    fn drop(&mut self) {
++        let _ = self.stdin.write_all(b"Q");
++        let _ = self.stdin.flush();
++        let _ = self.child.kill();
++        let _ = self.child.wait();
++    }
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index c228663..2853404 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -3,6 +3,7 @@ use std::io::{self, Write};
+ pub mod board_machine;
+ pub mod card_fpga;
+ pub mod exception;
++pub mod hardware_cpu_board;
+ pub mod isa;
+ pub mod mainboard_fpga_multislot_peer;
+ pub mod native_board_call;
+diff --git a/src/mainboard_fpga_multislot_peer.rs b/src/mainboard_fpga_multislot_peer.rs
+index 445c60d..ef5a293 100644
+--- a/src/mainboard_fpga_multislot_peer.rs
++++ b/src/mainboard_fpga_multislot_peer.rs
+@@ -18,7 +18,9 @@ const FRAME_BYTES: usize = HEADER_BYTES + SLOT_COUNT * SLOT_BYTES;
+ 
+ #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+ pub struct MainboardBackendRequest {
++    pub access_kind: u8,
+     pub write: bool,
++    pub validate: bool,
+     pub address: u32,
+     pub write_data: u32,
+     pub byte_enable: u8,
+@@ -195,13 +197,15 @@ impl MainboardFpgaMultiSlotPeer {
+         slots: [BusToCard; SLOT_COUNT],
+     ) -> Result<MainboardCycleResult, String> {
+         let f: Vec<_> = line.split('|').collect();
+-        if f.len() != 15 || f[0] != "C" {
++        if f.len() != 17 || f[0] != "C" {
+             return Err(format!("bad M6.4 cycle reply: {line}"));
+         }
+         let bit = |i| Self::parse_bit(f[i], line);
+         let backend_request = if bit(5)? {
+             Some(MainboardBackendRequest {
++                access_kind: f[16].parse::<u8>().map_err(|e| format!("bad access kind: {e}"))?,
+                 write: bit(6)?,
++                validate: bit(15)?,
+                 address: u32::from_str_radix(f[7], 16)
+                     .map_err(|e| format!("bad backend address: {e}: {line}"))?,
+                 byte_enable: u8::from_str_radix(f[8], 16)
+@@ -243,7 +247,9 @@ impl MainboardFpgaMultiSlotPeer {
+         frame[0] = b'C';
+         frame[1] = (drive.cpu.bus_request as u8)
+             | ((drive.cpu.request as u8) << 1)
+-            | ((drive.cpu.payload.write as u8) << 2);
++            | ((drive.cpu.payload.write as u8) << 2)
++            | ((drive.cpu.payload.validate as u8) << 3)
++            | ((drive.cpu.payload.access_kind & 3) << 4);
+         frame[2] = drive.cpu.payload.byte_enable;
+         frame[3] = drive.reset as u8;
+         frame[4..8].copy_from_slice(&drive.cpu.payload.addr.to_le_bytes());
+diff --git a/src/mainboard_fpga_peer.rs b/src/mainboard_fpga_peer.rs
+index 50405db..cc0fcef 100644
+--- a/src/mainboard_fpga_peer.rs
++++ b/src/mainboard_fpga_peer.rs
+@@ -376,6 +376,8 @@ impl MainboardFpgaPeer {
+         drive: LightingBusMasterDrive,
+         reset: bool,
+     ) -> Result<LightingBusInputs, String> {
++        if drive.payload.access_kind != 0 { return Err("legacy mainboard bridge does not support qualified reads".into()); }
++        if drive.payload.validate { return Err("legacy mainboard bridge does not support VALIDATE".into()); }
+         let mut p = Self::packet(b'C', drive.payload.addr, drive.payload.write_data);
+         p[1] = drive.bus_request as u8;
+         p[2] = drive.request as u8;
+diff --git a/src/native_board_call.rs b/src/native_board_call.rs
+index f5e9840..50bb431 100644
+--- a/src/native_board_call.rs
++++ b/src/native_board_call.rs
+@@ -1,7 +1,7 @@
+-//! Dependency-neutral native calls through SoftwareCpuBoard → MainboardFPGA → RAM.
++//! Dependency-neutral native calls through LightingComputeBoard RTL → MainboardFPGA → RAM.
+ use crate::board_machine::{LightingBoardMachine, LightingBoardTraceEntry};
+-use crate::isa::cpu_board::{SoftwareCpuBoard, SoftwareCpuBoardSnapshot};
+-use crate::isa::privilege::PrivilegedCpu;
++use crate::hardware_cpu_board::HardwareCpuBoard;
++use crate::isa::cpu_board::SoftwareCpuBoardSnapshot;
+ 
+ pub struct NativeBoardCall<'a> {
+     pub code: &'a [u8],
+@@ -65,20 +65,52 @@ pub fn run_native_board_call(
+         word[..bytes.len()].copy_from_slice(bytes);
+         machine.load_word(call.entry + index as u32 * 4, u32::from_le_bytes(word))?;
+     }
+-    let mut cpu = PrivilegedCpu::new_sia32_p(&[], 4, false, call.instruction_limit as u64, 0x400)?;
+-    cpu.core_mut().set_pc_for_test(call.entry);
+-    for (reg, value) in call.registers.iter().copied().enumerate() {
+-        cpu.core_mut().write_reg(reg, value);
++    let cpu_bridge = std::env::var("LIGHTING_CPU_BOARD_BRIDGE")
++        .map_err(|_| "LIGHTING_CPU_BOARD_BRIDGE must name the production RTL bridge")?;
++    // Initialize architectural inputs by executing real LDPC instructions from
++    // fresh mainboard RAM, then a direct branch. No host register pokes.
++    let bootstrap = if call.entry >= 128 {
++        call.entry - 128
++    } else {
++        (end + 3) & !3
++    };
++    let branch_pc = bootstrap + 30;
++    let displacement = (i64::from(call.entry) - i64::from(branch_pc + 2)) / 2;
++    if bootstrap + 128 > 1024 * 1024
++        || (bootstrap..bootstrap + 128).contains(&call.return_address)
++        || !(-1024..=1023).contains(&displacement)
++    {
++        return Err("native call has no free bootstrap range within branch reach".into());
++    }
++    let mut initial = [0u8; 128];
++    for reg in 1..16usize {
++        let literal = 64 + 4 * (reg - 1);
++        let pc = bootstrap + 2 * (reg as u32 - 1);
++        let disp = ((bootstrap + literal as u32) - ((pc + 4) & !3)) / 4;
++        let insn = 0x9000u16 | ((reg as u16) << 8) | (disp as u16);
++        initial[2 * (reg - 1)..2 * reg].copy_from_slice(&insn.to_le_bytes());
++        initial[literal..literal + 4].copy_from_slice(&call.registers[reg].to_le_bytes());
++    }
++    initial[30..32].copy_from_slice(&(0xb000u16 | ((displacement as u16) & 0x7ff)).to_le_bytes());
++    for (i, word) in initial.chunks_exact(4).enumerate() {
++        machine.load_word(
++            bootstrap + i as u32 * 4,
++            u32::from_le_bytes(word.try_into().unwrap()),
++        )?;
+     }
+     let (board, control) =
+-        SoftwareCpuBoard::from_cpu(cpu).into_nonblocking_fpga(call.instruction_limit);
++        HardwareCpuBoard::spawn(&cpu_bridge, bootstrap, call.instruction_limit + 16)?;
+     machine.attach_cpu_board(Box::new(board.stop_at_return_boundary(call.return_address)))?;
+     let mut minimum_sp = call.registers[13];
+     let mut backend_transactions = 0;
+     for _ in 0..call.cycle_limit {
+         let cycle_error = machine.cycle().err();
+-        let state = control.snapshot();
+-        minimum_sp = minimum_sp.min(state.registers[13]);
++        let mut state = control.snapshot();
++        let initialized = state.completed_instructions >= 16;
++        state.completed_instructions = state.completed_instructions.saturating_sub(16);
++        if initialized {
++            minimum_sp = minimum_sp.min(state.registers[13]);
++        }
+         if machine
+             .recent_trace()
+             .last()
+diff --git a/src/privilege.rs b/src/privilege.rs
+index 247cd6c..e62b888 100644
+--- a/src/privilege.rs
++++ b/src/privilege.rs
+@@ -658,8 +658,17 @@ impl PrivilegedCpu {
+         let va = if update == VmUpdate::Pre { base.wrapping_sub(bytes) } else { base };
+         self.check_arch_alignment(va, 4, MmuAccess::Load)?;
+         let mut values = [0u32; 4];
++        let mut physical = [0u32; 4];
++        for i in 0..count {
++            let address = va.wrapping_add((i * 4) as u32);
++            physical[i] = self.translate(address, MmuAccess::Load)?;
++            if physical[i] as u64 + 4 > self.core.memory_len() as u64 {
++                return Err(self.physical_access_error(MmuAccess::Load, address, "multi-load outside NORMAL RAM".into()));
++            }
++        }
+         for i in 0..count {
+-            values[i] = self.load_arch_u32(va.wrapping_add((i * 4) as u32))?;
++            values[i] = self.core.read_word(physical[i]).map_err(|e|
++                self.physical_access_error(MmuAccess::Load, va.wrapping_add((i * 4) as u32), e))?;
+         }
+         for i in 0..count { self.core.write_reg(first + i, values[i]); }
+         match update {
+@@ -683,7 +692,7 @@ impl PrivilegedCpu {
+             physical[i] = self.prevalidate_store_word(va.wrapping_add((i * 4) as u32))?;
+         }
+         for i in 0..count {
+-            self.core.write_word(physical[i], values[i]).map_err(|e| self.physical_access_error(MmuAccess::Store, va.wrapping_add((i * 4) as u32), e))?;
++            self.core.write_word(physical[i], values[i]).map_err(|e| ExecutionError::host(format!("fatal multi-store commit failure: {e}")))?;
+         }
+         if update == VmUpdate::Post { self.core.write_reg(base_reg, base.wrapping_add(bytes)); }
+         if update == VmUpdate::Pre { self.core.write_reg(base_reg, va); }
+diff --git a/tests/hardware_cpu_board.rs b/tests/hardware_cpu_board.rs
+new file mode 100644
+index 0000000..61b5e6e
+--- /dev/null
++++ b/tests/hardware_cpu_board.rs
+@@ -0,0 +1,340 @@
++use lighting_simulation::board_machine::{BoardMemoryBackend, InMemoryBoardBackend};
++use lighting_simulation::mainboard_fpga_multislot_peer::MainboardBackendRequest;
++use lighting_simulation::native_board_call::{run_native_board_call, NativeBoardCall};
++
++#[test]
++fn real_mainboard_preserves_access_class_and_rejects_mmio_before_target_access() {
++    use lighting_simulation::isa::cpu_board::{LightingBusMasterDrive, LightingBusPayload};
++    use lighting_simulation::mainboard_fpga_multislot_peer::{
++        MainboardBackendResponse, MainboardCycleDrive, MainboardFpgaMultiSlotPeer,
++    };
++    let Ok(path) = std::env::var("LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE") else {
++        eprintln!("SKIP live qualified access: bridge missing");
++        return;
++    };
++    for (kind, address, lanes, write, validate, reaches_backend, faults) in [
++        (1, 60, 3, false, false, true, false),
++        (1, 60, 12, false, false, true, false),
++        (2, 60, 15, false, false, true, false),
++        (2, 64, 15, false, false, true, true),
++        (2, 0xffff0000, 15, false, false, true, true),
++        (1, 60, 15, false, false, false, true),
++        (2, 60, 3, false, false, false, true),
++        (1, 0xffe00000, 3, false, false, false, true),
++        (2, 0xffe81000, 15, false, false, false, true),
++        (1, 60, 3, true, false, false, true),
++        (2, 60, 15, false, true, false, true),
++        (3, 60, 15, false, false, false, true),
++    ] {
++        let mut peer = MainboardFpgaMultiSlotPeer::spawn(&path).unwrap();
++        let mut backend = InMemoryBoardBackend::new(64);
++        backend.host_write_word(60, 0x12345678).unwrap();
++        let mut request = false;
++        let mut response = None;
++        let mut accesses = 0;
++        let mut completed = false;
++        for _ in 0..128 {
++            let result = peer.cycle_with(MainboardCycleDrive {
++                cpu: LightingBusMasterDrive {
++                    bus_request: true, request,
++                    payload: LightingBusPayload {
++                        access_kind: kind, addr: address, write_data: 1,
++                        byte_enable: lanes, write, validate,
++                    },
++                },
++                backend_request_ready: true, backend_response: response,
++                ..Default::default()
++            }).unwrap();
++            if result.backend_response_ready { response = None; }
++            if let Some(req) = result.backend_request {
++                assert_eq!(req.access_kind, kind);
++                assert!(!req.validate && !req.write);
++                accesses += 1;
++                response = Some(if backend.qualified_read_allowed(req) {
++                    backend.access(req)
++                } else { MainboardBackendResponse { fault: true, read_data: None } });
++            }
++            assert!(result.slots.iter().all(|s| !s.selected && !s.address_strobe && !s.data_strobe));
++            if result.cpu.ready || result.cpu.error {
++                assert_eq!(result.cpu.error, faults, "kind={kind} address={address:08x}");
++                completed = true;
++                break;
++            }
++            if result.cpu.bus_grant { request = true; }
++        }
++        assert!(completed, "qualified request did not complete");
++        assert_eq!(accesses, usize::from(reaches_backend));
++        assert_eq!(backend.host_read_word(60).unwrap(), 0x12345678);
++    }
++}
++
++#[test]
++fn normal_validation_is_side_effect_free_and_bounded() {
++    let mut backend = InMemoryBoardBackend::new(64);
++    backend.host_write_word(60, 0xdeadbeef).unwrap();
++    for write in [false, true] {
++        let request = MainboardBackendRequest {
++            access_kind: 0,
++            validate: true,
++            write,
++            address: 60,
++            byte_enable: 15,
++            ..Default::default()
++        };
++        assert!(backend.validate(request));
++        assert_eq!(backend.host_read_word(60).unwrap(), 0xdeadbeef);
++        assert!(!backend.validate(MainboardBackendRequest {
++            address: 64,
++            ..request
++        }));
++        assert!(!backend.validate(MainboardBackendRequest {
++            address: 61,
++            ..request
++        }));
++        assert!(!backend.validate(MainboardBackendRequest {
++            byte_enable: 3,
++            ..request
++        }));
++        assert!(!backend.validate(MainboardBackendRequest {
++            address: 0xffff_fffc,
++            ..request
++        }));
++    }
++}
++
++#[test]
++fn production_cpu_executes_updating_and_grouped_transfers_through_real_mainboard() {
++    let Ok(mainboard) = std::env::var("LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE") else {
++        eprintln!("SKIP live RTL: mainboard bridge missing");
++        return;
++    };
++    if std::env::var("LIGHTING_CPU_BOARD_BRIDGE").is_err() {
++        eprintln!("SKIP live RTL: CPU bridge missing");
++        return;
++    }
++    // Store r1/r2 as a pair; load them into r3/r4; exercise postincrement and
++    // predecrement scalars, then return through the initial architectural LR.
++    let words: [u16; 8] = [
++        0x8152, 0x8350, 0x775c, 0x785e, 0x725f, 0x7854, 0x0134, 0xc0e0,
++    ];
++    let code: Vec<_> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
++    let mut registers = [0; 16];
++    registers[1] = 19;
++    registers[2] = 23;
++    registers[5] = 0x4000;
++    registers[13] = 0x80000;
++    registers[14] = 0x80;
++    let result = run_native_board_call(
++        &mainboard,
++        &NativeBoardCall {
++            code: &code,
++            entry: 0x1000,
++            return_address: 0x80,
++            registers,
++            instruction_limit: 32,
++            cycle_limit: 20000,
++        },
++    )
++    .unwrap();
++    assert_eq!(result.state.registers[1], 42);
++    assert_eq!(result.state.registers[3], 19);
++    assert_eq!(result.state.registers[4], 23);
++    assert_eq!(result.state.registers[7], 19);
++    assert_eq!(result.state.registers[8], 23);
++    assert_eq!(result.state.registers[5], 0x3ffc);
++    assert_eq!(result.state.completed_instructions, 8);
++    assert_eq!(result.minimum_sp, 0x80000);
++}
++
++#[test]
++fn real_mainboard_validation_rejects_mmio_and_bad_shapes_without_target_access() {
++    use lighting_simulation::isa::cpu_board::{LightingBusMasterDrive, LightingBusPayload};
++    use lighting_simulation::mainboard_fpga_multislot_peer::{
++        MainboardBackendResponse, MainboardCycleDrive, MainboardFpgaMultiSlotPeer,
++    };
++    let Ok(path) = std::env::var("LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE") else {
++        eprintln!("SKIP live validation: bridge missing");
++        return;
++    };
++    for (address, be, expected_backend, expected_fault) in [
++        (60, 15, true, false),
++        (64, 15, true, true),
++        (61, 15, false, true),
++        (60, 3, false, true),
++        (0xffe00000, 15, false, true),
++        (0xffe10000, 15, false, true),
++    ] {
++        for write in [false, true] {
++            let mut peer = MainboardFpgaMultiSlotPeer::spawn(&path).unwrap();
++            let mut backend = InMemoryBoardBackend::new(64);
++            backend.host_write_word(60, 0xdeadbeef).unwrap();
++            let mut request = false;
++            let mut response = None;
++            let mut validations = 0;
++            let mut completed = false;
++            for _ in 0..128 {
++                let result = peer
++                    .cycle_with(MainboardCycleDrive {
++                        cpu: LightingBusMasterDrive {
++                            bus_request: true,
++                            request,
++                            payload: LightingBusPayload {access_kind: 0, 
++                                addr: address,
++                                write_data: 0x12345678,
++                                byte_enable: be,
++                                write,
++                                validate: true,
++                            },
++                        },
++                        backend_request_ready: true,
++                        backend_response: response,
++                        ..Default::default()
++                    })
++                    .unwrap();
++                if result.backend_response_ready {
++                    response = None;
++                }
++                if let Some(req) = result.backend_request {
++                    assert!(req.validate);
++                    assert_eq!(req.write, write);
++                    validations += 1;
++                    let valid = backend.validate(req);
++                    response = Some(MainboardBackendResponse {
++                        fault: !valid,
++                        read_data: (valid && !write).then_some(0),
++                    });
++                }
++                assert!(result
++                    .slots
++                    .iter()
++                    .all(|s| !s.selected && !s.address_strobe && !s.data_strobe));
++                if result.cpu.ready || result.cpu.error {
++                    assert_eq!(
++                        result.cpu.error, expected_fault,
++                        "addr={address:08x} write={write}"
++                    );
++                    completed = true;
++                    break;
++                }
++                if result.cpu.bus_grant {
++                    request = true;
++                }
++            }
++            assert!(completed, "validation did not complete {address:08x}");
++            assert_eq!(validations, usize::from(expected_backend));
++            assert_eq!(backend.host_read_word(60).unwrap(), 0xdeadbeef);
++        }
++    }
++}
++
++#[test]
++fn compiled_forge_workload_returns_through_production_cpu_and_mainboard() {
++    let (Ok(mainboard), Ok(payload)) = (
++        std::env::var("LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE"),
++        std::env::var("LIGHTING_COMPILED_BOARD_WORKLOAD"),
++    ) else {
++        eprintln!("SKIP compiled RTL: bridges/payload missing");
++        return;
++    };
++    let code = std::fs::read(payload).unwrap();
++    let mut registers = [0; 16];
++    registers[13] = 0x80000;
++    registers[14] = 0x80;
++    let result = run_native_board_call(
++        &mainboard,
++        &NativeBoardCall {
++            code: &code,
++            entry: 0x1000,
++            return_address: 0x80,
++            registers,
++            instruction_limit: 1000,
++            cycle_limit: 30000,
++        },
++    )
++    .unwrap();
++    assert_eq!(result.state.registers[1], 55);
++    assert_eq!(result.state.registers[13], 0x80000);
++    assert_eq!(result.state.cause, 0);
++    assert!(result.backend_transactions > 0);
++}
++
++#[test]
++fn translated_execution_matches_rust_through_real_cpu_and_mainboard() {
++    use lighting_simulation::board_machine::LightingBoardMachine;
++    use lighting_simulation::hardware_cpu_board::HardwareCpuBoard;
++    use lighting_simulation::isa::bus::LightingBus;
++    use lighting_simulation::isa::privilege::PrivilegedCpu;
++    let (Ok(mainboard), Ok(cpu_bridge), Ok(fixtures)) = (
++        std::env::var("LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE"),
++        std::env::var("LIGHTING_CPU_BOARD_BRIDGE"),
++        std::env::var("LIGHTING_TRANSLATED_BOARD_FIXTURES"),
++    ) else {
++        eprintln!("SKIP translated real RTL: bridges/fixtures missing");
++        return;
++    };
++    for name in [
++        "updating-c-basic",
++        "updating-d-basic",
++        "updating-e-basic",
++        "updating-f-basic",
++        "multi-op-2",
++        "multi-op-8",
++    ] {
++        let dir = std::path::Path::new(&fixtures).join(name);
++        let bytes = std::fs::read(dir.join("memory.bin")).unwrap();
++        let config: Vec<_> = std::fs::read_to_string(dir.join("config.hex"))
++            .unwrap()
++            .lines()
++            .map(|s| u32::from_str_radix(s, 16).unwrap())
++            .collect();
++        let mut machine = LightingBoardMachine::spawn(&mainboard).unwrap();
++        for (i, word) in bytes.chunks_exact(4).enumerate() {
++            machine
++                .load_word(i as u32 * 4, u32::from_le_bytes(word.try_into().unwrap()))
++                .unwrap();
++        }
++        let mut bus = LightingBus::new(1024 * 1024, &[]).unwrap();
++        bus.ram_mut()[..bytes.len()].copy_from_slice(&bytes);
++        let mut reference = PrivilegedCpu::new_sia32_p(&[], 4, false, 1000, 0xfffff000).unwrap();
++        reference.core_mut().write_reg(13,0);
++        let (board, control) = HardwareCpuBoard::spawn(&cpu_bridge, 0, 1000).unwrap();
++        machine
++            .attach_cpu_board(Box::new(board.stop_at_return_boundary(config[2] + 2)))
++            .unwrap();
++        let mut retired = 0;
++        let mut completed = false;
++        for _ in 0..30000 {
++            machine.cycle().unwrap();
++            let state = control.snapshot();
++            if state.completed_instructions != retired {
++                while retired < state.completed_instructions {
++                    assert!(reference.step_on_bus_detailed(&mut bus).unwrap().is_none());
++                    retired += 1;
++                }
++                let regs: [u32; 16] = std::array::from_fn(|r| reference.core().read_reg(r));
++                assert_eq!(state.registers, regs, "{name} retirement {retired}");
++                assert_eq!(state.pc, reference.core().pc(), "{name} retirement PC");
++                assert_eq!(
++                    state.cause,
++                    reference.privileged_state().cause,
++                    "{name} cause"
++                );
++            }
++            if state.stopped.is_some() {
++                completed = true;
++                break;
++            }
++        }
++        assert!(completed, "{name} did not reach checkpoint");
++        for pa in (0x5000..0x6000)
++            .step_by(4)
++            .chain((0x7800..0x8000).step_by(4))
++        {
++            assert_eq!(
++                machine.peek_word(pa).unwrap(),
++                u32::from_le_bytes(bus.ram()[pa as usize..pa as usize + 4].try_into().unwrap()),
++                "{name} memory {pa:08x}"
++            );
++        }
++    }
++}
+diff --git a/tools/check-hardware-cpu.py b/tools/check-hardware-cpu.py
+new file mode 100755
+index 0000000..eb3590a
+--- /dev/null
++++ b/tools/check-hardware-cpu.py
+@@ -0,0 +1,9 @@
++#!/usr/bin/env python3
++"""Run all configured production CPU tests; reject accidentally skipped gates."""
++import argparse,os,pathlib,subprocess
++p=argparse.ArgumentParser();p.add_argument('--bsc',required=True,type=pathlib.Path);p.add_argument('--cpu',required=True,type=pathlib.Path);p.add_argument('--mainboard',required=True,type=pathlib.Path);p.add_argument('--workload',required=True,type=pathlib.Path);p.add_argument('--fixtures',required=True,type=pathlib.Path);p.add_argument('--timeout',type=int,default=120);a=p.parse_args()
++r=pathlib.Path(__file__).resolve().parents[1];b=a.bsc.resolve();env=dict(os.environ);env['PATH']=str(b.parent)+os.pathsep+env['PATH'];env['BLUESPECDIR']=str(b.parent.parent/'lib')
++for k,v in [('LIGHTING_CPU_BOARD_BRIDGE',a.cpu),('LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE',a.mainboard),('LIGHTING_COMPILED_BOARD_WORKLOAD',a.workload),('LIGHTING_TRANSLATED_BOARD_FIXTURES',a.fixtures)]:env[k]=str(v.resolve())
++c=subprocess.run(['cargo','test','--offline','--locked','--test','hardware_cpu_board','--','--nocapture'],cwd=r,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=a.timeout)
++print(c.stdout,end='')
++if c.returncode or 'SKIP' in c.stdout or '6 passed; 0 failed' not in c.stdout:raise SystemExit(c.returncode or 1)
+diff --git a/vendor/rax-plio-qdx b/vendor/rax-plio-qdx
+index f1b36ed..b09117c 160000
+--- a/vendor/rax-plio-qdx
++++ b/vendor/rax-plio-qdx
+@@ -1 +1 @@
+-Subproject commit f1b36edd161ea9a0da1018dfbfd4bded7fc999bf
++Subproject commit b09117c762a36f6d25256fc3d0de3c212ada2d61
+-- 
+2.43.0
+

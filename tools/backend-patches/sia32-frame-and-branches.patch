@@ -1,0 +1,265 @@
+From 5df9a089753b520a47251c635e99be4466b4e7f6 Mon Sep 17 00:00:00 2001
+From: Niklaus Zbinden <niklaus.zbinden@gmail.com>
+Date: Sun, 4 Oct 2026 23:48:04 +0200
+Subject: [PATCH] Fix SIA32 caller frame preservation and terminating long
+ branch veneers
+
+---
+ cranelift/codegen/src/isa/sia32/abi.rs   | 38 +++++++++--
+ cranelift/codegen/src/isa/sia32/label.rs | 87 ++++++++++++++++++------
+ cranelift/codegen/src/isa/sia32/regs.rs  |  9 +--
+ 3 files changed, 102 insertions(+), 32 deletions(-)
+
+diff --git a/cranelift/codegen/src/isa/sia32/abi.rs b/cranelift/codegen/src/isa/sia32/abi.rs
+index dbc42d3642..9558929338 100644
+--- a/cranelift/codegen/src/isa/sia32/abi.rs
++++ b/cranelift/codegen/src/isa/sia32/abi.rs
+@@ -289,6 +289,17 @@ impl ABIMachineSpec for Sia32MachineDeps {
+             .copied()
+             .filter(|reg| matches!(reg.to_reg().hw_enc(), 9..=11 | 15))
+             .collect::<Vec<_>>();
++        // Every non-empty frame writes the reserved FP even when regalloc
++        // did not report it. Preserve the caller's FP across nested calls.
++        if function_calls == FunctionCalls::Regular
++            || stackslots_size != 0
++            || fixed_frame_storage_size != 0
++            || outgoing_args_size != 0
++            || !clobbered_callee_saves.is_empty()
++        {
++            clobbered_callee_saves
++                .push(regs::writable_frame_reg().map(|reg| reg.to_real_reg().unwrap()));
++        }
+         clobbered_callee_saves.sort_by_key(|reg| reg.to_reg().hw_enc());
+         clobbered_callee_saves.dedup_by_key(|reg| reg.to_reg().hw_enc());
+ 
+@@ -384,10 +395,6 @@ impl ABIMachineSpec for Sia32MachineDeps {
+         out.push(Inst::SpAdjust {
+             amount: -(stack_size as i32),
+         });
+-        out.push(Inst::Mov {
+-            dst: regs::writable_frame_reg(),
+-            src: regs::stack_reg(),
+-        });
+         // Keep callee saves above the fixed/outgoing frame so StackAMode::Slot
+         // offsets remain based at the current SP and never address above the caller SP.
+         let save_base = frame_layout.fixed_frame_storage_size
+@@ -409,6 +416,10 @@ impl ABIMachineSpec for Sia32MachineDeps {
+                 ty: I32,
+             });
+         }
++        out.push(Inst::Mov {
++            dst: regs::writable_frame_reg(),
++            src: regs::stack_reg(),
++        });
+         out
+     }
+ 
+@@ -555,13 +566,30 @@ mod tests {
+     fn machine_environment_excludes_fixed_registers() {
+         let flags = settings::Flags::new(settings::builder());
+         let env = Sia32MachineDeps::get_machine_env(&flags, isa::CallConv::SystemV);
+-        for n in [0, 12, 13, 14] {
++        for n in [0, 12, 13, 14, 15] {
+             let preg = regs::preg(n);
+             assert!(!env.preferred_regs_by_class[0].contains(preg));
+             assert!(!env.non_preferred_regs_by_class[0].contains(preg));
+         }
+     }
+ 
++    #[test]
++    fn reserved_frame_pointer_is_saved_before_replacement() {
++        let flags = settings::Flags::new(settings::builder());
++        let sig = Signature::new(isa::CallConv::SystemV);
++        let frame = Sia32MachineDeps::compute_frame_layout(
++            isa::CallConv::SystemV, &flags, &sig, &[],
++            FunctionCalls::Regular, 0, 0, 0, 16, 0,
++        );
++        assert!(frame.clobbered_callee_saves.iter().any(|r| r.to_reg().hw_enc() == 15));
++        let instructions = Sia32MachineDeps::gen_clobber_save(isa::CallConv::SystemV, &flags, &frame);
++        let save = instructions.iter().position(|inst| matches!(inst,
++            Inst::StoreBaseOffset { src, .. } if *src == regs::frame_reg())).unwrap();
++        let replacement = instructions.iter().position(|inst| matches!(inst,
++            Inst::Mov { dst, .. } if dst.to_reg() == regs::frame_reg())).unwrap();
++        assert!(save < replacement);
++    }
++
+     #[test]
+     fn narrow_integer_abi_extensions_are_signature_driven() {
+         assert_eq!(
+diff --git a/cranelift/codegen/src/isa/sia32/label.rs b/cranelift/codegen/src/isa/sia32/label.rs
+index 6881e0dfb0..ec5da14b54 100644
+--- a/cranelift/codegen/src/isa/sia32/label.rs
++++ b/cranelift/codegen/src/isa/sia32/label.rs
+@@ -13,6 +13,7 @@ pub(crate) enum LabelUse {
+     Cond7,
+     Branch11,
+     Literal8,
++    LongDelta32 { pc_back: u8 },
+ }
+ 
+ impl LabelUse {
+@@ -50,6 +51,7 @@ impl MachInstLabelUse for LabelUse {
+             Self::Cond7 => 128,
+             Self::Branch11 => 2048,
+             Self::Literal8 => 508,
++            Self::LongDelta32 { .. } => u32::MAX,
+         }
+     }
+ 
+@@ -58,16 +60,25 @@ impl MachInstLabelUse for LabelUse {
+             Self::Cond7 => 126,
+             Self::Branch11 => 2046,
+             Self::Literal8 => 508,
++            Self::LongDelta32 { .. } => u32::MAX,
+         }
+     }
+ 
+     fn patch_size(self) -> CodeOffset {
+-        let _ = self;
+-        2
++        if matches!(self, Self::LongDelta32 { .. }) {
++            4
++        } else {
++            2
++        }
+     }
+ 
+     fn patch(self, buffer: &mut [u8], use_offset: CodeOffset, label_offset: CodeOffset) {
+         assert!(buffer.len() >= 2);
++        if let Self::LongDelta32 { pc_back } = self {
++            let anchor = use_offset - u32::from(pc_back);
++            buffer[..4].copy_from_slice(&label_offset.wrapping_sub(anchor).to_le_bytes());
++            return;
++        }
+         let old = Self::read_word(buffer);
+         let patched = match self {
+             Self::Cond7 => {
+@@ -80,6 +91,7 @@ impl MachInstLabelUse for LabelUse {
+                 assert!((-1024..=1023).contains(&disp));
+                 (old & !0x07ff) | ((disp as u16) & 0x07ff)
+             }
++            Self::LongDelta32 { .. } => unreachable!(),
+             Self::Literal8 => {
+                 let disp = Self::literal_disp_words(use_offset, label_offset);
+                 assert!((-128..=127).contains(&disp));
+@@ -95,23 +107,51 @@ impl MachInstLabelUse for LabelUse {
+ 
+     fn veneer_size(self) -> CodeOffset {
+         match self {
+-            Self::Cond7 | Self::Branch11 => 2,
+-            Self::Literal8 => 0,
++            Self::Cond7 => 2,
++            Self::Branch11 => 24,
++            Self::Literal8 | Self::LongDelta32 { .. } => 0,
+         }
+     }
+ 
+     fn worst_case_veneer_size() -> CodeOffset {
+-        2
++        24
+     }
+ 
+     fn generate_veneer(self, buffer: &mut [u8], veneer_offset: CodeOffset) -> (CodeOffset, Self) {
+-        assert!(matches!(self, Self::Cond7 | Self::Branch11));
+-        assert!(buffer.len() >= 2);
+-        buffer[..2].copy_from_slice(&encode::b(0).unwrap().to_le_bytes());
+-        // Cond7 is promoted to Branch11. Branch11 deliberately returns another
+-        // Branch11 use: MachBuffer can therefore chain 2 KiB hops for arbitrary
+-        // in-function reach without an architectural PC-address instruction.
+-        (veneer_offset, Self::Branch11)
++        use super::regs::Reg;
++        if self == Self::Cond7 {
++            buffer[..2].copy_from_slice(&encode::b(0).unwrap().to_le_bytes());
++            return (veneer_offset, Self::Branch11);
++        }
++        assert_eq!(self, Self::Branch11);
++        assert!(buffer.len() >= 24);
++        // A backward target beyond 2 KiB cannot be reached by chaining veneers
++        // appended at the end: every hop moves farther from the target.
++        // Capture PC via BL, preserving LR on the stack, then add a full-width
++        // PC-relative delta and jump through the reserved scratch register.
++        let literal = (veneer_offset + 19) & !3;
++        let words = [
++            encode::sw_pre(Reg::LR, Reg::SP),
++            encode::bl(0).unwrap(),
++            encode::ldpc_w(
++                Reg::SCRATCH,
++                ((literal - ((veneer_offset + 8) & !3)) / 4) as i32,
++            )
++            .unwrap(),
++            encode::add(Reg::SCRATCH, Reg::LR, Reg::SCRATCH),
++            encode::lw_post(Reg::LR, Reg::SP).unwrap(),
++            encode::jr(Reg::SCRATCH),
++        ];
++        buffer.fill(0);
++        for (index, word) in words.into_iter().enumerate() {
++            buffer[index * 2..index * 2 + 2].copy_from_slice(&word.to_le_bytes());
++        }
++        (
++            literal,
++            Self::LongDelta32 {
++                pc_back: (literal - veneer_offset - 4) as u8,
++            },
++        )
+     }
+ 
+     fn from_reloc(_reloc: Reloc, _addend: Addend) -> Option<Self> {
+@@ -178,14 +218,19 @@ mod tests {
+     }
+ 
+     #[test]
+-    fn branch11_veneer_can_chain_without_relinking_lr() {
+-        let mut first = [0u8; 2];
+-        let (fixup, next) = LabelUse::Branch11.generate_veneer(&mut first, 0x800);
+-        assert_eq!(u16::from_le_bytes(first), encode::b(0).unwrap());
+-        assert_eq!(fixup, 0x800);
+-        assert_eq!(next, LabelUse::Branch11);
+-        assert_eq!(LabelUse::Branch11.veneer_size(), 2);
+-        assert!(LabelUse::Branch11.supports_veneer());
+-        assert!(!LabelUse::Literal8.supports_veneer());
++    fn branch11_veneer_terminates_in_full_width_delta() {
++        for base in [0x800, 0x802] {
++            let mut bytes = [0u8; 24];
++            let (fixup, next) = LabelUse::Branch11.generate_veneer(&mut bytes, base);
++            assert!(!next.supports_veneer());
++            let index = (fixup - base) as usize;
++            next.patch(&mut bytes[index..], fixup, 0x40);
++            let delta = u32::from_le_bytes(bytes[index..index + 4].try_into().unwrap());
++            assert_eq!((base + 4).wrapping_add(delta), 0x40);
++            assert_eq!(
++                u16::from_le_bytes(bytes[10..12].try_into().unwrap()),
++                encode::jr(Reg::SCRATCH)
++            );
++        }
+     }
+ }
+diff --git a/cranelift/codegen/src/isa/sia32/regs.rs b/cranelift/codegen/src/isa/sia32/regs.rs
+index be0d2eb866..d202253ac6 100644
+--- a/cranelift/codegen/src/isa/sia32/regs.rs
++++ b/cranelift/codegen/src/isa/sia32/regs.rs
+@@ -129,8 +129,8 @@ pub fn writable_scratch_reg() -> Writable<MachReg> {
+ 
+ /// Initial SIA32 register-allocation environment.
+ ///
+-/// Caller-saved r1-r8 are preferred. Callee-saved r9-r11/r15 are the second
+-/// tier. r0, r12, r13 and r14 are fixed/reserved and absent from regalloc.
++/// Caller-saved r1-r8 are preferred. Callee-saved r9-r11 are the second
++/// tier. r0, r12, r13, r14 and the frame base r15 are reserved.
+ pub const fn create_reg_environment() -> MachineEnv {
+     let preferred_regs_by_class = [
+         PRegSet::empty()
+@@ -145,10 +145,7 @@ pub const fn create_reg_environment() -> MachineEnv {
+         PRegSet::empty(),
+         PRegSet::empty(),
+     ];
+-    // r15 is reserved as the stable frame base for dynamic stack allocation.
+-    // Stack slots are SP-relative and the prologue does not establish a fixed
+-    // frame pointer, so withholding r15 needlessly reduces the allocator to
+-    // eleven registers and makes call-heavy generated code unallocatable.
++    // r15 remains the stable frame base across dynamic stack allocation.
+     let non_preferred_regs_by_class = [
+         PRegSet::empty().with(preg(9)).with(preg(10)).with(preg(11)),
+         PRegSet::empty(),
+-- 
+2.43.0
+

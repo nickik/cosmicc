@@ -1,0 +1,11 @@
+MAINBOARDBETRACE|mask=0001|status=ok
+MAINBOARDBETRACE|mask=0010|status=ok
+MAINBOARDBETRACE|mask=0100|status=ok
+MAINBOARDBETRACE|mask=1000|status=ok
+MAINBOARDBETRACE|mask=0011|status=ok
+MAINBOARDBETRACE|mask=1100|status=ok
+MAINBOARDBETRACE|mask=0101|status=ok
+MAINBOARDBETRACE|mask=1010|status=ok
+MAINBOARDBETRACE|mask=0000|status=ok
+MAINBOARDBETRACE|mask=1111|status=ok
+PASS|byte-enable|CPU to Mainboard to MemoryController propagation and backpressure stability

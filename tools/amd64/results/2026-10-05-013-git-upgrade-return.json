@@ -1,0 +1,318 @@
+{
+  "compiler_sha256": "53e8d148f14fd2aaf072eff3c6613a7255ae1ac2e14d95d707788b567379a8cf",
+  "sources": {
+    "aggregate-return-cosmic.c": "503cc8bd48e51d39edab161280bbf3539a56a54dc43909e53c14ac737a298072",
+    "aggregate-return-host.c": "d598cbf0b90a3acfb553ec86f2a828384e1b46559b039806d4dca3f5936fd5a0"
+  },
+  "commands": [
+    {
+      "command": [
+        "gcc-13",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-cosmic.c",
+        "-o",
+        "/tmp/cosmicc-013-native-return/reference-gcc-13-O0"
+      ],
+      "returncode": 0,
+      "log": "reference-gcc-13-O0-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/reference-gcc-13-O0"
+      ],
+      "returncode": 0,
+      "log": "reference-gcc-13-O0-execute.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-cosmic.c",
+        "-o",
+        "/tmp/cosmicc-013-native-return/reference-gcc-13-O2"
+      ],
+      "returncode": 0,
+      "log": "reference-gcc-13-O2-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/reference-gcc-13-O2"
+      ],
+      "returncode": 0,
+      "log": "reference-gcc-13-O2-execute.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-cosmic.c",
+        "-o",
+        "/tmp/cosmicc-013-native-return/reference-clang-18-O0"
+      ],
+      "returncode": 0,
+      "log": "reference-clang-18-O0-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/reference-clang-18-O0"
+      ],
+      "returncode": 0,
+      "log": "reference-clang-18-O0-execute.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-cosmic.c",
+        "-o",
+        "/tmp/cosmicc-013-native-return/reference-clang-18-O2"
+      ],
+      "returncode": 0,
+      "log": "reference-clang-18-O2-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/reference-clang-18-O2"
+      ],
+      "returncode": 0,
+      "log": "reference-clang-18-O2-execute.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-snapshot/cosmicc",
+        "-O0",
+        "--target",
+        "amd64",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-cosmic.c",
+        "-o",
+        "/tmp/cosmicc-013-native-return/cosmic-O0.o"
+      ],
+      "returncode": 0,
+      "log": "compile-O0.log"
+    },
+    {
+      "command": [
+        "objdump",
+        "-dr",
+        "/tmp/cosmicc-013-native-return/cosmic-O0.o"
+      ],
+      "returncode": 0,
+      "log": "disassembly-O0.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "--version"
+      ],
+      "returncode": 0,
+      "log": "gcc-13-version.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O0-gcc-13-O0"
+      ],
+      "returncode": 0,
+      "log": "O0-gcc-13-O0-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O0-gcc-13-O0"
+      ],
+      "returncode": 0,
+      "log": "O0-gcc-13-O0-execute.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O0-gcc-13-O2"
+      ],
+      "returncode": 0,
+      "log": "O0-gcc-13-O2-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O0-gcc-13-O2"
+      ],
+      "returncode": 0,
+      "log": "O0-gcc-13-O2-execute.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "--version"
+      ],
+      "returncode": 0,
+      "log": "clang-18-version.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O0-clang-18-O0"
+      ],
+      "returncode": 0,
+      "log": "O0-clang-18-O0-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O0-clang-18-O0"
+      ],
+      "returncode": 0,
+      "log": "O0-clang-18-O0-execute.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O0.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O0-clang-18-O2"
+      ],
+      "returncode": 0,
+      "log": "O0-clang-18-O2-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O0-clang-18-O2"
+      ],
+      "returncode": 0,
+      "log": "O0-clang-18-O2-execute.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-snapshot/cosmicc",
+        "-O2",
+        "--target",
+        "amd64",
+        "-c",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-cosmic.c",
+        "-o",
+        "/tmp/cosmicc-013-native-return/cosmic-O2.o"
+      ],
+      "returncode": 0,
+      "log": "compile-O2.log"
+    },
+    {
+      "command": [
+        "objdump",
+        "-dr",
+        "/tmp/cosmicc-013-native-return/cosmic-O2.o"
+      ],
+      "returncode": 0,
+      "log": "disassembly-O2.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "--version"
+      ],
+      "returncode": 0,
+      "log": "gcc-13-version.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O2-gcc-13-O0"
+      ],
+      "returncode": 0,
+      "log": "O2-gcc-13-O0-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O2-gcc-13-O0"
+      ],
+      "returncode": 0,
+      "log": "O2-gcc-13-O0-execute.log"
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O2-gcc-13-O2"
+      ],
+      "returncode": 0,
+      "log": "O2-gcc-13-O2-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O2-gcc-13-O2"
+      ],
+      "returncode": 0,
+      "log": "O2-gcc-13-O2-execute.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "--version"
+      ],
+      "returncode": 0,
+      "log": "clang-18-version.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O2-clang-18-O0"
+      ],
+      "returncode": 0,
+      "log": "O2-clang-18-O0-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O2-clang-18-O0"
+      ],
+      "returncode": 0,
+      "log": "O2-clang-18-O0-execute.log"
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/aggregate-return-host.c",
+        "/tmp/cosmicc-013-native-return/cosmic-O2.o",
+        "-o",
+        "/tmp/cosmicc-013-native-return/O2-clang-18-O2"
+      ],
+      "returncode": 0,
+      "log": "O2-clang-18-O2-link.log"
+    },
+    {
+      "command": [
+        "/tmp/cosmicc-013-native-return/O2-clang-18-O2"
+      ],
+      "returncode": 0,
+      "log": "O2-clang-18-O2-execute.log"
+    }
+  ],
+  "status": "passed",
+  "scope": "Hidden destination plus RAX return, direct/indirect, GP pressure, variadic and host callbacks",
+  "executed_combinations": 8
+}

@@ -1,7 +1,13 @@
 //! Cosmic C's initial SIA32 lowering path.
 //!
 //! This crate deliberately emits only SIA32 code.  It does not fall back to a
-//! host ISA. Floating-point objects remain rejected until SIA32 FP machine lowering exists.
+//! host ISA. Floating-point emission requires software legalization and target runtime support.
+
+mod image;
+mod integer;
+mod softfloat;
+mod varargs;
+pub use image::{ImageRegion, LinkedImage};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{TryFrom, TryInto};
@@ -9,7 +15,7 @@ use std::fmt;
 
 use cranelift_codegen::binemit::Reloc;
 use cranelift_codegen::control::ControlPlane;
-use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
+use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
     types, AbiParam, Block, ExtFuncData, ExternalName, Function, GlobalValueData, InstBuilder,
     MemFlagsData, Signature, StackSlot, StackSlotData, StackSlotKind, UserExternalName,
@@ -34,7 +40,7 @@ use target_lexicon::Triple;
 pub const TARGET: &str = "sia32-unknown-none";
 
 const BUNDLE_MAGIC: &[u8] = b"COSMIC-SIA\0";
-const BUNDLE_VERSION: u16 = 3;
+const BUNDLE_VERSION: u16 = 4;
 const SIA_REGISTER_COUNT: usize = 16;
 const SIA_ARGUMENT_REGISTER: usize = 1;
 const SIA_LINK_REGISTER: usize = 14;
@@ -77,10 +83,12 @@ pub struct DataArtifact {
 /// A relocatable-in-spirit SIA code bundle.
 ///
 /// The bundle is intentionally small while the Cosmic object/image writer is
-/// being built. It records unrelocated function code only; calls and globals
-/// are rejected rather than emitted with guessed relocations.
+/// being built. It records code/data and explicit internal Abs4 references;
+/// `link_image` resolves a single bundle without host symbols or a host linker.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Artifact {
+    /// Explicit TU-local definitions; None denotes legacy v3 unknown binding.
+    pub local_symbols: Option<std::collections::BTreeSet<String>>,
     /// Target triple used to build every contained function.
     pub target: &'static str,
     /// Compiled function bodies.
@@ -136,7 +144,25 @@ impl Artifact {
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.validate()?;
         let mut bytes = Vec::from(BUNDLE_MAGIC);
-        bytes.extend_from_slice(&BUNDLE_VERSION.to_le_bytes());
+        bytes.extend_from_slice(
+            &if self.local_symbols.is_some() {
+                BUNDLE_VERSION
+            } else {
+                3u16
+            }
+            .to_le_bytes(),
+        );
+        if let Some(locals) = &self.local_symbols {
+            let count = u16::try_from(locals.len())
+                .map_err(|_| Error::Codegen("too many local symbols".into()))?;
+            bytes.extend_from_slice(&count.to_le_bytes());
+            for name in locals {
+                let length = u16::try_from(name.len())
+                    .map_err(|_| Error::Codegen("local symbol name too long".into()))?;
+                bytes.extend_from_slice(&length.to_le_bytes());
+                bytes.extend_from_slice(name.as_bytes());
+            }
+        }
         let count = u16::try_from(self.functions.len())
             .map_err(|_| Error::Codegen("too many functions for a SIA bundle".into()))?;
         bytes.extend_from_slice(&count.to_le_bytes());
@@ -207,11 +233,37 @@ impl Artifact {
             return Err(Error::Codegen("invalid COSMIC-SIA bundle magic".into()));
         }
         let version = u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "version")?));
-        if version != BUNDLE_VERSION {
+        if version != BUNDLE_VERSION && version != 3 {
             return Err(Error::Codegen(format!(
                 "unsupported COSMIC-SIA bundle version {version}"
             )));
         }
+        let local_symbols = if version == 4 {
+            let count = u16::from_le_bytes(read_array(take(
+                bytes,
+                &mut cursor,
+                2,
+                "local symbol count",
+            )?));
+            let mut locals = std::collections::BTreeSet::new();
+            for _ in 0..count {
+                let length = u16::from_le_bytes(read_array(take(
+                    bytes,
+                    &mut cursor,
+                    2,
+                    "local symbol length",
+                )?)) as usize;
+                let name = std::str::from_utf8(take(bytes, &mut cursor, length, "local symbol")?)
+                    .map_err(|_| Error::Codegen("local symbol is not UTF-8".into()))?
+                    .to_owned();
+                if !locals.insert(name) {
+                    return Err(Error::Codegen("duplicate local symbol metadata".into()));
+                }
+            }
+            Some(locals)
+        } else {
+            None
+        };
         let function_count =
             u16::from_le_bytes(read_array(take(bytes, &mut cursor, 2, "function count")?));
         let mut functions = Vec::with_capacity(usize::from(function_count));
@@ -357,6 +409,7 @@ impl Artifact {
             ));
         }
         let artifact = Self {
+            local_symbols,
             target: TARGET,
             functions,
             data,
@@ -429,6 +482,17 @@ impl Artifact {
             return Err(Error::Codegen(
                 "COSMIC-SIA bundle contains neither functions nor data".into(),
             ));
+        }
+        if let Some(locals) = &self.local_symbols {
+            for name in locals {
+                if !self.functions.iter().any(|f| &f.name == name)
+                    && !self.data.iter().any(|d| &d.name == name)
+                {
+                    return Err(Error::Codegen(format!(
+                        "local symbol `{name}` has no definition"
+                    )));
+                }
+            }
         }
         let mut names = HashSet::new();
         for function in &self.functions {
@@ -590,12 +654,18 @@ fn scalar_initializer_bytes(
                 *first = value;
             }
         }
-        ExprType::Literal(LiteralValue::Float(_)) => {
-            return Err(unsupported(
-                location,
-                "floating-point global initialization requires SIA32 float lowering",
-            ));
-        }
+        ExprType::Literal(LiteralValue::Float(value)) => match target {
+            Type::Float => bytes.copy_from_slice(&(value as f32).to_bits().to_le_bytes()),
+            Type::Double | Type::LongDouble => {
+                bytes.copy_from_slice(&value.to_bits().to_le_bytes())
+            }
+            _ => {
+                return Err(unsupported(
+                    location,
+                    "floating initializer requires floating object type",
+                ))
+            }
+        },
         ExprType::Literal(LiteralValue::Str(_)) => {
             return Err(unsupported(
                 location,
@@ -906,8 +976,13 @@ fn completed_object_type(
             Some(Initializer::InitializerList(items)) => u64::try_from(items.len())
                 .map_err(|_| unsupported(location, "array initializer is too large"))?,
             Some(Initializer::Scalar(expression)) => match &expression.expr {
-                ExprType::Literal(LiteralValue::Str(bytes)) => u64::try_from(bytes.len())
-                    .map_err(|_| unsupported(location, "string initializer is too large"))?,
+                ExprType::Literal(LiteralValue::Str(bytes)) => {
+                    u64::try_from(bytes.len())
+                        .map_err(|_| unsupported(location, "string initializer is too large"))?
+                        / element
+                            .sizeof_for(saltwater_parser::TargetDataModel::Sia32)
+                            .map_err(|error| unsupported(location, error.to_string()))?
+                }
                 _ => {
                     return Err(unsupported(
                         location,
@@ -931,13 +1006,11 @@ fn completed_object_type(
     }
 }
 
-fn translation_unit_symbol_name(index: usize, declaration: &Declaration) -> String {
+fn translation_unit_symbol_name(_index: usize, declaration: &Declaration) -> String {
     let metadata = declaration.symbol.get();
     let raw_name = metadata.id.resolve_and_clone();
-    if !matches!(metadata.ctype, Type::Function(_))
-        && metadata.storage_class == StorageClass::Static
-    {
-        format!("__cosmic_static_global_{index}_{raw_name}")
+    if metadata.storage_class == StorageClass::Static {
+        format!("__cosmic_static_global_{raw_name}")
     } else {
         raw_name
     }
@@ -1015,8 +1088,12 @@ fn static_address_target(
                 }
                 _ => Ok(None),
             },
-            // Function designators can appear directly in pointer initializers.
-            ExprType::Id(symbol) if matches!(symbol.get().ctype, Type::Function(_)) => {
+            // Function and array designators can appear directly after decay in
+            // pointer initializers. Resolve their original Symbol so TU-local
+            // names retain the compiler-assigned identity.
+            ExprType::Id(symbol)
+                if matches!(symbol.get().ctype, Type::Function(_) | Type::Array(_, _)) =>
+            {
                 Ok(symbols.get(symbol).cloned().map(|name| (name, 0)))
             }
             _ => Ok(None),
@@ -1223,8 +1300,16 @@ fn write_global_initializer(
         },
         Initializer::Scalar(expression) => {
             if let Type::Array(element, _) = ctype {
-                if matches!(element.as_ref(), Type::Char(_)) {
+                if matches!(
+                    element.as_ref(),
+                    Type::Char(_) | Type::SignedChar | Type::Int(_)
+                ) {
                     if let ExprType::Literal(LiteralValue::Str(string)) = &expression.expr {
+                        let capacity = ctype
+                            .sizeof_for(saltwater_parser::TargetDataModel::Sia32)
+                            .map_err(|error| unsupported(location, error.to_string()))?
+                            as usize;
+                        let string = &string[..string.len().min(capacity)];
                         let end = base_offset.checked_add(string.len()).ok_or_else(|| {
                             Error::Codegen("string initializer offset overflows".into())
                         })?;
@@ -1252,6 +1337,12 @@ fn write_global_initializer(
 
 /// Compile C source to SIA32 instructions through the production Cranelift backend.
 pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
+    if opt.target != saltwater_parser::TargetDataModel::Sia32 {
+        return Err(unsupported(
+            Location::default(),
+            "SIA32 compilation requires the SIA32 parser data model",
+        ));
+    }
     let program = check_semantics(source, opt);
     let declarations = program.result.map_err(Error::Source)?;
 
@@ -1262,7 +1353,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             collect_string_literals_initializer(initializer, &mut string_indices);
         }
     }
-    let function_indices: HashMap<Symbol, u32> = declarations
+    let mut function_indices: HashMap<Symbol, u32> = declarations
         .iter()
         .enumerate()
         .filter_map(|(index, declaration)| {
@@ -1293,6 +1384,40 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             )
         })
         .collect();
+    // All declarations of a translation-unit identifier denote one object.
+    // Prefer its initialized definition to a tentative declaration.
+    let mut canonical: HashMap<_, usize> = HashMap::new();
+    for (index, declaration) in declarations.iter().enumerate() {
+        let m = declaration.data.symbol.get();
+        if m.storage_class == StorageClass::Typedef {
+            continue;
+        }
+        let key = m.id;
+        if !canonical.contains_key(&key)
+            || declaration.data.init.is_some()
+            || (m.storage_class != StorageClass::Extern
+                && canonical.get(&key).is_some_and(|&old| {
+                    declarations[old].data.symbol.get().storage_class == StorageClass::Extern
+                }))
+        {
+            canonical.insert(key, index);
+        }
+    }
+    for declaration in &declarations {
+        let symbol = declaration.data.symbol;
+        let m = symbol.get();
+        if let Some(&index) = canonical.get(&m.id) {
+            if matches!(m.ctype, Type::Function(_)) {
+                function_indices.insert(symbol, index as u32);
+            } else {
+                global_indices.insert(symbol, index as u32);
+            }
+            symbol_names.insert(
+                symbol,
+                translation_unit_symbol_name(index, &declarations[index].data),
+            );
+        }
+    }
     let mut static_locals = Vec::new();
     for (function_index, declaration) in declarations.iter().enumerate() {
         if let Some(Initializer::FunctionBody(body)) = &declaration.data.init {
@@ -1321,7 +1446,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
         .map(|(index, bytes)| DataArtifact {
             name: string_symbol_name(index),
             bytes,
-            align: 1,
+            align: 4,
             read_only: true,
             relocations: Vec::new(),
         })
@@ -1370,7 +1495,9 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
     }
     for (index, declaration) in declarations.iter().enumerate() {
         let metadata = declaration.data.symbol.get();
-        if metadata.storage_class == StorageClass::Typedef {
+        if metadata.storage_class == StorageClass::Typedef
+            || canonical.get(&metadata.id).copied() != Some(index)
+        {
             continue;
         }
         let function_type =
@@ -1448,7 +1575,7 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
             None => continue,
         };
         functions.push(compile_function(
-            declaration.data.symbol.get().id.resolve_and_clone(),
+            symbol_names[&declaration.data.symbol].clone(),
             function_type,
             body,
             declaration.location,
@@ -1461,12 +1588,45 @@ pub fn compile(source: &str, opt: Opt) -> Result<Artifact, Error> {
         )?);
     }
 
-    if functions.is_empty() {
+    if functions.is_empty() && data.is_empty() {
         return Err(Error::Codegen(
-            "the source contains no C function definitions".into(),
+            "the source contains no C definitions".into(),
         ));
     }
+    let mut local_symbols = std::collections::BTreeSet::new();
+    for declaration in &declarations {
+        if declaration.data.symbol.get().storage_class == StorageClass::Static {
+            if let Some(name) = symbol_names.get(&declaration.data.symbol) {
+                local_symbols.insert(name.clone());
+            }
+        }
+    }
+    for (_, declaration, _) in &static_locals {
+        local_symbols.insert(symbol_names[&declaration.symbol].clone());
+    }
+    for index in string_indices.values() {
+        local_symbols.insert(string_symbol_name(*index));
+    }
+    let defined: HashSet<_> = functions
+        .iter()
+        .map(|f| &f.name)
+        .chain(data.iter().map(|d| &d.name))
+        .collect();
+    for relocation in functions
+        .iter()
+        .flat_map(|f| &f.relocations)
+        .chain(data.iter().flat_map(|d| &d.relocations))
+    {
+        if local_symbols.contains(&relocation.target) && !defined.contains(&relocation.target) {
+            return Err(Error::Codegen(format!(
+                "undefined TU-local symbol `{}`",
+                relocation.target
+            )));
+        }
+    }
+    local_symbols.retain(|name| defined.contains(name));
     Ok(Artifact {
+        local_symbols: Some(local_symbols),
         target: TARGET,
         functions,
         data,
@@ -1518,6 +1678,9 @@ fn compile_function(
             location,
         )?));
     }
+    if function_type.varargs {
+        signature.params.push(AbiParam::new(types::I32));
+    }
     if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
         signature.returns.push(AbiParam::new(abi_scalar_type(
             &function_type.return_type,
@@ -1550,6 +1713,10 @@ fn compile_function(
                 string_indices,
                 aggregate_return_address,
             );
+            if function_type.varargs {
+                lowerer.variadic_pack =
+                    Some((*entry_values.last().unwrap(), parameters.last().copied()));
+            }
             for statement in body {
                 collect_addressed_locals_stmt(statement, &mut lowerer.addressed_locals);
             }
@@ -1578,7 +1745,10 @@ fn compile_function(
             lowerer.terminated
         };
         if !terminated {
-            if matches!(*function_type.return_type, Type::Void) {
+            if name == "main" && *function_type.return_type == Type::Int(true) {
+                let zero = builder.ins().iconst(types::I32, 0);
+                builder.ins().return_(&[zero]);
+            } else if matches!(*function_type.return_type, Type::Void) {
                 builder.ins().return_(&[]);
             } else {
                 return Err(unsupported(
@@ -1639,6 +1809,20 @@ fn compile_function(
                         });
                         continue;
                     }
+                    3 => {
+                        let target = softfloat::HELPERS
+                            .get(user.index as usize)
+                            .ok_or_else(|| {
+                                Error::Codegen("unknown softfloat helper relocation".into())
+                            })?
+                            .to_string();
+                        relocations.push(RelocationArtifact {
+                            offset: relocation.offset,
+                            target,
+                            addend: relocation.addend,
+                        });
+                        continue;
+                    }
                     namespace => {
                         return Err(Error::Codegen(format!(
                             "SIA32 emitted relocation from unknown namespace {namespace} in {name}"
@@ -1687,8 +1871,8 @@ fn is_by_value_aggregate(ctype: &Type) -> bool {
 fn abi_scalar_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
     match ctype {
         Type::LongLong(_) => Ok(types::I64),
-        Type::Float => Ok(types::F32),
-        Type::Double => Ok(types::F64),
+        Type::Float => Ok(types::I32),
+        Type::Double | Type::LongDouble => Ok(types::I64),
         other => ir_type(other, location),
     }
 }
@@ -1722,6 +1906,7 @@ struct FunctionLowerer<'a, 'b, 'c> {
     global_indices: &'c HashMap<Symbol, u32>,
     string_indices: &'c HashMap<Vec<u8>, u32>,
     aggregate_return_address: Option<Value>,
+    variadic_pack: Option<(Value, Option<Symbol>)>,
     return_type: Option<cranelift_codegen::ir::Type>,
     loop_targets: Vec<(Block, Block, usize)>,
     break_targets: Vec<(Block, usize)>,
@@ -1757,6 +1942,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             global_indices,
             string_indices,
             aggregate_return_address,
+            variadic_pack: None,
             return_type,
             loop_targets: Vec::new(),
             break_targets: Vec::new(),
@@ -1774,14 +1960,24 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         addend: i64,
         location: Location,
     ) -> Result<Value, Error> {
-        let (namespace, index) = if let Some(index) = self.function_indices.get(&symbol).copied() {
+        let (namespace, index) = if let Some(index) =
+            self.function_indices.get(&symbol).copied().or_else(|| {
+                self.function_indices.iter().find_map(|(existing, index)| {
+                    (existing.get().id == symbol.get().id
+                        && matches!(symbol.get().ctype, Type::Function(_)))
+                    .then_some(*index)
+                })
+            }) {
             (0, index)
         } else if let Some(index) = self.global_indices.get(&symbol).copied() {
             (1, index)
         } else {
             return Err(unsupported(
                 location,
-                "SIA32 symbol address has no translation-unit declaration",
+                format!(
+                    "SIA32 symbol address has no translation-unit declaration: {:?}",
+                    symbol.get()
+                ),
             ));
         };
         let external = self
@@ -1878,6 +2074,12 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
 
     fn compile_condition(&mut self, expression: &Expr) -> Result<Value, Error> {
         let value = self.compile_expr(expression)?;
+        if matches!(
+            expression.ctype,
+            Type::Float | Type::Double | Type::LongDouble
+        ) {
+            return Ok(self.sf_truth(value));
+        }
         let value_ty = self.builder.func.dfg.value_type(value);
         let zero = self.builder.ins().iconst(value_ty, 0);
         Ok(self.builder.ins().icmp(IntCC::NotEqual, value, zero))
@@ -2066,29 +2268,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     return Ok(());
                 }
                 if let Some(expression) = value {
-                    let signed = matches!(
-                        &expression.ctype,
-                        Type::Char(true)
-                            | Type::Short(true)
-                            | Type::Int(true)
-                            | Type::Long(true)
-                            | Type::LongLong(true)
-                            | Type::Enum(_, _)
-                    );
                     let mut value = self.compile_expr(expression)?;
                     if let Some(return_type) = self.return_type {
-                        let value_type = self.builder.func.dfg.value_type(value);
-                        if value_type != return_type {
-                            if value_type.bits() < return_type.bits() {
-                                value = if signed {
-                                    self.builder.ins().sextend(return_type, value)
-                                } else {
-                                    self.builder.ins().uextend(return_type, value)
-                                };
-                            } else {
-                                value = self.builder.ins().ireduce(return_type, value);
-                            }
-                        }
+                        value = self.coerce_integer_value(value, return_type, &expression.ctype);
                     }
                     self.release_all_dynamic_stack();
                     self.builder.ins().return_(&[value]);
@@ -2463,7 +2645,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         location: Location,
     ) -> Result<(), Error> {
         let metadata = declaration.symbol.get();
-        if metadata.storage_class == StorageClass::Typedef {
+        if metadata.storage_class == StorageClass::Typedef
+            || matches!(metadata.ctype, Type::Function(_))
+        {
             return Ok(());
         }
         if metadata.storage_class == StorageClass::Static
@@ -2577,6 +2761,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else {
                     self.compile_expr(expression)?
                 };
+                // Narrow scalar locals use native-word SSA storage. Casts and
+                // loads may still produce I8/I16, so convert before defining
+                // the variable or writing its promoted backing slot.
+                let initial = self.coerce_integer_value(initial, ty, &expression.ctype);
                 if let Some(slot) = self.stack_locals.get(&declaration.symbol).copied() {
                     self.builder.ins().stack_store(types::I32, initial, slot, 0);
                 } else {
@@ -2630,9 +2818,16 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
     ) -> Result<(), Error> {
         if let Initializer::Scalar(expression) = initializer {
             if let Type::Array(element, _) = ctype {
-                if matches!(element.as_ref(), Type::Char(_)) {
+                if matches!(
+                    element.as_ref(),
+                    Type::Char(_) | Type::SignedChar | Type::Int(_)
+                ) {
                     if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
-                        for (offset, byte) in bytes.iter().copied().enumerate() {
+                        let capacity = ctype
+                            .sizeof_for(saltwater_parser::TargetDataModel::Sia32)
+                            .map_err(|error| unsupported(location, error.to_string()))?
+                            as usize;
+                        for (offset, byte) in bytes.iter().copied().take(capacity).enumerate() {
                             let value = self.builder.ins().iconst(types::I8, i64::from(byte));
                             let offset = i32::try_from(offset).map_err(|_| {
                                 unsupported(location, "string initializer is too large")
@@ -2699,6 +2894,29 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         base_offset: u64,
         location: Location,
     ) -> Result<(), Error> {
+        if let (Type::Array(element, _), Initializer::Scalar(expression)) = (ctype, initializer) {
+            if matches!(
+                element.as_ref(),
+                Type::Char(_) | Type::SignedChar | Type::Int(_)
+            ) {
+                if let ExprType::Literal(LiteralValue::Str(bytes)) = &expression.expr {
+                    let capacity = ctype
+                        .sizeof()
+                        .map_err(|_| unsupported(location, "string array has incomplete type"))?
+                        as usize;
+                    for (index, byte) in bytes.iter().copied().take(capacity).enumerate() {
+                        let offset = i32::try_from(base_offset + index as u64).map_err(|_| {
+                            unsupported(location, "string array offset exceeds stack range")
+                        })?;
+                        let value = self.builder.ins().iconst(types::I8, i64::from(byte));
+                        self.builder
+                            .ins()
+                            .stack_store(types::I32, value, slot, offset);
+                    }
+                    return Ok(());
+                }
+            }
+        }
         let Initializer::InitializerList(items) = initializer else {
             return Err(unsupported(
                 location,
@@ -2725,7 +2943,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         Initializer::InitializerList(_) if element.is_scalar() => {
                             self.initialize_stack_scalar_at(slot, element, item, offset, location)?;
                         }
-                        Initializer::InitializerList(_) => {
+                        Initializer::InitializerList(_) | Initializer::Scalar(_) => {
                             self.initialize_stack_aggregate_at(
                                 slot, element, item, offset, location,
                             )?;
@@ -2766,7 +2984,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 location,
                             )?;
                         }
-                        Initializer::InitializerList(_) => {
+                        Initializer::InitializerList(_) | Initializer::Scalar(_) => {
                             self.initialize_stack_aggregate_at(
                                 slot,
                                 &field.ctype,
@@ -2822,7 +3040,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                                 location,
                             )?;
                         }
-                        Initializer::InitializerList(_) => {
+                        Initializer::InitializerList(_) | Initializer::Scalar(_) => {
                             self.initialize_stack_aggregate_at(
                                 slot,
                                 &field.ctype,
@@ -2873,6 +3091,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             // leave that Binary(Add, ...) directly as the lvalue.
             ExprType::Binary(saltwater_parser::data::hir::BinaryOp::Add, _, _) => {
                 self.compile_expr(lvalue)
+            }
+            ExprType::Noop(inner) if matches!(&inner.ctype, Type::Pointer(pointee, _) if **pointee == lvalue.ctype) => {
+                self.compile_expr(inner)
             }
             ExprType::Noop(inner) | ExprType::Cast(inner) => self.compile_lvalue_address(inner),
             ExprType::StaticRef(inner) => self.compile_lvalue_address(inner),
@@ -2930,7 +3151,17 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
         }
         let unwrapped_base = strip_wrappers(base);
-        let address = match &unwrapped_base.expr {
+        // A dereferenced aggregate retains a typed pointer in Noop. Do not
+        // strip its cast to a literal: offsetof-style null bases still need
+        // address arithmetic, not a load or an identifier-only fallback.
+        let address = if let ExprType::Noop(pointer) = &base.expr {
+            if matches!(&pointer.ctype, Type::Pointer(pointee, _) if **pointee == base.ctype) {
+                self.compile_expr(pointer)?
+            } else {
+                self.compile_lvalue_address(base)?
+            }
+        } else {
+            match &unwrapped_base.expr {
             ExprType::Id(symbol) => {
                 // Direct local aggregate member access, e.g. local.field.
                 if let Some(slot) = self.stack_locals.get(symbol).copied() {
@@ -2964,6 +3195,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     ),
                 ))
             }
+        }
         };
         Ok(if offset == 0 {
             address
@@ -2983,7 +3215,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
         if source_ty == target_ty {
             value
         } else if source_ty.bits() < target_ty.bits() {
-            if is_signed_integer_type(source_ctype) {
+            if target_ty.bits() < 32 {
+                let wide = if is_signed_integer_type(source_ctype) {
+                    self.builder.ins().sextend(types::I32, value)
+                } else {
+                    self.builder.ins().uextend(types::I32, value)
+                };
+                self.builder.ins().ireduce(target_ty, wide)
+            } else if is_signed_integer_type(source_ctype) {
                 self.builder.ins().sextend(target_ty, value)
             } else {
                 self.builder.ins().uextend(target_ty, value)
@@ -3036,7 +3275,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 } else if let Some(variable) = self.vla_bases.get(symbol).copied() {
                     Ok(self.builder.use_var(variable))
                 } else if self.global_indices.contains_key(symbol)
-                    || self.function_indices.contains_key(symbol)
+                    || matches!(symbol.get().ctype, Type::Function(_))
                 {
                     self.symbol_address(*symbol, 0, expression.location)
                 } else {
@@ -3047,19 +3286,9 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
             }
             ExprType::StaticRef(value) => {
-                let mut lvalue = value.as_ref();
-                while let ExprType::Noop(inner) | ExprType::Cast(inner) = &lvalue.expr {
-                    lvalue = inner;
-                }
-                // &*p is exactly p and does not perform a load. Every other
-                // legal address-of operand uses the same lvalue-address path
-                // as assignment and ++/--, including locals, globals/statics,
-                // members, array elements, and function designators.
-                if let ExprType::Deref(pointer) = &lvalue.expr {
-                    self.compile_expr(pointer)
-                } else {
-                    self.compile_lvalue_address(lvalue)
-                }
+                // Preserve pointer-to-lvalue Noop nodes: stripping them loses
+                // the distinction between &*pick() and &pick().
+                self.compile_lvalue_address(value)
             }
             ExprType::Literal(LiteralValue::Int(value)) => {
                 Ok(self.builder.ins().iconst(ty, *value))
@@ -3070,13 +3299,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::Literal(LiteralValue::Char(value)) => {
                 Ok(self.builder.ins().iconst(ty, i64::from(*value)))
             }
-            ExprType::Literal(LiteralValue::Float(value)) => {
-                if ty == types::F32 {
-                    Ok(self.builder.ins().f32const(*value as f32))
+            ExprType::Literal(LiteralValue::Float(value)) => Ok(self.builder.ins().iconst(
+                ty,
+                if matches!(expression.ctype, Type::Double | Type::LongDouble) {
+                    value.to_bits() as i64
                 } else {
-                    Ok(self.builder.ins().f64const(*value))
-                }
-            }
+                    (*value as f32).to_bits() as i64
+                },
+            )),
             ExprType::Literal(LiteralValue::Str(bytes)) => {
                 self.string_address(bytes, expression.location)
             }
@@ -3096,53 +3326,34 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 }
                 let source_ty = self.builder.func.dfg.value_type(value_clif);
                 let dest_ty = ty;
-                if source_ty.is_float() && dest_ty.is_float() {
-                    if source_ty == dest_ty {
-                        return Ok(value_clif);
-                    }
-                    return if source_ty == types::F32 && dest_ty == types::F64 {
-                        Ok(self.builder.ins().fpromote(types::F64, value_clif))
-                    } else {
-                        Ok(self.builder.ins().fdemote(types::F32, value_clif))
-                    };
+                if matches!(value.ctype, Type::Float | Type::Double | Type::LongDouble)
+                    || matches!(
+                        expression.ctype,
+                        Type::Float | Type::Double | Type::LongDouble
+                    )
+                {
+                    return self.sf_cast(
+                        value_clif,
+                        &value.ctype,
+                        &expression.ctype,
+                        expression.location,
+                    );
                 }
-                if source_ty.is_float() {
-                    let signed = is_signed_integer_type(&expression.ctype);
-                    return if signed {
-                        Ok(self.builder.ins().fcvt_to_sint_sat(dest_ty, value_clif))
-                    } else {
-                        Ok(self.builder.ins().fcvt_to_uint_sat(dest_ty, value_clif))
-                    };
+                if expression.ctype == Type::Bool {
+                    // A C bool conversion tests the complete scalar value;
+                    // truncating to I8 would erase high-only I32/I64 bits.
+                    let truth = self
+                        .builder
+                        .ins()
+                        .icmp_imm_u(IntCC::NotEqual, value_clif, 0);
+                    return Ok(self.coerce_integer_value(truth, types::I8, &Type::Bool));
                 }
-                if dest_ty.is_float() {
-                    let signed = is_signed_integer_type(&value.ctype);
-                    return if signed {
-                        Ok(self.builder.ins().fcvt_from_sint(dest_ty, value_clif))
-                    } else {
-                        Ok(self.builder.ins().fcvt_from_uint(dest_ty, value_clif))
-                    };
-                }
-
                 if source_ty == dest_ty {
                     Ok(value_clif)
                 } else if source_ty.bits() < dest_ty.bits() {
-                    let signed = matches!(
-                        &value.ctype,
-                        Type::Char(true)
-                            | Type::Short(true)
-                            | Type::Int(true)
-                            | Type::Long(true)
-                            | Type::LongLong(true)
-                            | Type::Enum(_, _)
-                    );
-
-                    if signed {
-                        Ok(self.builder.ins().sextend(dest_ty, value_clif))
-                    } else {
-                        Ok(self.builder.ins().uextend(dest_ty, value_clif))
-                    }
+                    Ok(self.coerce_integer_value(value_clif, dest_ty, &value.ctype))
                 } else if source_ty.bits() > dest_ty.bits() {
-                    Ok(self.builder.ins().ireduce(dest_ty, value_clif))
+                    Ok(self.coerce_integer_value(value_clif, dest_ty, &value.ctype))
                 } else {
                     Err(unsupported(
                         expression.location,
@@ -3194,7 +3405,18 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             }
             ExprType::Member(base, member) => {
                 let address = self.compile_member_address(base, *member, expression.location)?;
-                if is_address_valued_type(&expression.ctype) {
+                // Array-to-pointer decay changes the expression type, but
+                // the member still denotes inline storage, not a pointer slot.
+                let member_is_address = match &base.ctype {
+                    Type::Struct(stype) | Type::Union(stype) => stype
+                        .members()
+                        .iter()
+                        .find(|field| field.id == *member)
+                        .map(|field| is_address_valued_type(&field.ctype))
+                        .unwrap_or(false),
+                    _ => false,
+                };
+                if is_address_valued_type(&expression.ctype) || member_is_address {
                     Ok(address)
                 } else {
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
@@ -3229,7 +3451,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                     }
                 }
-                ExprType::Member(_, _) | ExprType::Noop(_) | ExprType::Cast(_) => {
+                ExprType::Member(_, _) => {
                     let address = self.compile_lvalue_address(pointer)?;
                     Ok(self.builder.ins().load(ty, MemFlagsData::new(), address, 0))
                 }
@@ -3240,8 +3462,19 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             },
             ExprType::Negate(value) => {
                 let value_clif = self.compile_expr(value)?;
-                if matches!(expression.ctype, Type::Float | Type::Double) {
-                    return Ok(self.builder.ins().fneg(value_clif));
+                if matches!(
+                    expression.ctype,
+                    Type::Float | Type::Double | Type::LongDouble
+                ) {
+                    let sign = self.builder.ins().iconst(
+                        ty,
+                        if ty == types::I64 {
+                            i64::MIN
+                        } else {
+                            0x80000000
+                        },
+                    );
+                    return Ok(self.builder.ins().bxor(value_clif, sign));
                 }
                 let value_clif = self.coerce_integer_value(value_clif, ty, &value.ctype);
                 let zero = self.builder.ins().iconst(ty, 0);
@@ -3256,32 +3489,33 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
             ExprType::PostIncrement(value, increment) => {
                 let mut lvalue = value.as_ref();
                 while let ExprType::Noop(inner) | ExprType::Cast(inner) = &lvalue.expr {
+                    // A Noop from pointer to pointee denotes an actual lvalue;
+                    // stripping it changes storage type and pointer stepping.
+                    if matches!(&inner.ctype, Type::Pointer(pointee, _) if **pointee == lvalue.ctype)
+                    {
+                        break;
+                    }
                     lvalue = inner;
                 }
-
-                let old = if let ExprType::Id(symbol) = &lvalue.expr {
+                let address = if let ExprType::Id(symbol) = &lvalue.expr {
                     if self.variables.contains_key(symbol) || self.stack_locals.contains_key(symbol)
                     {
-                        self.compile_expr(lvalue)?
+                        None
                     } else {
-                        let address = self.compile_lvalue_address(lvalue)?;
-                        self.builder.ins().load(
-                            ir_type(&lvalue.ctype, lvalue.location)?,
-                            MemFlagsData::new(),
-                            address,
-                            0,
-                        )
+                        Some(self.compile_lvalue_address(lvalue)?)
                     }
                 } else {
-                    // Indexed lvalues are HIR byte-address expressions. Load
-                    // the element, rather than incrementing that address.
-                    let address = self.compile_lvalue_address(lvalue)?;
+                    Some(self.compile_lvalue_address(lvalue)?)
+                };
+                let old = if let Some(address) = address {
                     self.builder.ins().load(
                         ir_type(&lvalue.ctype, lvalue.location)?,
                         MemFlagsData::new(),
                         address,
                         0,
                     )
+                } else {
+                    self.compile_expr(lvalue)?
                 };
                 let value_ty = self.builder.func.dfg.value_type(old);
                 let step = match &lvalue.ctype {
@@ -3302,10 +3536,31 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     _ => 1,
                 };
                 let step = self.builder.ins().iconst(value_ty, step);
-                let updated = if *increment {
-                    self.builder.ins().iadd(old, step)
+                let updated =
+                    if matches!(lvalue.ctype, Type::Float | Type::Double | Type::LongDouble) {
+                        let double = matches!(lvalue.ctype, Type::Double | Type::LongDouble);
+                        let one = self.builder.ins().iconst(
+                            value_ty,
+                            if double {
+                                0x3ff0000000000000
+                            } else {
+                                0x3f800000
+                            },
+                        );
+                        self.sf_call(
+                            if *increment { 0 } else { 1 } + if double { 11 } else { 0 },
+                            &[old, one],
+                        )
+                    } else if *increment {
+                        self.builder.ins().iadd(old, step)
+                    } else {
+                        self.builder.ins().isub(old, step)
+                    };
+                let updated = if lvalue.ctype == Type::Bool {
+                    let truth = self.builder.ins().icmp_imm_u(IntCC::NotEqual, updated, 0);
+                    self.coerce_integer_value(truth, value_ty, &Type::Bool)
                 } else {
-                    self.builder.ins().isub(old, step)
+                    updated
                 };
                 let storage_ty = ir_type(&lvalue.ctype, expression.location)?;
                 let stored = self.coerce_integer_value(updated, storage_ty, &lvalue.ctype);
@@ -3316,13 +3571,14 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     } else if let Some(variable) = self.variables.get(symbol).copied() {
                         self.builder.def_var(variable, updated);
                     } else {
-                        let address = self.compile_lvalue_address(lvalue)?;
+                        let address =
+                            address.expect("nonlocal postfix operand has captured storage");
                         self.builder
                             .ins()
                             .store(MemFlagsData::new(), stored, address, 0);
                     }
                 } else {
-                    let address = self.compile_lvalue_address(lvalue)?;
+                    let address = address.expect("nonlocal postfix operand has captured storage");
                     self.builder
                         .ins()
                         .store(MemFlagsData::new(), stored, address, 0);
@@ -3375,6 +3631,10 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     let mut assignment_left = left;
                     while let ExprType::Noop(inner) | ExprType::Cast(inner) = &assignment_left.expr
                     {
+                        if matches!(&inner.ctype, Type::Pointer(pointee, _) if **pointee == assignment_left.ctype)
+                        {
+                            break;
+                        }
                         assignment_left = inner;
                     }
 
@@ -3589,20 +3849,39 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 // width before emitting CLIF. This avoids type-mismatch IR for
                 // combinations such as char + int and short < long.
                 if let BinaryOp::Compare(compare) = operator {
-                    if matches!(left_expr_type, Type::Float | Type::Double)
-                        || matches!(right_expr_type, Type::Float | Type::Double)
-                    {
-                        use saltwater_parser::data::lex::ComparisonToken;
-                        let condition = match compare {
-                            ComparisonToken::Less => FloatCC::LessThan,
-                            ComparisonToken::Greater => FloatCC::GreaterThan,
-                            ComparisonToken::EqualEqual => FloatCC::Equal,
-                            ComparisonToken::NotEqual => FloatCC::NotEqual,
-                            ComparisonToken::LessEqual => FloatCC::LessThanOrEqual,
-                            ComparisonToken::GreaterEqual => FloatCC::GreaterThanOrEqual,
+                    if matches!(
+                        left_expr_type,
+                        Type::Float | Type::Double | Type::LongDouble
+                    ) || matches!(
+                        right_expr_type,
+                        Type::Float | Type::Double | Type::LongDouble
+                    ) {
+                        use saltwater_parser::data::lex::ComparisonToken::*;
+                        let (helper, a, b, invert) = match compare {
+                            EqualEqual => (4, left, right, false),
+                            NotEqual => (4, left, right, true),
+                            Less => (5, left, right, false),
+                            Greater => (5, right, left, false),
+                            LessEqual => (6, left, right, false),
+                            GreaterEqual => (6, right, left, false),
                         };
-                        let boolean = self.builder.ins().fcmp(condition, left, right);
-                        return Ok(self.builder.ins().uextend(types::I32, boolean));
+                        let result = self.sf_call(
+                            helper
+                                + if matches!(left_expr_type, Type::Double | Type::LongDouble)
+                                    || matches!(right_expr_type, Type::Double | Type::LongDouble)
+                                {
+                                    11
+                                } else {
+                                    0
+                                },
+                            &[a, b],
+                        );
+                        return Ok(if invert {
+                            let one = self.builder.ins().iconst(types::I32, 1);
+                            self.builder.ins().bxor(result, one)
+                        } else {
+                            result
+                        });
                     }
                 }
 
@@ -3619,31 +3898,49 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     }
                     _ => ir_type(&expression.ctype, expression.location)?,
                 };
-                if matches!(expression.ctype, Type::Float | Type::Double) {
-                    let value = match operator {
-                        BinaryOp::Mul => self.builder.ins().fmul(left, right),
-                        BinaryOp::Div => self.builder.ins().fdiv(left, right),
-                        BinaryOp::Add => self.builder.ins().fadd(left, right),
-                        BinaryOp::Sub => self.builder.ins().fsub(left, right),
+                if matches!(
+                    expression.ctype,
+                    Type::Float | Type::Double | Type::LongDouble
+                ) {
+                    let helper = match operator {
+                        BinaryOp::Add => 0,
+                        BinaryOp::Sub => 1,
+                        BinaryOp::Mul => 2,
+                        BinaryOp::Div => 3,
                         _ => {
                             return Err(unsupported(
                                 expression.location,
-                                format!("floating-point operator {operator:?} is not part of L12"),
+                                "unsupported binary32 operator",
                             ))
                         }
                     };
-                    return Ok(value);
+                    return Ok(self.sf_call(
+                        helper
+                            + if matches!(expression.ctype, Type::Double | Type::LongDouble) {
+                                11
+                            } else {
+                                0
+                            },
+                        &[left, right],
+                    ));
                 }
                 let left = self.coerce_integer_value(left, operation_ty, &left_expr_type);
                 let right = self.coerce_integer_value(right, operation_ty, &right_expr_type);
                 let value = match operator {
+                    BinaryOp::Mul if operation_ty == types::I64 => self.multiply64(left, right),
                     BinaryOp::Mul => self.builder.ins().imul(left, right),
+                    BinaryOp::Div if operation_ty == types::I64 => {
+                        self.division64(left, right, is_signed_integer_type(&left_expr_type))
+                    }
                     BinaryOp::Div => {
                         if is_signed_integer_type(&left_expr_type) {
                             self.builder.ins().sdiv(left, right)
                         } else {
                             self.builder.ins().udiv(left, right)
                         }
+                    }
+                    BinaryOp::Mod if operation_ty == types::I64 => {
+                        self.remainder64(left, right, is_signed_integer_type(&left_expr_type))
                     }
                     BinaryOp::Mod => {
                         if is_signed_integer_type(&left_expr_type) {
@@ -3657,7 +3954,13 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     BinaryOp::BitwiseAnd => self.builder.ins().band(left, right),
                     BinaryOp::BitwiseOr => self.builder.ins().bor(left, right),
                     BinaryOp::Xor => self.builder.ins().bxor(left, right),
+                    BinaryOp::Shl if operation_ty == types::I64 => {
+                        self.shift64(left, right, false, true)
+                    }
                     BinaryOp::Shl => self.builder.ins().ishl(left, right),
+                    BinaryOp::Shr if operation_ty == types::I64 => {
+                        self.shift64(left, right, is_signed_integer_type(&left_expr_type), false)
+                    }
                     BinaryOp::Shr => {
                         if is_signed_integer_type(&left_expr_type) {
                             self.builder.ins().sshr(left, right)
@@ -3715,6 +4018,11 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 Ok(value)
             }
             ExprType::FuncCall(function, arguments) => {
+                if let Some(value) =
+                    self.compile_stdarg_call(function, arguments, expression.location)?
+                {
+                    return Ok(value);
+                }
                 let direct_symbol = match &function.expr {
                     ExprType::Id(symbol) if matches!(symbol.get().ctype, Type::Function(_)) => {
                         Some(*symbol)
@@ -3741,15 +4049,25 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                 };
                 let function_type = function_type;
                 let function_index = if let Some(symbol) = direct_symbol {
-                    Some(self.function_indices.get(&symbol).copied().ok_or_else(|| {
-                        unsupported(
-                            expression.location,
-                            format!(
+                    Some(
+                        self.function_indices
+                            .get(&symbol)
+                            .copied()
+                            .or_else(|| {
+                                self.function_indices.iter().find_map(|(existing, index)| {
+                                    (existing.get().id == symbol.get().id).then_some(*index)
+                                })
+                            })
+                            .ok_or_else(|| {
+                                unsupported(
+                                    expression.location,
+                                    format!(
                                 "SIA32 direct call target `{}` has no translation-unit declaration",
                                 symbol.get().id.resolve_and_clone()
                             ),
-                        )
-                    })?)
+                                )
+                            })?,
+                    )
                 } else {
                     None
                 };
@@ -3774,18 +4092,7 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     )?));
                 }
                 if function_type.varargs {
-                    // Cranelift signatures describe the concrete call site.
-                    // Apply C's default argument promotions to the unnamed
-                    // arguments and append their promoted machine types.
-                    for argument in arguments.iter().skip(parameters.len()) {
-                        let promoted_ty = match &argument.ctype {
-                            Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
-                                types::I32
-                            }
-                            _ => ir_type(&argument.ctype, expression.location)?,
-                        };
-                        signature.params.push(AbiParam::new(promoted_ty));
-                    }
+                    signature.params.push(AbiParam::new(types::I32));
                 }
                 if !matches!(*function_type.return_type, Type::Void) && !aggregate_return {
                     signature.returns.push(AbiParam::new(abi_scalar_type(
@@ -3817,8 +4124,50 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                     aggregate_result = Some(address);
                     values.push(address);
                 }
+                let mut packed_offset = 0u32;
+                let variadic_address = if function_type.varargs {
+                    let mut length = 0u32;
+                    for argument in arguments.iter().skip(parameters.len()) {
+                        let bytes = varargs::packed_size(&argument.ctype, expression.location)?;
+                        length = length.checked_add(bytes).ok_or_else(|| {
+                            unsupported(expression.location, "variadic pack too large")
+                        })?;
+                    }
+                    let slot = self.builder.create_sized_stack_slot(StackSlotData::new(
+                        StackSlotKind::ExplicitSlot,
+                        length.max(4),
+                        2,
+                    ));
+                    Some(self.builder.ins().stack_addr(types::I32, slot, 0))
+                } else {
+                    None
+                };
                 for (index, argument) in arguments.iter().enumerate() {
                     let value = self.compile_expr(argument)?;
+                    if index >= parameters.len() {
+                        let pack = variadic_address.expect("checked variadic argument count");
+                        let address = self
+                            .builder
+                            .ins()
+                            .iadd_imm_s(pack, i64::from(packed_offset));
+                        if is_by_value_aggregate(&argument.ctype) {
+                            self.copy_aggregate_value(
+                                address,
+                                value,
+                                &argument.ctype,
+                                expression.location,
+                            )?;
+                        } else {
+                            let ty = abi_parameter_type(&argument.ctype, expression.location)?;
+                            let value = self.coerce_integer_value(value, ty, &argument.ctype);
+                            self.builder
+                                .ins()
+                                .store(MemFlagsData::new(), value, address, 0);
+                        }
+                        packed_offset +=
+                            varargs::packed_size(&argument.ctype, expression.location)?;
+                        continue;
+                    }
                     if let Some(parameter) = parameters.get(index) {
                         if is_by_value_aggregate(&parameter.get().ctype) {
                             let parameter_ctype = &parameter.get().ctype;
@@ -3838,13 +4187,18 @@ impl<'a, 'b, 'c> FunctionLowerer<'a, 'b, 'c> {
                         abi_parameter_type(&parameter.get().ctype, expression.location)?
                     } else {
                         match &argument.ctype {
-                            Type::Bool | Type::Char(_) | Type::Short(_) | Type::Enum(_, _) => {
-                                types::I32
-                            }
+                            Type::Bool
+                            | Type::Char(_)
+                            | Type::SignedChar
+                            | Type::Short(_)
+                            | Type::Enum(_, _) => types::I32,
                             _ => ir_type(&argument.ctype, expression.location)?,
                         }
                     };
                     values.push(self.coerce_integer_value(value, parameter_ty, &argument.ctype));
+                }
+                if let Some(pack) = variadic_address {
+                    values.push(pack);
                 }
                 let call = if let Some(function_ref) = function_ref {
                     self.builder.ins().call(function_ref, &values)
@@ -3878,6 +4232,7 @@ fn is_signed_integer_type(ctype: &Type) -> bool {
     matches!(
         ctype,
         Type::Char(true)
+            | Type::SignedChar
             | Type::Short(true)
             | Type::Int(true)
             | Type::Long(true)
@@ -3888,7 +4243,7 @@ fn is_signed_integer_type(ctype: &Type) -> bool {
 
 fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Type, Error> {
     match ctype {
-        Type::Bool | Type::Char(_) => Ok(types::I8),
+        Type::Bool | Type::Char(_) | Type::SignedChar => Ok(types::I8),
         Type::Short(_) => Ok(types::I16),
         Type::Int(_)
         | Type::Long(_)
@@ -3896,8 +4251,8 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
         | Type::Pointer(_, _)
         | Type::Function(_) => Ok(types::I32),
         Type::LongLong(_) => Ok(types::I64),
-        Type::Float => Ok(types::F32),
-        Type::Double => Ok(types::F64),
+        Type::Float => Ok(types::I32),
+        Type::Double | Type::LongDouble => Ok(types::I64),
         Type::Void => Err(unsupported(
             location,
             "void has no SIA32 SSA value representation",
@@ -3924,6 +4279,55 @@ fn ir_type(ctype: &Type, location: Location) -> Result<cranelift_codegen::ir::Ty
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compiles_offsetof_style_null_based_member_addresses() {
+        compile_source("struct S { char tag; int data[3]; }; unsigned f(void) { return (unsigned)&((struct S *)0)->data[2]; }").unwrap();
+        compile_source("struct Inner { char tag; int value; }; struct Outer { char tag; struct Inner inner; }; unsigned f(void) { return (unsigned)&((struct Outer *)0)->inner.value; }").unwrap();
+    }
+
+    #[test]
+    fn accepts_adding_pointee_qualifiers_and_reassigning_const_pointers() {
+        for source in [
+            "int f(int *p) { const int *q = p; q = p; return *q; }",
+            "int f(int *p) { const volatile int *q = p; return *q; }",
+            "int f(int *p) { void *v = p; const int *q = v; return *q; }",
+            "int f(void) { const int x = 3; const int *p = &x; return *p; }",
+            "int f(int *p) { int *const q = p; *q = 3; return *q; }",
+            "typedef const int *P; int f(P p) { P q = p; q = p; return *q; }",
+            "struct S { const int *p; }; int f(int *p) { struct S s; s.p = p; s.p = p; return *s.p; }",
+        ] { compile_source(source).unwrap_or_else(|error| panic!("{}: {}", source, error)); }
+    }
+
+    #[test]
+    fn rejects_discarding_qualifiers_and_writes_to_const_objects() {
+        for source in [
+            "int f(const int *p) { int *q = p; return *q; }",
+            "int f(const int *p) { *p = 3; return 0; }",
+            "typedef const int *P; int f(P p) { *p = 3; return 0; }",
+            "typedef const int CI; int f(void) { CI x = 3; x = 4; return x; }",
+            "typedef int *const CP; int f(int *p) { CP q = p; q = p; return 0; }",
+            "int f(int *p) { int *const q = p; q = p; return 0; }",
+            "int f(int **p) { const int **q = p; return 0; }",
+            "int f(void) { const int x = 3; int *p = &x; return *p; }",
+            "int f(const int *p) { void *q = p; return 0; }",
+            "struct S { int x; }; int f(const struct S *p) { p->x = 3; return 0; }",
+        ] {
+            assert!(compile_source(source).is_err(), "{}", source);
+        }
+    }
+
+    #[test]
+    fn compiles_and_links_integer_only_runtime_foundations() {
+        let source = format!(
+            "{}\nint main(void) {{ return cosmic_f32_class_bits(0x7f800000u); }}",
+            include_str!("../runtime/primitives.c")
+        );
+        let artifact = compile_default(&source).unwrap();
+        let image = artifact.link_image(0x10000, "main", 65536).unwrap();
+        assert!(image.symbols.contains_key("cosmic_udivmod64"));
+        assert!(image.symbols.contains_key("cosmic_memmove"));
+    }
 
     fn compile_source(source: &str) -> Result<Artifact, Error> {
         compile(source, Opt::default())
@@ -4294,6 +4698,37 @@ mod tests {
         assert_eq!(artifact.functions.len(), 1);
         assert_eq!(artifact.functions[0].relocations.len(), 1);
         assert_eq!(artifact.functions[0].relocations[0].target, "external");
+    }
+
+    #[test]
+    fn completes_initialized_arrays_before_sizeof() {
+        let artifact = compile_source(
+            "int a[] = {[4] = 9, [1] = 2}; int f(void) { int b[][2] = {1,2,3,4}; char s[] = \"abc\"; return sizeof(a) + sizeof(b) + sizeof(s); }",
+        ).unwrap();
+        assert_eq!(
+            artifact
+                .data
+                .iter()
+                .find(|d| d.name == "a")
+                .unwrap()
+                .bytes
+                .len(),
+            20
+        );
+        assert!(!artifact.functions[0].code.is_empty());
+    }
+
+    #[test]
+    fn compiles_compound_assignment_in_control_flow() {
+        for source in [
+            "int f(int *p) { if ((*p += 1) != 0) return *p; return 0; }",
+            "int f(int *p) { while ((*p -= 1) > 0) {} return *p; }",
+            "int f(int *p) { for (; (*p -= 1) > 0; p[1] += 2) {} return p[1]; }",
+            "int f(int *p, int yes) { return yes && (*p += 1); }",
+            "int *pick(void); int f(void) { return *pick() += 1; }",
+        ] {
+            assert!(compile_source(source).is_ok(), "{}", source);
+        }
     }
 
     #[test]
@@ -4713,6 +5148,7 @@ mod tests {
     #[test]
     fn cosmic_sia_bundle_round_trips_data_objects() {
         let artifact = Artifact {
+            local_symbols: None,
             target: TARGET,
             functions: Vec::new(),
             data: vec![DataArtifact {
@@ -4796,8 +5232,8 @@ mod tests {
     #[test]
     fn maps_float_and_double_to_cranelift_scalar_types() {
         let location = Location::default();
-        assert_eq!(ir_type(&Type::Float, location).unwrap(), types::F32);
-        assert_eq!(ir_type(&Type::Double, location).unwrap(), types::F64);
+        assert_eq!(ir_type(&Type::Float, location).unwrap(), types::I32);
+        assert_eq!(ir_type(&Type::Double, location).unwrap(), types::I64);
     }
 
     #[test]
@@ -4810,118 +5246,82 @@ mod tests {
     }
 
     #[test]
-    fn lowers_f32_arithmetic_to_clif_before_backend_boundary() {
-        let error = compile_source("float f(float a, float b) { return -(a + b) * (a - b) / b; }")
-            .unwrap_err();
-        let message = error.to_string();
-        assert!(message.contains("SSA value type f32"), "{}", message);
-        for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
-            assert!(message.contains(instruction), "{}", message);
+    fn binary32_lowering_uses_integer_runtime_relocations() {
+        let artifact = compile_source("float f(float a,float b){return -(a+b)*(a-b)/b;}").unwrap();
+        for helper in [
+            "cosmic_sf_add32",
+            "cosmic_sf_sub32",
+            "cosmic_sf_mul32",
+            "cosmic_sf_div32",
+        ] {
+            assert!(artifact.functions[0]
+                .relocations
+                .iter()
+                .any(|r| r.target == helper));
         }
-    }
-
-    #[test]
-    fn lowers_f64_arithmetic_to_clif_before_backend_boundary() {
-        let error =
-            compile_source("double f(double a, double b) { return -(a + b) * (a - b) / b; }")
-                .unwrap_err();
-        let message = error.to_string();
-        assert!(message.contains("SSA value type f64"), "{}", message);
-        for instruction in ["fadd", "fneg", "fsub", "fmul", "fdiv"] {
-            assert!(message.contains(instruction), "{}", message);
-        }
-    }
-
-    #[test]
-    fn lowers_integer_float_conversions_to_clif_before_backend_boundary() {
-        for (source, instruction) in [
-            ("float f(int x) { return (float)x; }", "fcvt_from_sint"),
-            ("float f(unsigned x) { return (float)x; }", "fcvt_from_uint"),
-            ("int f(float x) { return (int)x; }", "fcvt_to_sint_sat"),
+        for (source, helper) in [
+            ("float f(int x){return (float)x;}", "cosmic_sf_from_i32"),
             (
-                "unsigned f(float x) { return (unsigned)x; }",
-                "fcvt_to_uint_sat",
+                "float f(unsigned x){return (float)x;}",
+                "cosmic_sf_from_u32",
+            ),
+            ("int f(float x){return (int)x;}", "cosmic_sf_to_i32"),
+            (
+                "unsigned f(float x){return (unsigned)x;}",
+                "cosmic_sf_to_u32",
+            ),
+            ("int f(float a,float b){return a<b;}", "cosmic_sf_lt32"),
+            ("int f(float a,float b){return a>=b;}", "cosmic_sf_le32"),
+            ("int f(float a,float b){return a!=b;}", "cosmic_sf_eq32"),
+        ] {
+            assert!(compile_source(source).unwrap().functions[0]
+                .relocations
+                .iter()
+                .any(|r| r.target == helper));
+        }
+        for source in [
+            "float id(float x){return x;}",
+            "float f(float(*p)(float),float x){return p(x);}",
+        ] {
+            compile_source(source).unwrap();
+        }
+    }
+    #[test]
+    fn binary64_and_i64_conversions_have_typed_runtime_relocations() {
+        for (source, helper) in [
+            ("double f(double x){return x+x;}", "cosmic_sf_add64"),
+            (
+                "float f(double x){return (float)x;}",
+                "cosmic_sf_f64_to_f32",
+            ),
+            (
+                "double f(float x){return (double)x;}",
+                "cosmic_sf_f32_to_f64",
+            ),
+            (
+                "long long f(float x){return (long long)x;}",
+                "cosmic_sf_f32_to_i64",
+            ),
+            (
+                "float f(long long x){return (float)x;}",
+                "cosmic_sf_i64_to_f32",
+            ),
+            (
+                "double f(unsigned long long x){return (double)x;}",
+                "cosmic_sf_u64_to_f64",
+            ),
+            (
+                "unsigned long long f(double x){return (unsigned long long)x;}",
+                "cosmic_sf_f64_to_u64",
             ),
         ] {
-            let error = compile_source(source).unwrap_err();
-            let message = error.to_string();
-            assert!(message.contains(instruction), "{}", message);
+            assert!(compile_source(source).unwrap().functions[0]
+                .relocations
+                .iter()
+                .any(|r| r.target == helper));
         }
+        assert!(compile_source("long double f(long double x){return x;}").is_ok());
     }
-
-    #[test]
-    fn lowers_float_width_conversions_to_clif_before_backend_boundary() {
-        for (source, instruction) in [
-            ("double f(float x) { return (double)x; }", "fpromote"),
-            ("float f(double x) { return (float)x; }", "fdemote"),
-        ] {
-            let error = compile_source(source).unwrap_err();
-            let message = error.to_string();
-            assert!(message.contains(instruction), "{}", message);
-        }
-    }
-
-    #[test]
-    fn lowers_f32_comparisons_to_clif_before_backend_boundary() {
-        for (operator, instruction) in [
-            ("<", "fcmp lt"),
-            (">", "fcmp gt"),
-            ("==", "fcmp eq"),
-            ("!=", "fcmp ne"),
-            ("<=", "fcmp le"),
-            (">=", "fcmp ge"),
-        ] {
-            let source = format!("int f(float a, float b) {{ return a {operator} b; }}");
-            let error = compile_source(&source).unwrap_err();
-            let message = error.to_string();
-            assert!(message.contains("SSA value type f32"), "{}", message);
-            assert!(message.contains(instruction), "{}", message);
-        }
-    }
-
-    #[test]
-    fn lowers_f64_comparisons_to_clif_before_backend_boundary() {
-        let error = compile_source("int f(double a, double b) { return a <= b; }").unwrap_err();
-        let message = error.to_string();
-        assert!(message.contains("SSA value type f64"), "{}", message);
-        assert!(message.contains("fcmp le"), "{}", message);
-    }
-
-    #[test]
-    fn lowers_fp_parameter_and_return_abi_to_clif() {
-        for (source, ty) in [
-            ("float id(float x) { return x; }", "f32"),
-            ("double id(double x) { return x; }", "f64"),
-        ] {
-            let error = compile_source(source).unwrap_err();
-            let message = error.to_string();
-            assert!(message.contains(&format!("({ty}) -> {ty}")), "{}", message);
-            assert!(
-                message.contains(&format!("SSA value type {ty}")),
-                "{}",
-                message
-            );
-        }
-    }
-
-    #[test]
-    fn lowers_direct_fp_call_abi_to_clif() {
-        let error = compile_source(
-            "float callee(float x) { return x; } float caller(float x) { return callee(x); }",
-        )
-        .unwrap_err();
-        let message = error.to_string();
-        assert!(message.contains("(f32) -> f32"), "{}", message);
-    }
-
-    #[test]
-    fn lowers_indirect_fp_call_abi_to_clif() {
-        let error = compile_source("float caller(float (*fn)(float), float x) { return fn(x); }")
-            .unwrap_err();
-        let message = error.to_string();
-        assert!(message.contains("(f32) -> f32"), "{}", message);
-    }
-
     #[test]
     fn copies_complete_odd_sized_struct_representations() {
         let artifact = compile_source(
@@ -5264,6 +5664,7 @@ mod tests {
         let location = Location::default();
         assert_eq!(ir_type(&Type::Bool, location).unwrap(), types::I8);
         assert_eq!(ir_type(&Type::Char(true), location).unwrap(), types::I8);
+        assert_eq!(ir_type(&Type::SignedChar, location).unwrap(), types::I8);
         assert_eq!(ir_type(&Type::Short(true), location).unwrap(), types::I16);
         assert_eq!(ir_type(&Type::Int(true), location).unwrap(), types::I32);
         assert_eq!(ir_type(&Type::Long(true), location).unwrap(), types::I32);
@@ -5271,8 +5672,8 @@ mod tests {
             ir_type(&Type::LongLong(true), location).unwrap(),
             types::I64
         );
-        assert_eq!(ir_type(&Type::Float, location).unwrap(), types::F32);
-        assert_eq!(ir_type(&Type::Double, location).unwrap(), types::F64);
+        assert_eq!(ir_type(&Type::Float, location).unwrap(), types::I32);
+        assert_eq!(ir_type(&Type::Double, location).unwrap(), types::I64);
         for ty in [
             Type::Void,
             Type::Array(
@@ -5441,13 +5842,75 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_i64_division_retains_backend_diagnostic() {
-        let error = compile_default(
-            "unsigned long long f(unsigned long long x, unsigned long long y) { return x / y; }",
-        )
-        .unwrap_err()
-        .to_string();
-        assert!(error.contains("udiv.i64"), "{error}");
-        assert!(error.contains("implemented in ISLE"), "{error}");
+    fn ordinary_i64_division_is_legalized() {
+        for source in [
+            "unsigned long long f(unsigned long long x,unsigned long long y){return x/y;}",
+            "long long f(long long x,long long y){return x/y;}",
+        ] {
+            compile_default(source).unwrap();
+        }
+    }
+    #[test]
+    fn explicit_short_to_byte_cast_uses_native_word_reduction() {
+        compile_default("unsigned char f(unsigned short x) { return (unsigned char)x; } signed char g(short x) { return (signed char)x; } unsigned char h(unsigned short x) { return x; }").unwrap();
+    }
+    #[test]
+    fn static_array_designators_in_struct_pointer_initializers_relocate() {
+        let artifact = compile_default("static int values[2] = {3,7}; struct D { const int *p; int n; }; static const struct D desc = {values, 2}; int main(void) { return desc.p[1]; }").unwrap();
+        let image = artifact.link_image(0x10000, "main", 0x10000).unwrap();
+        let data = artifact
+            .data
+            .iter()
+            .find(|d| !d.relocations.is_empty())
+            .unwrap();
+        assert_eq!(data.relocations.len(), 1);
+        assert!(image.symbols.contains_key(&data.relocations[0].target));
+    }
+    #[test]
+    fn narrow_local_initializers_match_promoted_ssa_storage() {
+        compile_default("unsigned char f(unsigned short x) { unsigned char y = (unsigned char)x; return y; } int g(short x) { signed char y = (signed char)x; signed char *p = &y; return *p; }").unwrap();
+    }
+    #[test]
+    fn ordinary_i64_remainder_uses_integer_only_legalization() {
+        let artifact = compile_default("long long f(long long n, long long d) { return n % d; } unsigned long long g(unsigned long long n, unsigned long long d) { return n % d; }").unwrap();
+        assert_eq!(artifact.functions.len(), 2);
+        assert!(artifact.functions.iter().all(|f| f.relocations.is_empty()));
+    }
+    #[test]
+    fn c_identity_and_main_fallthrough_regressions() {
+        for source in [
+            "int main(void){int x=0; switch(x){case 1:return 1;}}",
+            "int f(char*p){return *p+1;} int main(void){int f(char*); char c=1; return f(&c)-2;}",
+            "int x,x=3,x; int main(void){return x-3;}",
+            "int x; int x; int main(void){return x;}",
+            "unsigned char x=255; unsigned short y; int main(void){y=x;return y-255;}",
+        ] {
+            compile_source(source).unwrap();
+        }
+        let artifact = compile_source("int x,x=3,x; int main(void){return x-3;}").unwrap();
+        assert_eq!(artifact.data.iter().filter(|d| d.name == "x").count(), 1);
+    }
+    #[test]
+    fn literal_and_nested_string_array_initializers() {
+        let artifact =
+            compile_default(include_str!("../tools/sia/frontend-literals-arrays.c")).unwrap();
+        assert!(artifact
+            .functions
+            .iter()
+            .flat_map(|f| &f.relocations)
+            .all(|r| !r.target.starts_with("cosmic_sf_")));
+        assert!(artifact
+            .data
+            .iter()
+            .any(|d| d.name.starts_with("__cosmic_str_")));
+        assert!(artifact
+            .data
+            .iter()
+            .filter(|d| d.name.starts_with("__cosmic_str_"))
+            .all(|d| d.align >= 4));
+    }
+    #[test]
+    fn bool_casts_test_full_scalar_width() {
+        compile_default(include_str!("../tools/sia/bool-conversions.c")).unwrap();
     }
 }

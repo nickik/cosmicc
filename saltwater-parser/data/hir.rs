@@ -489,13 +489,10 @@ impl StmtType {
 
 impl Display for Variable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.qualifiers != Qualifiers::default() {
-            write!(f, "{} ", self.qualifiers)?;
-        }
         if self.storage_class != StorageClass::default() {
             write!(f, "{} ", self.storage_class)?;
         }
-        super::types::print_type(&self.ctype, Some(self.id), f)
+        super::types::print_type(&self.ctype, Some(self.id), self.qualifiers, f)
     }
 }
 

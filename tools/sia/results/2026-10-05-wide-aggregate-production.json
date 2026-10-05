@@ -1,0 +1,48 @@
+{
+  "compiler_sha256": "a779a61517b2ba2e6d39432a1a13081622022451da1bed5de3ad9ef194622f0b",
+  "linker_sha256": "f406a2253d9fa50df38033714124ff174f5610d9598e41fc7ed59efdc3476cc0",
+  "source_sha256": "da7aa952ca486364c00b8813f04ddde0ef9e3c0b56282d5fc7e4d83545b47d08",
+  "commands": [
+    {
+      "command": [
+        "/home/nick/alltech/DigitalEquipment/cosmicc/target/debug/cosmicc",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/aggregate-varargs.c",
+        "-o",
+        "/tmp/cosmic-sia-aggregate-varargs-production-final/guest.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/home/nick/alltech/DigitalEquipment/cosmicc/target/debug/cosmic-link",
+        "--base",
+        "0x10000",
+        "--entry",
+        "main",
+        "--max-bytes",
+        "0x60000",
+        "--container",
+        "-o",
+        "/tmp/cosmic-sia-aggregate-varargs-production-final/image.csia",
+        "/tmp/cosmic-sia-aggregate-varargs-production-final/guest.sia"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "run",
+        "--offline",
+        "--quiet",
+        "--bin",
+        "multi-object-native",
+        "--",
+        "--board",
+        "/tmp/cosmic-sia-aggregate-varargs-production-final/guest.sia"
+      ],
+      "returncode": 0
+    }
+  ],
+  "status": "passed",
+  "image_sha256": "f34192b49e40b13ed41154fab6c80fe0f26b4fc6a342ddadf092d43f194a7b3f"
+}

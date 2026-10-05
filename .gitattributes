@@ -1,0 +1,15 @@
+# Preserve exact audited upstream bytes and recorded test output.
+# Their original whitespace is intentional evidence, not maintained formatting.
+runtime/softfloat/upstream/** -text -whitespace
+runtime/softfloat/fdlibm/upstream/** -text -whitespace
+runtime/softfloat/fdlibm/adapted/** -text -whitespace
+runtime/softfloat/UPSTREAM-LICENSE.txt -text -whitespace
+tools/**/results/** -whitespace
+runtime/**/results/** -whitespace
+tools/backend-patches/*.patch -whitespace
+runtime/softfloat/adapted/** -text -whitespace
+
+# Preserve review patches and raw dependency validation transcripts.
+tools/dependency-integration/**/*.patch -text -whitespace
+tools/dependency-integration/*.patch -text -whitespace
+tools/dependency-integration/**/*.log -whitespace

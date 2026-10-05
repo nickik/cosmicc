@@ -167,3 +167,22 @@ pointers-to-const, and missing strtoul/strchr declarations. File integration is
 still incomplete: linking/runtime, full I64 operation coverage, QDX-B attachment,
 native open/read/create/write/close, and independent image verification remain.
 See `tools/ext2/README.md` and `scripts/check-ext2-native.sh`.
+
+
+### Minimal ext2 storage example — 2026-10-04
+
+- [x] Compile a 32-bit-only SIA32 guest that locates `/note.txt` via ext2 metadata
+  and overwrites its existing 32-byte allocation through physical QDX-B.
+- [x] Attach FileDisk as namespace 1; derive capacity from the actual backend;
+  propagate FLUSH persistence errors to guest completion.
+- [x] Correct simulator-host DMA beat timing and cast-pointer load/store lowering.
+- [x] Terminate long backward branch veneers instead of endlessly appending hops.
+- [x] Fresh 256 KiB image: native read/overwrite/flush/readback; independent full
+  byte comparison and clean e2fsck. Run `sh scripts/check-ext2-minimal.sh`.
+- [ ] Publish coordinated default-branch revisions and replace the example's
+  temporary sibling development patches (automatic approval review rejected
+  the QDX-B main push; explicit approval is pending).
+
+This acceptance uses regular LightingMachine with the physical QDX-B card
+model. It does not claim Bluespec board-runner acceptance or general ext2
+create/allocation support. See tools/ext2/README.md for the exact boundary.

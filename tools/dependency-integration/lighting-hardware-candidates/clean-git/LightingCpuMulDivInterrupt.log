@@ -1,0 +1,162 @@
+checking package dependencies
+compiling /tmp/lighting-chips-clean-git-20261005/rtl/LightingTypes.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/rtl/common/CpuMmu.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/sim/FlatCpuMemory.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/rtl/cpu/LightingPrivileged.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/rtl/cpu/LightingMulDiv.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/rtl/cpu/LightingCpu.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv
+code generation for mkTbLightingCpuMulDivInterrupt starts
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_advanceRetirement" was treated as more urgent than
+  "cpu_misalignedFetch". Conflicts:
+    "cpu_advanceRetirement" cannot fire before "cpu_misalignedFetch":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_fetchPc.write vs. cpu_fetchPc.read
+	cpu_privilegeReg.write vs. cpu_privilegeReg.read
+	cpu_statusReg.write vs. cpu_statusReg.read
+	cpu_trapEntryPending.write vs. cpu_trapEntryPending.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_fValid.write vs. cpu_fValid.read
+	cpu_xValid.write vs. cpu_xValid.read
+    "cpu_misalignedFetch" cannot fire before "cpu_advanceRetirement":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_privilegeReg.write vs. cpu_privilegeReg.read
+	cpu_statusReg.write vs. cpu_statusReg.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_advanceRetirement" was treated as more urgent than
+  "cpu_completeFetch". Conflicts:
+    "cpu_advanceRetirement" cannot fire before "cpu_completeFetch":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_trapEntryPending.write vs. cpu_trapEntryPending.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_fValid.write vs. cpu_fValid.read
+    "cpu_completeFetch" cannot fire before "cpu_advanceRetirement":
+      calls to cpu_isRunning.write vs. cpu_isRunning.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_misalignedFetch" was treated as more urgent than
+  "cpu_decodeToExecute". Conflicts:
+    "cpu_misalignedFetch" cannot fire before "cpu_decodeToExecute":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_dValid.write vs. cpu_dValid.read
+	cpu_xValid.write vs. cpu_xValid.read
+    "cpu_decodeToExecute" cannot fire before "cpu_misalignedFetch":
+      calls to cpu_xValid.write vs. cpu_xValid.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_completeFetch" was treated as more urgent than
+  "cpu_completeData". Conflicts:
+    "cpu_completeFetch" cannot fire before "cpu_completeData":
+      calls to cpu_isRunning.write vs. cpu_isRunning.read
+    "cpu_completeData" cannot fire before "cpu_completeFetch":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_trapEntryPending.write vs. cpu_trapEntryPending.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_fValid.write vs. cpu_fValid.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_completeData" was treated as more urgent than
+  "cpu_completeArithmetic". Conflicts:
+    "cpu_completeData" cannot fire before "cpu_completeArithmetic":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_regs.write vs. cpu_regs.read
+	cpu_retired.write vs. cpu_retired.read
+	cpu_privilegeReg.write vs. cpu_privilegeReg.read
+	cpu_statusReg.write vs. cpu_statusReg.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_retirementPending.write vs. cpu_retirementPending.read
+    "cpu_completeArithmetic" cannot fire before "cpu_completeData":
+      calls to
+	cpu_regs.write vs. cpu_regs.read
+	cpu_retired.write vs. cpu_retired.read
+	cpu_privilegeReg.write vs. cpu_privilegeReg.read
+	cpu_statusReg.write vs. cpu_statusReg.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_retirementPending.write vs. cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_issueGroup" was treated as more urgent than
+  "cpu_issueControl". Conflicts:
+    "cpu_issueGroup" cannot fire before "cpu_issueControl":
+      calls to memory_dataState.write vs. memory_dataState.read
+    "cpu_issueControl" cannot fire before "cpu_issueGroup":
+      calls to memory_controlState.write vs. memory_controlState.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_completeArithmetic" was treated as more urgent than
+  "cpu_completeControl". Conflicts:
+    "cpu_completeArithmetic" cannot fire before "cpu_completeControl":
+      calls to
+	cpu_regs.write vs. cpu_regs.read
+	cpu_retired.write vs. cpu_retired.read
+	cpu_retirementPending.write vs. cpu_retirementPending.read
+    "cpu_completeControl" cannot fire before "cpu_completeArithmetic":
+      calls to
+	cpu_retired.write vs. cpu_retired.read
+	cpu_privilegeReg.write vs. cpu_privilegeReg.read
+	cpu_statusReg.write vs. cpu_statusReg.read
+	cpu_retirementPending.write vs. cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0010)
+  Rule "cpu_completeFetch" was treated as more urgent than
+  "cpu_executeAndRetire". Conflicts:
+    "cpu_completeFetch" cannot fire before "cpu_executeAndRetire":
+      calls to
+	cpu_isRunning.write vs. cpu_isRunning.read
+	cpu_xValid.write vs. cpu_xValid.read
+    "cpu_executeAndRetire" cannot fire before "cpu_completeFetch":
+      calls to
+	cpu_trapEntryPending.write vs. cpu_trapEntryPending.read
+	cpu_fetchEpoch.write vs. cpu_fetchEpoch.read
+	cpu_fValid.write vs. cpu_fValid.read
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `initialize' shadows the effects of `cpu_arithmetic_iterate' when they
+  execute in the same clock cycle. Affected method calls:
+    cpu_arithmetic_valid.write, cpu_arithmetic_fault.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_arithmetic_iterate' shadows the effects of
+  `cpu_completeArithmetic' when they execute in the same clock cycle. Affected
+  method calls:
+    cpu_arithmetic_valid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_executeAndRetire' shadows the effects of `cpu_fetchToDecode' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_completeFetch' shadows the effects of `cpu_completeControl' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_completeFetch' shadows the effects of `cpu_decodeToExecute' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_advanceRetirement' shadows the effects of `cpu_decodeToExecute'
+  when they execute in the same clock cycle. Affected method calls:
+    cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_advanceRetirement' shadows the effects of `cpu_fetchToDecode' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingCpuMulDivInterrupt.bsv", line 5, column 8: (G0117)
+  Rule `cpu_advanceRetirement' shadows the effects of `cpu_issueFetch' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Elaborated module file created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingCpuMulDivInterrupt/mkTbLightingCpuMulDivInterrupt.ba
+All packages are up to date.
+Bluesim object created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingCpuMulDivInterrupt/mkTbLightingCpuMulDivInterrupt.{h,o}
+Bluesim object created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingCpuMulDivInterrupt/model_mkTbLightingCpuMulDivInterrupt.{h,o}
+Simulation shared library created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingCpuMulDivInterrupt/runner.so
+Simulation executable created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingCpuMulDivInterrupt/runner
+PASS arithmetic precise interrupt boundary

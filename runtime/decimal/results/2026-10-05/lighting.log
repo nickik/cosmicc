@@ -1,0 +1,4 @@
+   Compiling cosmicc-l21-execution v0.1.0 (/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.02s
+     Running `tools/l21-execution/target/debug/sia-float-language tools/sia/decimal-language.c --max-instructions 10000000`
+PASS SIA C software floating-point source tools/sia/decimal-language.c; 1440640 instructions; board=false

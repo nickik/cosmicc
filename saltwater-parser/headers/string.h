@@ -13,5 +13,6 @@ int strcmp(const char *lhs, const char *rhs);
 int strncmp(const char *lhs, const char *rhs, size_t count);
 char *strcpy(char *restrict dest, const char *restrict src);
 char *strncpy(char *restrict dest, const char *restrict src, size_t count);
+char *strchr(const char *str, int character);
 
 #endif

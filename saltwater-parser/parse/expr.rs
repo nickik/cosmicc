@@ -200,6 +200,21 @@ impl<I: Lexer> Parser<I> {
         let mut prefixes = Vec::new();
         // hack: `sizeof` can be either a unary or primary expression, so we special-case it
         let mut inner = loop {
+            if let Some(ctype) = self.parenthesized_type()? {
+                if self.peek_token() == Some(&Token::LeftBrace) {
+                    let init = self.initializer()?;
+                    break self.postfix_expr(
+                        ctype.map(|ctype| ExprType::CompoundLiteral(ctype, Box::new(init))),
+                    )?;
+                }
+                let location = ctype.location;
+                prefixes.push((
+                    Box::new(move |expr| ExprType::Cast(ctype.data, Box::new(expr)))
+                        as Box<dyn UnaryExprFn>,
+                    location,
+                ));
+                continue;
+            }
             if let Some(Locatable {
                 data: constructor,
                 location,
@@ -249,7 +264,30 @@ impl<I: Lexer> Parser<I> {
     fn primary_expr(&mut self) -> SyntaxResult<Expr> {
         // primary expression
         // this must be an expression since we already consumed all the prefix expressions
-        let primary = if let Some(paren) = self.match_next(&Token::LeftParen) {
+        let primary = if let Some(keyword) = self.match_keywords(&[Keyword::Generic]) {
+            self.expect(Token::LeftParen)?;
+            let control = self.assignment_expr()?;
+            self.expect(Token::Comma)?;
+            let mut associations = Vec::new();
+            loop {
+                let ty = if self.match_keywords(&[Keyword::Default]).is_some() {
+                    None
+                } else {
+                    Some(self.type_name()?)
+                };
+                self.expect(Token::Colon)?;
+                let value = self.assignment_expr()?;
+                associations.push((ty, value));
+                if self.match_next(&Token::Comma).is_none() {
+                    break;
+                }
+            }
+            let end = self.expect(Token::RightParen)?.location;
+            keyword
+                .location
+                .merge(&end)
+                .with(ExprType::GenericSelection(Box::new(control), associations))
+        } else if let Some(paren) = self.match_next(&Token::LeftParen) {
             // take out lots of guards since there's a lot of indirection
             let _guard = self.recursion_check();
             let _guard2 = self.recursion_check();
@@ -261,6 +299,8 @@ impl<I: Lexer> Parser<I> {
             loc.map(ExprType::Id)
         } else if let Some(literal) = self.match_literal() {
             let loc = literal.location;
+            let wide_string = matches!(&literal.data, crate::data::lex::LiteralToken::WideStr(_));
+            let wide_char = matches!(&literal.data, crate::data::lex::LiteralToken::WideChar(_));
             let long_long = match &literal.data {
                 crate::data::lex::LiteralToken::Int(raw)
                 | crate::data::lex::LiteralToken::UnsignedInt(raw) => {
@@ -269,9 +309,53 @@ impl<I: Lexer> Parser<I> {
                 }
                 _ => false,
             };
+            let long = match &literal.data {
+                crate::data::lex::LiteralToken::Int(raw)
+                | crate::data::lex::LiteralToken::UnsignedInt(raw) => {
+                    let raw = raw.as_str().to_ascii_lowercase();
+                    raw.ends_with('l') || raw.ends_with("lu")
+                }
+                _ => false,
+            };
+            let float_suffix = match &literal.data {
+                crate::data::lex::LiteralToken::Float(raw) => {
+                    raw.as_str().chars().last().map(|c| c.to_ascii_lowercase())
+                }
+                _ => None,
+            };
+            let nondecimal = match &literal.data {
+                crate::data::lex::LiteralToken::Int(raw)
+                | crate::data::lex::LiteralToken::UnsignedInt(raw)
+                    if raw.as_str().starts_with('0') =>
+                {
+                    let text = raw.as_str();
+                    let base = text.trim_end_matches(['u', 'U', 'l', 'L']);
+                    let suffix = &text[base.len()..];
+                    Some((
+                        suffix.chars().filter(|c| matches!(c, 'l' | 'L')).count() as u8,
+                        suffix.contains(['u', 'U']),
+                    ))
+                }
+                _ => None,
+            };
+            if let Some((longs, unsigned)) = nondecimal {
+                let value = literal.data.parse().map_err(|e| loc.with(e))?;
+                return self
+                    .postfix_expr(loc.with(ExprType::NonDecimalLiteral(value, longs, unsigned)));
+            }
             match literal.data.parse() {
-                Ok(literal) => loc.with(literal).map(if long_long {
+                Ok(literal) => loc.with(literal).map(if wide_string {
+                    ExprType::WideStringLiteral
+                } else if wide_char {
+                    ExprType::WideCharLiteral
+                } else if float_suffix == Some('f') {
+                    ExprType::FloatLiteral
+                } else if float_suffix == Some('l') {
+                    ExprType::LongDoubleLiteral
+                } else if long_long {
                     ExprType::LongLongLiteral
+                } else if long {
+                    ExprType::LongLiteral
                 } else {
                     ExprType::Literal
                 }),
@@ -299,17 +383,6 @@ impl<I: Lexer> Parser<I> {
 
     // '(' TYPE_NAME ')' | '*' | '~' | '!' | '+' | '-' | '&' | '++' | '--'
     fn match_prefix_operator(&mut self) -> Option<Locatable<Box<dyn UnaryExprFn>>> {
-        let maybe_type = self.parenthesized_type().unwrap_or_else(|err| {
-            self.error_handler.push_back(err);
-            None
-        });
-        if let Some(cast) = maybe_type {
-            let loc = cast.location;
-            return Some(Locatable::new(
-                Box::new(move |expr| ExprType::Cast(cast.data, Box::new(expr))),
-                loc,
-            ));
-        }
         // prefix operator
         let func = match self.peek_token()? {
             Token::Star => ExprType::Deref,

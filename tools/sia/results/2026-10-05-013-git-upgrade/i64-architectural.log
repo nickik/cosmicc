@@ -1,0 +1,1 @@
+PASS SIA source tools/sia/i64-operations.c; 650691 instructions; board=false

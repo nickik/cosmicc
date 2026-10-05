@@ -29,62 +29,102 @@ lazy_static::lazy_static! {
 mod sia32;
 pub use sia32::*;
 
+/// Explicit target C data model; never inferred from the build host.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TargetDataModel {
+    /// Cosmic SIA32 ILP32.
+    #[default]
+    Sia32,
+    /// System V AMD64 LP64.
+    Amd64,
+}
+impl TargetDataModel {
+    /// Pointer and long size in bytes.
+    pub fn word_bytes(self) -> u64 {
+        if self == Self::Amd64 {
+            8
+        } else {
+            4
+        }
+    }
+}
+
 impl StructType {
     /// Get the offset of the given struct member.
     #[cfg_attr(not(feature = "codegen"), allow(dead_code))]
     pub(crate) fn offset(&self, member: InternedStr) -> u64 {
+        self.offset_for(member, TargetDataModel::Sia32)
+    }
+    /// Target-specific member offset.
+    pub fn offset_for(&self, member: InternedStr, target: TargetDataModel) -> u64 {
         let members = self.members();
         let mut current_offset = 0;
         for formal in members.iter() {
+            let alignment = formal
+                .ctype
+                .alignof_for(target)
+                .expect("struct members must have valid alignment");
+            current_offset = (current_offset + alignment - 1) & !(alignment - 1);
             if formal.id == member {
                 return current_offset;
             }
-            current_offset = Self::next_offset(current_offset, &formal.ctype)
-                .expect("structs should have valid size and alignment");
+            current_offset += formal
+                .ctype
+                .sizeof_for(target)
+                .expect("struct members must have valid size");
         }
         unreachable!("cannot call struct_offset for member not in struct");
     }
     /// Get the offset of the next struct member given the current offset.
-    fn next_offset(mut current_offset: u64, ctype: &Type) -> Result<u64, &'static str> {
-        let align = ctype.alignof()?;
+    fn next_offset(
+        mut current_offset: u64,
+        ctype: &Type,
+        target: TargetDataModel,
+    ) -> Result<u64, &'static str> {
+        let align = ctype.alignof_for(target)?;
         // round up to the nearest multiple of align
         let rem = current_offset % align;
         if rem != 0 {
             // for example: 7%4 == 3; 7 + ((4 - 3) = 1) == 8; 8 % 4 == 0
             current_offset += align - rem;
         }
-        Ok(current_offset + ctype.sizeof()?)
+        Ok(current_offset + ctype.sizeof_for(target)?)
     }
     /// Calculate the size of a struct: the sum of all member sizes
-    pub(crate) fn struct_size(&self) -> Result<SIZE_T, &'static str> {
+    fn struct_size(&self, target: TargetDataModel) -> Result<SIZE_T, &'static str> {
         let symbols = &self.members();
 
         symbols
             .iter()
             .try_fold(0, |offset, symbol| {
-                Ok(StructType::next_offset(offset, &symbol.ctype)?)
+                Ok(StructType::next_offset(offset, &symbol.ctype, target)?)
             })
             .and_then(|size_t| {
-                let align_minus_one = self.align()? - 1;
+                let align_minus_one = self.align(target)? - 1;
 
                 // Rounds up to the next multiple of `align`
                 Ok((size_t + align_minus_one) & !align_minus_one)
             })
     }
     /// Calculate the size of a union: the max of all member sizes
-    pub(crate) fn union_size(&self) -> Result<SIZE_T, &'static str> {
+    fn union_size(&self, target: TargetDataModel) -> Result<SIZE_T, &'static str> {
         let symbols = &self.members();
-        symbols
+        let size = symbols
             .iter()
-            .map(|symbol| symbol.ctype.sizeof())
-            // max of member sizes
-            .try_fold(1, |n, size| Ok(max(n, size?)))
+            .map(|symbol| symbol.ctype.sizeof_for(target))
+            .try_fold(1, |n, size| Ok::<u64, &'static str>(max(n, size?)))?;
+        if target == TargetDataModel::Amd64 {
+            let alignment = self.align(target)?;
+            Ok((size + alignment - 1) & !(alignment - 1))
+        } else {
+            Ok(size)
+        }
     }
     /// Calculate the alignment of a struct: the max of all member alignments
-    pub(crate) fn align(&self) -> Result<SIZE_T, &'static str> {
+    fn align(&self, target: TargetDataModel) -> Result<SIZE_T, &'static str> {
         let members = &self.members();
-        members.iter().try_fold(0, |max, member| {
-            Ok(std::cmp::max(member.ctype.alignof()?, max))
+        members.iter().try_fold(1, |max, member| {
+            Ok(std::cmp::max(member.ctype.alignof_for(target)?, max))
         })
     }
 }
@@ -92,35 +132,48 @@ impl StructType {
 impl Type {
     /// Returns true if `other` can be converted to `self` without losing infomation.
     pub fn can_represent(&self, other: &Type) -> bool {
+        self.can_represent_for(other, TargetDataModel::Sia32)
+    }
+    /// Target-specific integer range comparison.
+    pub fn can_represent_for(&self, other: &Type, target: TargetDataModel) -> bool {
         self == other
             || *self == Type::Double && *other == Type::Float
+            || *self == Type::LongDouble && other.is_floating()
             || (self.is_integral() && other.is_integral())
-                && (self.sizeof() > other.sizeof()
-                    || self.sizeof() == other.sizeof() && self.is_signed() == other.is_signed())
+                && (self.sizeof_for(target) > other.sizeof_for(target)
+                    || self.sizeof_for(target) == other.sizeof_for(target)
+                        && self.is_signed() == other.is_signed())
     }
 
     /// Get the size of a type in bytes.
     ///
     /// This is the `sizeof` operator in C.
     pub fn sizeof(&self) -> Result<SIZE_T, &'static str> {
+        self.sizeof_for(TargetDataModel::Sia32)
+    }
+    /// Target-specific size; the default sizeof method preserves SIA32 layout.
+    pub fn sizeof_for(&self, target: TargetDataModel) -> Result<SIZE_T, &'static str> {
         match self {
             Bool => Ok(BOOL_SIZE.into()),
-            Char(_) => Ok(CHAR_SIZE.into()),
+            Char(_) | SignedChar => Ok(CHAR_SIZE.into()),
             Short(_) => Ok(SHORT_SIZE.into()),
             Int(_) => Ok(INT_SIZE.into()),
-            Long(_) => Ok(LONG_SIZE.into()),
+            Long(_) => Ok(target.word_bytes()),
             LongLong(_) => Ok(8),
             Float => Ok(FLOAT_SIZE.into()),
             Double => Ok(DOUBLE_SIZE.into()),
-            Pointer(_, _) => Ok(PTR_SIZE.into()),
+            LongDouble if target == TargetDataModel::Sia32 => Ok(8),
+            LongDouble => Err("AMD64 long double layout/ABI is unsupported"),
+            Pointer(_, _) => Ok(target.word_bytes()),
             // now for the hard ones
             Array(t, ArrayType::Fixed(l)) => t
-                .sizeof()
+                .sizeof_for(target)
                 .and_then(|n| n.checked_mul(*l).ok_or("overflow in array size")),
             Array(_, ArrayType::Variable(_)) => {
                 Err("cannot statically take sizeof variable length array")
             }
             Array(_, ArrayType::Unbounded) => Err("cannot take sizeof incomplete array"),
+            Enum(_, _) if target == TargetDataModel::Amd64 => Ok(4),
             Enum(_, symbols) => {
                 let uchar = CHAR_BIT as usize;
                 // integer division, but taking the ceiling instead of the floor
@@ -133,8 +186,8 @@ impl Type {
                     _ => return Err("enum cannot be represented in SIZE_T bits"),
                 })
             }
-            Union(struct_type) => struct_type.union_size(),
-            Struct(struct_type) => struct_type.struct_size(),
+            Union(struct_type) => struct_type.union_size(target),
+            Struct(struct_type) => struct_type.struct_size(target),
             // illegal operations
             Function(_) => Err("cannot take `sizeof` a function"),
             Void => Err("cannot take `sizeof` void"),
@@ -144,22 +197,28 @@ impl Type {
     }
     /// Get the alignment of a type in bytes.
     pub fn alignof(&self) -> Result<SIZE_T, &'static str> {
+        self.alignof_for(TargetDataModel::Sia32)
+    }
+    /// Target-specific alignment.
+    pub fn alignof_for(&self, target: TargetDataModel) -> Result<SIZE_T, &'static str> {
         match self {
             Bool
             | Char(_)
+            | SignedChar
             | Short(_)
             | Int(_)
             | Long(_)
             | LongLong(_)
             | Float
             | Double
+            | LongDouble
             | Pointer(_, _)
-            | Enum(_, _) => self.sizeof(),
-            Array(t, _) => t.alignof(),
+            | Enum(_, _) => self.sizeof_for(target),
+            Array(t, _) => t.alignof_for(target),
             // Clang uses the largest alignment of any element as the alignment of the whole
             // Not sure why, but who am I to argue
             // Anyway, Faerie panics if the alignment isn't a power of two so it's probably for the best
-            Union(struct_type) | Struct(struct_type) => struct_type.align(),
+            Union(struct_type) | Struct(struct_type) => struct_type.align(target),
             Function(_) => Err("cannot take `alignof` function"),
             Void => Err("cannot take `alignof` void"),
             VaList => Err("cannot take `alignof` va_list"),

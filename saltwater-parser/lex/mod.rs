@@ -47,6 +47,8 @@ pub struct Lexer {
     /// counts _logical_ lines, not physical lines
     /// used for the preprocessor (mostly for `tokens_until_newline()`)
     line: usize,
+    line_directive_offset: i64,
+    line_directive_filename: Option<String>,
     error_handler: ErrorHandler<LexError>,
     /// Whether or not to display each token as it is processed
     debug: bool,
@@ -86,6 +88,8 @@ impl Lexer {
             chars: chars.into(),
             seen_line_token: false,
             line: 0,
+            line_directive_offset: 0,
+            line_directive_filename: None,
             current: None,
             lookahead: None,
             error_handler: ErrorHandler::new(),
@@ -147,9 +151,9 @@ impl Lexer {
         buf.push(start as char);
         // check for radix other than 10 - but if we see '.', use 10
         let radix = if start == '0' {
-            if self.match_next('b') {
+            if self.match_next('b') || self.match_next('B') {
                 Radix::Binary
-            } else if self.match_next('x') {
+            } else if self.match_next('x') || self.match_next('X') {
                 buf.push('x');
                 Radix::Hexadecimal
             } else if self.match_next('.') {
@@ -539,6 +543,22 @@ impl Iterator for Lexer {
                         return Err(span.with(err));
                     }
                 },
+                'L' if self.peek() == Some('"') => {
+                    self.next_char();
+                    let start = self.get_location().offset - 2;
+                    match self.parse_wide_string_raw(false) {
+                        Ok(_) => LiteralToken::WideStr(vec![self.slice(start)]).into(),
+                        Err(err) => return Err(self.span(span_start).with(err)),
+                    }
+                }
+                'L' if self.peek() == Some('\'') => {
+                    self.next_char();
+                    let start = self.get_location().offset - 2;
+                    match self.parse_wide_char_raw(false) {
+                        Ok(_) => LiteralToken::WideChar(self.slice(start)).into(),
+                        Err(err) => return Err(self.span(span_start).with(err)),
+                    }
+                }
                 'a'..='z' | 'A'..='Z' | '_' => match self.parse_id(c) {
                     Ok(id) => id,
                     Err(err) => {
@@ -773,6 +793,103 @@ pub(crate) trait LiteralParser {
             Err(CharError::MultiByte) => Err(LexError::MultiByteCharLiteral),
         }
     }
+    /// Target wide characters use a 32-bit execution character value. Preserve
+    /// Unicode scalars and numeric escapes rather than truncating to one byte.
+    fn parse_wide_char_raw(&mut self, start_quote: bool) -> Result<u32, LexError> {
+        if start_quote {
+            assert!(self.match_next('\''));
+        }
+        if self.peek() == Some('\'') {
+            self.next_char();
+            return Err(LexError::EmptyChar);
+        }
+        let value = self.parse_wide_scalar()?;
+        match self.next_char() {
+            Some('\'') => Ok(value),
+            Some('\n') => Err(LexError::NewlineInChar),
+            None => Err(LexError::MissingEndQuote { string: false }),
+            Some(_) => Err(LexError::MultiByteCharLiteral),
+        }
+    }
+    fn parse_wide_scalar(&mut self) -> Result<u32, LexError> {
+        let value = match self.next_char() {
+            Some('\n') => return Err(LexError::NewlineInChar),
+            None => return Err(LexError::MissingEndQuote { string: false }),
+            Some('\\') => match self.next_char() {
+                Some('n') => 10,
+                Some('r') => 13,
+                Some('t') => 9,
+                Some('a') => 7,
+                Some('b') => 8,
+                Some('v') => 11,
+                Some('f') => 12,
+                Some(c @ ('\\' | '\'' | '"' | '?')) => c as u32,
+                Some(first @ '0'..='7') => {
+                    let mut value = first.to_digit(8).unwrap();
+                    for _ in 0..2 {
+                        match self.peek().and_then(|c| c.to_digit(8)) {
+                            Some(digit) => {
+                                self.next_char();
+                                value = value * 8 + digit;
+                            }
+                            None => break,
+                        }
+                    }
+                    value
+                }
+                Some(kind @ ('x' | 'u' | 'U')) => {
+                    let required = match kind {
+                        'u' => Some(4),
+                        'U' => Some(8),
+                        _ => None,
+                    };
+                    let mut digits = 0;
+                    let mut value = 0u32;
+                    while required.map_or(true, |n| digits < n) {
+                        let Some(digit) = self.peek().and_then(|c| c.to_digit(16)) else {
+                            break;
+                        };
+                        self.next_char();
+                        digits += 1;
+                        value = value
+                            .checked_mul(16)
+                            .and_then(|v| v.checked_add(digit))
+                            .ok_or(LexError::CharEscapeOutOfRange(Radix::Hexadecimal))?;
+                    }
+                    if digits == 0 || required.map_or(false, |n| digits != n) {
+                        return Err(LexError::MissingDigits(Radix::Hexadecimal));
+                    }
+                    if kind != 'x' && char::from_u32(value).is_none() {
+                        return Err(LexError::CharEscapeOutOfRange(Radix::Hexadecimal));
+                    }
+                    value
+                }
+                Some(c) => return Err(LexError::UnknownToken(c)),
+                None => return Err(LexError::MissingEndQuote { string: false }),
+            },
+            Some(c) => c as u32,
+        };
+        Ok(value)
+    }
+    fn parse_wide_string_raw(&mut self, start_quote: bool) -> Result<Vec<u8>, LexError> {
+        if start_quote {
+            assert!(self.match_next('"'));
+        }
+        let mut bytes = Vec::new();
+        loop {
+            match self.peek() {
+                Some('"') => {
+                    self.next_char();
+                    break;
+                }
+                Some('\n') => return Err(LexError::NewlineInString),
+                None => return Err(LexError::MissingEndQuote { string: true }),
+                _ => bytes.extend_from_slice(&self.parse_wide_scalar()?.to_le_bytes()),
+            }
+        }
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        Ok(bytes)
+    }
     /// Parse a string literal
     /// If `start_quote` is false then the leading quote has already been stripped
     ///
@@ -995,10 +1112,10 @@ impl<T: Iterator<Item = char>> LiteralParser for PseudoLexer<T> {
 }
 
 fn parse_int_raw(buf: &str) -> Result<u64, SyntaxError> {
-    let (radix, buf) = if buf.starts_with("0b") {
-        (Radix::Binary, buf.trim_start_matches("0b"))
-    } else if buf.starts_with("0x") {
-        (Radix::Hexadecimal, buf.trim_start_matches("0x"))
+    let (radix, buf) = if buf.starts_with("0b") || buf.starts_with("0B") {
+        (Radix::Binary, &buf[2..])
+    } else if buf.starts_with("0x") || buf.starts_with("0X") {
+        (Radix::Hexadecimal, &buf[2..])
     } else if buf.starts_with('0') {
         // octal: 0755 => 493
         (Radix::Octal, buf.trim_start_matches('0'))
@@ -1021,38 +1138,135 @@ fn parse_int_raw(buf: &str) -> Result<u64, SyntaxError> {
     Ok(acc)
 }
 
+// Convert a validated hexadecimal significand directly to an IEEE format,
+// including subnormals. hexponent 0.3's conversion flushes some exact minima.
+fn ieee_hex_literal(raw: &str, binary32: bool) -> f64 {
+    let negative = raw.starts_with('-');
+    let raw = raw.trim_start_matches(['-', '+']);
+    let (mantissa, exponent) = raw[2..].split_once(['p', 'P']).unwrap();
+    let exponent = exponent
+        .parse::<i64>()
+        .unwrap_or(if exponent.starts_with('-') {
+            -1_000_000
+        } else {
+            1_000_000
+        });
+    let fractional = mantissa.split_once('.').map_or(0, |(_, s)| s.len()) as i64;
+    let digits: Vec<u8> = mantissa
+        .chars()
+        .filter(|c| *c != '.')
+        .map(|c| c.to_digit(16).unwrap() as u8)
+        .collect();
+    let total = digits.len() * 4;
+    let bit = |i: usize| ((digits[i / 4] >> (3 - i % 4)) & 1) != 0;
+    let leading = (0..total).find(|&i| bit(i)).unwrap_or(total);
+    let length = (total - leading) as i64;
+    let (precision, minimum, maximum, bias) = if binary32 {
+        (24, -126, 127, 127)
+    } else {
+        (53, -1022, 1023, 1023)
+    };
+    let sign = if negative {
+        1u64 << if binary32 { 31 } else { 63 }
+    } else {
+        0
+    };
+    if length == 0 {
+        return if binary32 {
+            f64::from(f32::from_bits(sign as u32))
+        } else {
+            f64::from_bits(sign)
+        };
+    }
+    let power = exponent - fractional * 4;
+    let mut high = power + length - 1;
+    let unit = if high < minimum {
+        minimum - (precision - 1)
+    } else {
+        high - (precision - 1)
+    };
+    let keep = length - (unit - power);
+    let mut significand = 0u64;
+    for i in 0..keep.max(0) {
+        significand = (significand << 1) | u64::from(i < length && bit(leading + i as usize));
+    }
+    let guard = keep >= 0 && keep < length && bit(leading + keep as usize);
+    let sticky = guard && ((keep + 1)..length).any(|i| bit(leading + i as usize));
+    if guard && (sticky || significand & 1 != 0) {
+        significand += 1;
+    }
+    if high >= minimum && significand == (1u64 << precision) {
+        significand >>= 1;
+        high += 1;
+    }
+    let bits = if high > maximum {
+        sign | (if binary32 { 0xffu64 } else { 0x7ff }) << (precision - 1)
+    } else if high < minimum {
+        sign | significand
+    } else {
+        sign | (((high + bias) as u64) << (precision - 1))
+            | (significand & ((1u64 << (precision - 1)) - 1))
+    };
+    if binary32 {
+        f64::from(f32::from_bits(bits as u32))
+    } else {
+        f64::from_bits(bits)
+    }
+}
+
 impl LiteralToken {
     pub fn parse(self) -> Result<LiteralValue, SyntaxError> {
         match self {
-            LiteralToken::Int(rcstr) => Ok(LiteralValue::Int(
-                i64::try_from(parse_int_raw(rcstr.as_str())?).map_err(|_| {
-                    SyntaxError::IntegerOverflow {
-                        is_signed: Some(true),
-                    }
-                })?,
-            )),
+            LiteralToken::Int(rcstr) => {
+                let value = parse_int_raw(rcstr.as_str())?;
+                if value > i64::MAX as u64 && rcstr.as_str().starts_with('0') {
+                    Ok(LiteralValue::UnsignedInt(value))
+                } else {
+                    Ok(LiteralValue::Int(i64::try_from(value).map_err(|_| {
+                        SyntaxError::IntegerOverflow {
+                            is_signed: Some(true),
+                        }
+                    })?))
+                }
+            }
             LiteralToken::UnsignedInt(rcstr) => {
                 Ok(LiteralValue::UnsignedInt(parse_int_raw(rcstr.as_str())?))
             }
             LiteralToken::Float(rcstr) => {
                 let buf = rcstr.as_str();
-                let hex = buf.starts_with("0x");
+                let hex = buf.starts_with("0x") || buf.starts_with("0X");
                 let buf = buf.trim_end_matches(|c| "fFlL".contains(c));
+                let binary32 = rcstr.as_str().ends_with(['f', 'F']);
                 let float: f64 = if hex {
-                    let float_literal: hexponent::FloatLiteral = buf.parse()?;
-                    float_literal.into()
+                    let _: hexponent::FloatLiteral = buf.parse()?;
+                    ieee_hex_literal(buf, binary32)
+                } else if binary32 {
+                    f64::from(buf.parse::<f32>()?)
                 } else {
                     buf.parse()?
                 };
-                let should_be_zero = buf.chars().all(|c| match c {
-                    '.' | '+' | '-' | 'e' | 'p' | '0' => true,
-                    _ => false,
-                });
+                let mantissa = if hex {
+                    buf[2..].split(['p', 'P']).next().unwrap()
+                } else {
+                    buf.split(['e', 'E']).next().unwrap()
+                };
+                let should_be_zero = mantissa.chars().all(|c| matches!(c, '.' | '+' | '-' | '0'));
                 if float == 0.0 && !should_be_zero {
                     Err(SyntaxError::FloatUnderflow)
                 } else {
                     Ok(LiteralValue::Float(float))
                 }
+            }
+            LiteralToken::WideStr(strs) => {
+                let mut bytes = Vec::new();
+                for text in strs {
+                    if !bytes.is_empty() {
+                        bytes.truncate(bytes.len() - 4);
+                    }
+                    let text = text.as_str().strip_prefix('L').unwrap_or(text.as_str());
+                    bytes.extend(PseudoLexer::new(text).parse_wide_string_raw(true).unwrap());
+                }
+                Ok(LiteralValue::Str(bytes))
             }
             LiteralToken::Str(strs) => {
                 let num_strs = strs.len();
@@ -1075,6 +1289,11 @@ impl LiteralToken {
                     .parse_char_raw(true)
                     .unwrap(),
             )),
+            LiteralToken::WideChar(text) => Ok(LiteralValue::Int(
+                PseudoLexer::new(&text.as_str()[1..])
+                    .parse_wide_char_raw(true)
+                    .unwrap() as i32 as i64,
+            )),
         }
     }
 }
@@ -1083,6 +1302,35 @@ impl LiteralToken {
 mod test {
     use super::Lexer;
     use arcstr::ArcStr;
+    #[test]
+    fn hexadecimal_ieee_rounding_preserves_exact_subnormals() {
+        for (text, expected) in [
+            ("0x1p-1074", 1u64),
+            ("0x1.8p-1074", 2),
+            ("0x1p-1022", 0x0010_0000_0000_0000),
+            ("0x1.fffffffffffffp1023", 0x7fef_ffff_ffff_ffff),
+            ("0X1p0", 1.0f64.to_bits()),
+            ("0x0p100", 0),
+        ] {
+            assert_eq!(
+                super::ieee_hex_literal(text, false).to_bits(),
+                expected,
+                "{text}"
+            );
+        }
+        for (text, expected) in [
+            ("0x1p-149", 1u32),
+            ("0x1.8p-149", 2),
+            ("0x1p-126", 0x0080_0000),
+            ("0x1.fffffep127", 0x7f7f_ffff),
+        ] {
+            assert_eq!(
+                (super::ieee_hex_literal(text, true) as f32).to_bits(),
+                expected,
+                "{text}"
+            );
+        }
+    }
     #[test]
     fn test_lexer_slice_parent() {
         let mut files = codespan::Files::new();

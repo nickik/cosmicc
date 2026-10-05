@@ -1,0 +1,236 @@
+checking package dependencies
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/LightingTypes.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/common/CpuMmu.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/sim/FlatCpuMemory.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/cpu/LightingPrivileged.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/cpu/LightingMulDiv.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/rtl/cpu/LightingCpu.bsv
+compiling /tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv
+code generation for mkTbLightingCpu starts
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_advanceRetirement" was treated as more urgent than
+  "cpu_cpu_misalignedFetch". Conflicts:
+    "cpu_cpu_advanceRetirement" cannot fire before "cpu_cpu_misalignedFetch":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_fetchPc.write vs. cpu_cpu_fetchPc.read
+	cpu_cpu_privilegeReg.write vs. cpu_cpu_privilegeReg.read
+	cpu_cpu_statusReg.write vs. cpu_cpu_statusReg.read
+	cpu_cpu_trapEntryPending.write vs. cpu_cpu_trapEntryPending.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_fValid.write vs. cpu_cpu_fValid.read
+	cpu_cpu_xValid.write vs. cpu_cpu_xValid.read
+    "cpu_cpu_misalignedFetch" cannot fire before "cpu_cpu_advanceRetirement":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_privilegeReg.write vs. cpu_cpu_privilegeReg.read
+	cpu_cpu_statusReg.write vs. cpu_cpu_statusReg.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init0" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init0" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init0":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init1" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init1" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init1":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init2" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init2" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init2":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init3" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init3" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init3":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init4" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init4" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init4":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init5" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init5" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init5":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "init6" was treated as more urgent than
+  "cpu_cpu_issueFetch". Conflicts:
+    "init6" cannot fire before "cpu_cpu_issueFetch":
+      calls to memory_words.upd vs. memory_words.sub
+    "cpu_cpu_issueFetch" cannot fire before "init6":
+      calls to memory_instructionState.write vs. memory_instructionState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_advanceRetirement" was treated as more urgent than
+  "cpu_cpu_completeFetch". Conflicts:
+    "cpu_cpu_advanceRetirement" cannot fire before "cpu_cpu_completeFetch":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_trapEntryPending.write vs. cpu_cpu_trapEntryPending.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_fValid.write vs. cpu_cpu_fValid.read
+    "cpu_cpu_completeFetch" cannot fire before "cpu_cpu_advanceRetirement":
+      calls to cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_misalignedFetch" was treated as more urgent than
+  "cpu_cpu_decodeToExecute". Conflicts:
+    "cpu_cpu_misalignedFetch" cannot fire before "cpu_cpu_decodeToExecute":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_dValid.write vs. cpu_cpu_dValid.read
+	cpu_cpu_xValid.write vs. cpu_cpu_xValid.read
+    "cpu_cpu_decodeToExecute" cannot fire before "cpu_cpu_misalignedFetch":
+      calls to cpu_cpu_xValid.write vs. cpu_cpu_xValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_completeFetch" was treated as more urgent than
+  "cpu_cpu_completeData". Conflicts:
+    "cpu_cpu_completeFetch" cannot fire before "cpu_cpu_completeData":
+      calls to cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+    "cpu_cpu_completeData" cannot fire before "cpu_cpu_completeFetch":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_trapEntryPending.write vs. cpu_cpu_trapEntryPending.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_fValid.write vs. cpu_cpu_fValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_completeData" was treated as more urgent than
+  "cpu_cpu_completeArithmetic". Conflicts:
+    "cpu_cpu_completeData" cannot fire before "cpu_cpu_completeArithmetic":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_regs.write vs. cpu_cpu_regs.read
+	cpu_cpu_retired.write vs. cpu_cpu_retired.read
+	cpu_cpu_privilegeReg.write vs. cpu_cpu_privilegeReg.read
+	cpu_cpu_statusReg.write vs. cpu_cpu_statusReg.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_retirementPending.write vs. cpu_cpu_retirementPending.read
+    "cpu_cpu_completeArithmetic" cannot fire before "cpu_cpu_completeData":
+      calls to
+	cpu_cpu_regs.write vs. cpu_cpu_regs.read
+	cpu_cpu_retired.write vs. cpu_cpu_retired.read
+	cpu_cpu_privilegeReg.write vs. cpu_cpu_privilegeReg.read
+	cpu_cpu_statusReg.write vs. cpu_cpu_statusReg.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_retirementPending.write vs. cpu_cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_issueGroup" was treated as more urgent than
+  "cpu_cpu_issueControl". Conflicts:
+    "cpu_cpu_issueGroup" cannot fire before "cpu_cpu_issueControl":
+      calls to memory_dataState.write vs. memory_dataState.read
+    "cpu_cpu_issueControl" cannot fire before "cpu_cpu_issueGroup":
+      calls to memory_controlState.write vs. memory_controlState.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_completeArithmetic" was treated as more urgent than
+  "cpu_cpu_completeControl". Conflicts:
+    "cpu_cpu_completeArithmetic" cannot fire before "cpu_cpu_completeControl":
+      calls to
+	cpu_cpu_regs.write vs. cpu_cpu_regs.read
+	cpu_cpu_retired.write vs. cpu_cpu_retired.read
+	cpu_cpu_retirementPending.write vs. cpu_cpu_retirementPending.read
+    "cpu_cpu_completeControl" cannot fire before "cpu_cpu_completeArithmetic":
+      calls to
+	cpu_cpu_retired.write vs. cpu_cpu_retired.read
+	cpu_cpu_privilegeReg.write vs. cpu_cpu_privilegeReg.read
+	cpu_cpu_statusReg.write vs. cpu_cpu_statusReg.read
+	cpu_cpu_retirementPending.write vs. cpu_cpu_retirementPending.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0010)
+  Rule "cpu_cpu_completeFetch" was treated as more urgent than
+  "cpu_cpu_executeAndRetire". Conflicts:
+    "cpu_cpu_completeFetch" cannot fire before "cpu_cpu_executeAndRetire":
+      calls to
+	cpu_cpu_isRunning.write vs. cpu_cpu_isRunning.read
+	cpu_cpu_xValid.write vs. cpu_cpu_xValid.read
+    "cpu_cpu_executeAndRetire" cannot fire before "cpu_cpu_completeFetch":
+      calls to
+	cpu_cpu_trapEntryPending.write vs. cpu_cpu_trapEntryPending.read
+	cpu_cpu_fetchEpoch.write vs. cpu_cpu_fetchEpoch.read
+	cpu_cpu_fValid.write vs. cpu_cpu_fValid.read
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `start' shadows the effects of `cpu_cpu_arithmetic_iterate' when they
+  execute in the same clock cycle. Affected method calls:
+    cpu_cpu_arithmetic_valid.write, cpu_cpu_arithmetic_fault.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_arithmetic_iterate' shadows the effects of
+  `cpu_cpu_completeArithmetic' when they execute in the same clock cycle.
+  Affected method calls:
+    cpu_cpu_arithmetic_valid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_executeAndRetire' shadows the effects of
+  `cpu_cpu_fetchToDecode' when they execute in the same clock cycle. Affected
+  method calls:
+    cpu_cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_executeAndRetire' shadows the effects of `checkRetirement'
+  when they execute in the same clock cycle. Affected method calls:
+    cpu_cpu_retirementValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_completeFetch' shadows the effects of
+  `cpu_cpu_completeControl' when they execute in the same clock cycle.
+  Affected method calls:
+    cpu_cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_completeFetch' shadows the effects of
+  `cpu_cpu_decodeToExecute' when they execute in the same clock cycle.
+  Affected method calls:
+    cpu_cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_completeControl' shadows the effects of `checkRetirement' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_cpu_retirementValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_advanceRetirement' shadows the effects of
+  `cpu_cpu_decodeToExecute' when they execute in the same clock cycle.
+  Affected method calls:
+    cpu_cpu_xValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_advanceRetirement' shadows the effects of
+  `cpu_cpu_fetchToDecode' when they execute in the same clock cycle. Affected
+  method calls:
+    cpu_cpu_dValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_advanceRetirement' shadows the effects of `cpu_cpu_issueFetch'
+  when they execute in the same clock cycle. Affected method calls:
+    cpu_cpu_fetchPc.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_completeArithmetic' shadows the effects of `checkRetirement'
+  when they execute in the same clock cycle. Affected method calls:
+    cpu_cpu_retirementValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-chips-cpu-integration-20261005/tests/bsv/TbLightingCpu.bsv", line 7, column 8: (G0117)
+  Rule `cpu_cpu_completeData' shadows the effects of `checkRetirement' when
+  they execute in the same clock cycle. Affected method calls:
+    cpu_cpu_retirementValid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Elaborated module file created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/LightingCpu/mkTbLightingCpu.ba
+All packages are up to date.
+Bluesim object created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/LightingCpu/mkTbLightingCpu.{h,o}
+Bluesim object created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/LightingCpu/model_mkTbLightingCpu.{h,o}
+Simulation shared library created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/LightingCpu/runner.so
+Simulation executable created: /tmp/lighting-chips-cpu-integration-20261005/build/hardware-cpu-integration/LightingCpu/runner
+PASS LightingCpu three-stage integer smoke test

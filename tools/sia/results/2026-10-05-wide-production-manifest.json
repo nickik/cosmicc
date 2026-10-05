@@ -1,0 +1,30 @@
+{
+  "evidence": "production CPU/MMU/module RTL and real MainboardFPGA in Bluesim; no physical FPGA or full Cosmic boot claim",
+  "compiler_sha256": "a779a61517b2ba2e6d39432a1a13081622022451da1bed5de3ad9ef194622f0b",
+  "runtime_objects": {
+    "/tmp/cosmic-sia-float-runtime-objects/context.sia": "1fafb4305a5609fc5c2299b1bf5ef02c73936b0ab128ecb28491569497fd041a",
+    "/tmp/cosmic-sia-float-runtime-objects/binary32-convert.sia": "428d2557660aad476bfd0c0ea4392a71f0846072520900742ba20a5dfe4b77c9",
+    "/tmp/cosmic-sia-float-runtime-objects/binary64.sia": "54112abe5b3d14a11051869ed7ba889081e6fe7fc2c87afb201abf1d943ce4b2",
+    "/tmp/cosmic-sia-float-runtime-objects/binary32-add.sia": "1bcc2fe837995630a0f221e82635fa4e4d230227be26bdf254f4cb90ff6687ca"
+  },
+  "hashes": {
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/float64-language.c": "281f6fbb0edd46e40a089cf5ad837f5f5a350c1c13bc1df6204a6fe64a1852b9",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-caller.c": "8d86928ecaf253912fd3cc7557292acf4baf724977e4a1c633b4022100cd12cf",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/abi-cross-tu-callee.c": "91e0f9ab3fe55d6e2248eeb626e5aa4a9bf686ab65dee5a1ae8c52f3d07714a1",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/sia/aggregate-varargs.c": "da7aa952ca486364c00b8813f04ddde0ef9e3c0b56282d5fc7e4d83545b47d08",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution/src/bin/sia-float-language.rs": "6e615a2a4cfd74a2b149ea8a9f9faf903c62ef82c052f29a51c1158c067e618e",
+    "/home/nick/alltech/DigitalEquipment/LightingSimulation/src/native_board_call.rs": "beaebb659831ff1dda88b8246f9b7c1e873e8814303c68d991c06112b8d7da43",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/cpu/bridge": "e2e23a4c13a5e861c4467de2226ff8ee38851b7dd817303a3578e4f34861937a",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/cpu/bridge.so": "acab6d56926e70dba3bd18b86650573cad55e5d886c3111d1cfc66d155f7a699",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/mainboard/bridge": "02da435862a40223917ff1b83d4bfea3783a6926fc72927ca34377c3e0d7f7c6",
+    "/home/nick/alltech/DigitalEquipment/LightingChips/build/real-system/mainboard/bridge.so": "10ff683b89288dee967dfada208378758fc8c18b27dfa717658d26c91fc9294d"
+  },
+  "guest_instructions": {
+    "binary64": 72249,
+    "cross_tu": 20706,
+    "aggregate": 3877
+  },
+  "binary64_board_epochs": 549898,
+  "binary64_backend_transactions": 79040,
+  "binary64_minimum_sp": "0xefbdc"
+}

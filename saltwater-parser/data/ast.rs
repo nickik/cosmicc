@@ -176,6 +176,9 @@ pub enum DeclaratorType {
     Array {
         of: Box<DeclaratorType>,
         size: Option<Box<Expr>>,
+        parameter_qualifiers: Vec<DeclarationSpecifier>,
+        static_bound: bool,
+        unspecified_vla: bool,
     },
     Function(FunctionDeclarator),
 }
@@ -218,6 +221,16 @@ pub enum ExprType {
     Id(InternedStr),
     Literal(LiteralValue),
     LongLongLiteral(LiteralValue),
+    /// Explicit long integer suffix.
+    LongLiteral(LiteralValue),
+    WideCharLiteral(LiteralValue),
+    WideStringLiteral(LiteralValue),
+    FloatLiteral(LiteralValue),
+    NonDecimalLiteral(LiteralValue, u8, bool),
+    LongDoubleLiteral(LiteralValue),
+
+    /// C11 generic selection; only the selected expression reaches HIR.
+    GenericSelection(Box<Expr>, Vec<(Option<Locatable<TypeName>>, Expr)>),
 
     // postfix
     FuncCall(Box<Expr>, Vec<Expr>),
@@ -231,6 +244,7 @@ pub enum ExprType {
     // prefix
     PreIncrement(Box<Expr>, bool),
     Cast(TypeName, Box<Expr>),
+    CompoundLiteral(TypeName, Box<Initializer>),
     AlignofType(TypeName),
     AlignofExpr(Box<Expr>),
     SizeofType(TypeName),
@@ -641,8 +655,30 @@ impl StmtType {
 impl Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.data {
+            ExprType::GenericSelection(control, associations) => {
+                write!(f, "_Generic({}, ", control)?;
+                for (index, (ty, expression)) in associations.iter().enumerate() {
+                    if index != 0 {
+                        write!(f, ", ")?;
+                    }
+                    if let Some(ty) = ty {
+                        write!(f, "{}", ty.data)?;
+                    } else {
+                        write!(f, "default")?;
+                    }
+                    write!(f, ": {}", expression)?;
+                }
+                write!(f, ")")
+            }
             ExprType::Comma(left, right) => write!(f, "{}, {}", *left, *right),
-            ExprType::Literal(token) | ExprType::LongLongLiteral(token) => write!(f, "{}", token),
+            ExprType::Literal(token)
+            | ExprType::LongLongLiteral(token)
+            | ExprType::LongLiteral(token)
+            | ExprType::WideCharLiteral(token)
+            | ExprType::WideStringLiteral(token)
+            | ExprType::FloatLiteral(token)
+            | ExprType::LongDoubleLiteral(token) => write!(f, "{}", token),
+            ExprType::NonDecimalLiteral(token, _, _) => write!(f, "{}", token),
             ExprType::Id(symbol) => write!(f, "{}", symbol),
             ExprType::Add(left, right) => write!(f, "({}) + ({})", left, right),
             ExprType::Sub(left, right) => write!(f, "({}) - ({})", left, right),
@@ -669,6 +705,7 @@ impl Display for Expr {
             }
             ExprType::FuncCall(left, params) => write!(f, "({})({})", left, joined(params, ", ")),
             ExprType::Cast(ctype, expr) => write!(f, "({})({})", ctype, expr),
+            ExprType::CompoundLiteral(ctype, init) => write!(f, "({}){}", ctype, init),
             ExprType::Member(compound, id) => write!(f, "({}).{}", compound, id),
             ExprType::DerefMember(compound, id) => write!(f, "({})->{}", compound, id),
             ExprType::PreIncrement(expr, inc) => {

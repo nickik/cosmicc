@@ -1,0 +1,10 @@
+{
+  "source_commit": "758bb57f0564a908ab6fc84d53159b488de5b0f5",
+  "root_tracked_status": "",
+  "lighting_source": "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f",
+  "lighting_manifest": "/home/nick/.local/share/cargo/git/checkouts/lightingsimulation-e6cc3cff7a74f2a8/7a0c16a/Cargo.toml",
+  "SIA_source": "git+https://github.com/nickik/SIA?rev=ae9d5771a788d374c7be86e77da3724252b5fd06#ae9d5771a788d374c7be86e77da3724252b5fd06",
+  "RealCard": "b09117c762a36f6d25256fc3d0de3c212ada2d61",
+  "no_external_path_dependencies": true,
+  "lock_sha256": "8c11489e89bf2d45d993add29ed8a3181d9b0832af9502944decfcfc73bb40ca"
+}

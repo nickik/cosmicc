@@ -1,0 +1,1 @@
+PASS qualified instruction halves/page-table full-word; reserved/data kind, BE and alignment rejection

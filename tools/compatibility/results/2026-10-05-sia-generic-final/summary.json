@@ -1,0 +1,4146 @@
+{
+  "metadata": {
+    "suite_commit": "5c7275656d751de0e68b2d340a95b5681858ed07",
+    "archive_sha256": "010008bf4b5671f947ae7e8d693a1c959a4a4d795fa7227c0abb1f95de45f7e7",
+    "policy": "reviewed portable C89/C99/C11-tagged freestanding baseline: no needs-libc, hosted output, known GNU/other non-ISO features; legacy C89 source retained, not strict C11 certification",
+    "evidence": "compilation only; no linking/execution",
+    "timeout_seconds": 5,
+    "jobs": 4,
+    "profile": "freestanding",
+    "compiler_origin": "/home/nick/alltech/DigitalEquipment/cosmicc/target/debug/cosmicc",
+    "compiler_sha256": "ff5de80019013a5315083698fc3a09290f787ffcb3be7145abbcd3a385ec5f0e",
+    "compiler_version": "cosmicc 0.12.0 (SIA32, amd64 Linux)"
+  },
+  "summary": {
+    "compiled": 146,
+    "excluded": 73,
+    "source-diagnostic": 1
+  },
+  "results": [
+    {
+      "name": "00001.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.006,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00001.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00001.c.sia"
+      ],
+      "log": "00001.c.log",
+      "source_sha256": "43e25853874bc97ff622307d63f46b2a934e8c3f28d70fc1a680b29c475107d9"
+    },
+    {
+      "name": "00002.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.006,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00002.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00002.c.sia"
+      ],
+      "log": "00002.c.log",
+      "source_sha256": "343dee856433f5cae74d3e0f56fb2f4fc25256172c3028fdd3d393541cc8bd33"
+    },
+    {
+      "name": "00003.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.014,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00003.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00003.c.sia"
+      ],
+      "log": "00003.c.log",
+      "source_sha256": "1be7541a21f265cbc9cd0f0e34f9671f6541d695f97149e0dd988689aa752aba"
+    },
+    {
+      "name": "00004.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.014,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00004.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00004.c.sia"
+      ],
+      "log": "00004.c.log",
+      "source_sha256": "b3c1337c70dfb10d85a8b4480aa079cc55bb36754d61a834a904fa11352e3d80"
+    },
+    {
+      "name": "00005.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00005.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00005.c.sia"
+      ],
+      "log": "00005.c.log",
+      "source_sha256": "6e170128b6d6a4d3effa9fe8ca854fe2373632cefca34e6f43be44d1ddee2a2b"
+    },
+    {
+      "name": "00006.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00006.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00006.c.sia"
+      ],
+      "log": "00006.c.log",
+      "source_sha256": "e10afdce9d6f4c93df835e958749bf56e67eed5beaa5a15b5f85bfca9209f6ca"
+    },
+    {
+      "name": "00007.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00007.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00007.c.sia"
+      ],
+      "log": "00007.c.log",
+      "source_sha256": "b1918fe76c994521816de8b96d62438d02525f6f1a12754c9492db498d7217bf"
+    },
+    {
+      "name": "00008.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00008.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00008.c.sia"
+      ],
+      "log": "00008.c.log",
+      "source_sha256": "1a7e9149a1f746bc515f24e2e0d883ac419b9aabad543923964c829a164ee9a1"
+    },
+    {
+      "name": "00009.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00009.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00009.c.sia"
+      ],
+      "log": "00009.c.log",
+      "source_sha256": "e2616afaa8cd44169b7fc3546f1caf4984ed7168b608537905f403e2be117890"
+    },
+    {
+      "name": "00010.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00010.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00010.c.sia"
+      ],
+      "log": "00010.c.log",
+      "source_sha256": "56e777b7c0c77f4b38548c13ced92da329440833612c379c3c90bf03d4327a13"
+    },
+    {
+      "name": "00011.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00011.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00011.c.sia"
+      ],
+      "log": "00011.c.log",
+      "source_sha256": "a5db72a9dc5832758b18f3847a182503a48b3c6fa30dfa42c72a5007ee20180f"
+    },
+    {
+      "name": "00012.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00012.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00012.c.sia"
+      ],
+      "log": "00012.c.log",
+      "source_sha256": "90be5127b3b50aec99cdb788b6cf5dbc8b714efea8a26051d3e704d30fb36651"
+    },
+    {
+      "name": "00013.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00013.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00013.c.sia"
+      ],
+      "log": "00013.c.log",
+      "source_sha256": "5583db92ae29c11f8c8821a023751113e23a4daf361dd93984e385d685efaed7"
+    },
+    {
+      "name": "00014.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00014.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00014.c.sia"
+      ],
+      "log": "00014.c.log",
+      "source_sha256": "5f6aca17bff131be2a80703d9a5c68b0679d947e8decd9bd215591aa7a1b2a41"
+    },
+    {
+      "name": "00015.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00015.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00015.c.sia"
+      ],
+      "log": "00015.c.log",
+      "source_sha256": "abfe2fff3dea6f5938824a3c2f469dc93f7102ce47256d7458d5544ca4586484"
+    },
+    {
+      "name": "00016.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00016.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00016.c.sia"
+      ],
+      "log": "00016.c.log",
+      "source_sha256": "5b0772c45b774d642cee9c3f4b20e4da7037c7c238db09d70b1b982d3b28e0a2"
+    },
+    {
+      "name": "00017.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00017.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00017.c.sia"
+      ],
+      "log": "00017.c.log",
+      "source_sha256": "b179f635d69b84555155c25ab8c55cb014aa1891e5acf26690e9a156fb637b46"
+    },
+    {
+      "name": "00018.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00018.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00018.c.sia"
+      ],
+      "log": "00018.c.log",
+      "source_sha256": "fb784bdd9cbdc9c240e697eb25fdde08ef4225985f5b60db5167f52e4640e671"
+    },
+    {
+      "name": "00019.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00019.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00019.c.sia"
+      ],
+      "log": "00019.c.log",
+      "source_sha256": "002695703865f14166c42edd772432cf084d3785e895b673e2bfbde34f140873"
+    },
+    {
+      "name": "00020.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00020.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00020.c.sia"
+      ],
+      "log": "00020.c.log",
+      "source_sha256": "051518f7ed53291b1284e03c8935a2ec46b21f3cd89cda77a593f4b7f5530eec"
+    },
+    {
+      "name": "00021.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00021.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00021.c.sia"
+      ],
+      "log": "00021.c.log",
+      "source_sha256": "1a7a1ecb710d5f2ecb63d811443c1a6214ec0906ad5c94a723c1430b8e6f5940"
+    },
+    {
+      "name": "00022.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00022.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00022.c.sia"
+      ],
+      "log": "00022.c.log",
+      "source_sha256": "d21a146fed7579515a31a521100cafae6e6ca53e9d346fe73954beb6dc0744e0"
+    },
+    {
+      "name": "00023.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00023.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00023.c.sia"
+      ],
+      "log": "00023.c.log",
+      "source_sha256": "dab91bc1f585b941e702592090f146f26cd0c0c022dfc55c14cb38bf1523c5ad"
+    },
+    {
+      "name": "00024.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00024.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00024.c.sia"
+      ],
+      "log": "00024.c.log",
+      "source_sha256": "ffd957d957106ab3391db102e137121f47387c38a2e755bf0aee1c60f846feed"
+    },
+    {
+      "name": "00025.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "declares external strlen despite absent needs-libc tag",
+      "status": "excluded",
+      "reason": "declares external strlen despite absent needs-libc tag"
+    },
+    {
+      "name": "00026.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00026.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00026.c.sia"
+      ],
+      "log": "00026.c.log",
+      "source_sha256": "abe7d59f59f9db11296e141e63c9b74820a73d51ab7003a7bf2bf1dad7cb5003"
+    },
+    {
+      "name": "00027.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00027.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00027.c.sia"
+      ],
+      "log": "00027.c.log",
+      "source_sha256": "1b7b9c03b34bdfd3609640823abe6fb41f50af8d859e405e4962f563f693605e"
+    },
+    {
+      "name": "00028.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00028.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00028.c.sia"
+      ],
+      "log": "00028.c.log",
+      "source_sha256": "f9731de607f0d21bc6496c26ce8335994a4a6694d67b128c0477570d9fdd5b20"
+    },
+    {
+      "name": "00029.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00029.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00029.c.sia"
+      ],
+      "log": "00029.c.log",
+      "source_sha256": "85dc0b519704c3776acb6e2abd140b8b19440c8e965d7bc21754091a7a2c6f1a"
+    },
+    {
+      "name": "00030.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00030.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00030.c.sia"
+      ],
+      "log": "00030.c.log",
+      "source_sha256": "455cda3ad2f74f9b945a307911f8c72acebda3922ad71edc8408a46490c62f2f"
+    },
+    {
+      "name": "00031.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00031.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00031.c.sia"
+      ],
+      "log": "00031.c.log",
+      "source_sha256": "5bc79561c33023827e774b67d71ef33c3a9668cd491668ee5d92fb4a1f9496c0"
+    },
+    {
+      "name": "00032.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00032.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00032.c.sia"
+      ],
+      "log": "00032.c.log",
+      "source_sha256": "7389893870227ba0cac6a3a8aa19cadf41e9c0837f7dea8327c00b7d3dfdff2a"
+    },
+    {
+      "name": "00033.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00033.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00033.c.sia"
+      ],
+      "log": "00033.c.log",
+      "source_sha256": "a6099b7868bf8a9ba66ec356d2c9c7e5b1205d24a58daf7dd991c93b1610bc19"
+    },
+    {
+      "name": "00034.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00034.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00034.c.sia"
+      ],
+      "log": "00034.c.log",
+      "source_sha256": "5cbf09e9a391a13846aad9f9e87705fbd7c13ba2e3724d925f971b18bf91e796"
+    },
+    {
+      "name": "00035.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00035.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00035.c.sia"
+      ],
+      "log": "00035.c.log",
+      "source_sha256": "aea8107acc4e3156910f16adb771906769bbc2a473d98633377fdd99cfbcf47a"
+    },
+    {
+      "name": "00036.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00036.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00036.c.sia"
+      ],
+      "log": "00036.c.log",
+      "source_sha256": "5b06763540d7c1a7bfa5d6fa2101e8eef4973ef2e6b6769778f54ce1278da8d2"
+    },
+    {
+      "name": "00037.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00037.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00037.c.sia"
+      ],
+      "log": "00037.c.log",
+      "source_sha256": "3caeba1ac4410c9283010b6ec6f82aef5473229038de87a325f2cac702af8836"
+    },
+    {
+      "name": "00038.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00038.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00038.c.sia"
+      ],
+      "log": "00038.c.log",
+      "source_sha256": "08c39df0b0500806f893ad65724fbe3dc1505bcc562a77387b7f017f5681fdb1"
+    },
+    {
+      "name": "00039.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00039.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00039.c.sia"
+      ],
+      "log": "00039.c.log",
+      "source_sha256": "ba0094e68644e609329e1aedf0c78dfa2980fb4dac225fc3ad5a52ff581e37fc"
+    },
+    {
+      "name": "00040.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00041.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00041.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00041.c.sia"
+      ],
+      "log": "00041.c.log",
+      "source_sha256": "412d5d27698454a6f238b6e67891f5ee8a48665eb19ae3403186672f930f2795"
+    },
+    {
+      "name": "00042.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00042.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00042.c.sia"
+      ],
+      "log": "00042.c.log",
+      "source_sha256": "c4d0f3536e07c614199ba3acbba23063d673bc8a918fedc28e8ad4c6938b079e"
+    },
+    {
+      "name": "00043.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00043.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00043.c.sia"
+      ],
+      "log": "00043.c.log",
+      "source_sha256": "805acfaaf1b89a2e359bb926e204025df13c8c512e53402bc372a7e19e0d41e2"
+    },
+    {
+      "name": "00044.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00044.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00044.c.sia"
+      ],
+      "log": "00044.c.log",
+      "source_sha256": "d800dda9662a174c7525f7e99edfe05997d9731243d9d711bf51e980fff12ad1"
+    },
+    {
+      "name": "00045.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00045.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00045.c.sia"
+      ],
+      "log": "00045.c.log",
+      "source_sha256": "030ea26abdb5ddc22a15b42249275ed583e6f75fe17dd71a8f9712a46af54ec5"
+    },
+    {
+      "name": "00046.c",
+      "tags": [
+        "portable",
+        "c11"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00046.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00046.c.sia"
+      ],
+      "log": "00046.c.log",
+      "source_sha256": "d305cc5d9d0c1eba74b24b9a6210188aa60ad30bceeb1492891d1683df06b203"
+    },
+    {
+      "name": "00047.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00047.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00047.c.sia"
+      ],
+      "log": "00047.c.log",
+      "source_sha256": "633e5b94d80c62b975d7f35727892fe20d656eb5a2534c61ff1ac6b2a5a81e6a"
+    },
+    {
+      "name": "00048.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00048.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00048.c.sia"
+      ],
+      "log": "00048.c.log",
+      "source_sha256": "97699a3fc07ec43c47ba649d1d9d5e75b4cfccf667b5626c47d2be349b076d83"
+    },
+    {
+      "name": "00049.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00049.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00049.c.sia"
+      ],
+      "log": "00049.c.log",
+      "source_sha256": "2b4c54787bacfc37967f5f6a4c74b728e49743b871a25e430d0560c2788c5e16"
+    },
+    {
+      "name": "00050.c",
+      "tags": [
+        "portable",
+        "c11"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00050.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00050.c.sia"
+      ],
+      "log": "00050.c.log",
+      "source_sha256": "b79bcd69deb7ed7ef69bff378a72c724ef44de0ec83e6e9d4241d4d432fcd142"
+    },
+    {
+      "name": "00051.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00051.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00051.c.sia"
+      ],
+      "log": "00051.c.log",
+      "source_sha256": "00742a819d1b19ae42f9e4552ea37a9dc4733e1fa38955190ac4e7441752490f"
+    },
+    {
+      "name": "00052.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00052.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00052.c.sia"
+      ],
+      "log": "00052.c.log",
+      "source_sha256": "ee05135b1fd92b799264f4106a959e6bed61eec6953a1a040f4407d102b552b1"
+    },
+    {
+      "name": "00053.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00053.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00053.c.sia"
+      ],
+      "log": "00053.c.log",
+      "source_sha256": "9d5138fe1b44736c85bcddd0a5f9adcc963daf40522d83180ea407bea6e00c33"
+    },
+    {
+      "name": "00054.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00054.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00054.c.sia"
+      ],
+      "log": "00054.c.log",
+      "source_sha256": "718b90dcd2d10215bb9f7da2f907c870767fea1d727896ce3143ce6757e6cbf5"
+    },
+    {
+      "name": "00055.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00055.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00055.c.sia"
+      ],
+      "log": "00055.c.log",
+      "source_sha256": "933199c7b04826b5fc668864de28be00ac51089c351eea074d04666217bdf78f"
+    },
+    {
+      "name": "00056.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00057.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00057.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00057.c.sia"
+      ],
+      "log": "00057.c.log",
+      "source_sha256": "3facac36faf8410be95d5acc93e6df0bb2b165e95ce8dc1cd7a281df2627bb57"
+    },
+    {
+      "name": "00058.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00058.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00058.c.sia"
+      ],
+      "log": "00058.c.log",
+      "source_sha256": "defd689fe520b73d5134d0d435ce6a7098e3dc8fa002478544915eaaee759afb"
+    },
+    {
+      "name": "00059.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00059.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00059.c.sia"
+      ],
+      "log": "00059.c.log",
+      "source_sha256": "a24036827ee571a8edbce5792aaf4643ba3ca47dd6cdf6047c76ba38d03d70f5"
+    },
+    {
+      "name": "00060.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00060.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00060.c.sia"
+      ],
+      "log": "00060.c.log",
+      "source_sha256": "ec8f13a00547eac4cfb1071ae009d1a8534a1e850e5bd896a75877193a08896f"
+    },
+    {
+      "name": "00061.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00061.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00061.c.sia"
+      ],
+      "log": "00061.c.log",
+      "source_sha256": "85d1c9678a185698b15a27a6e31a5609108a040db3a7291ea227760f2b64dff2"
+    },
+    {
+      "name": "00062.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00062.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00062.c.sia"
+      ],
+      "log": "00062.c.log",
+      "source_sha256": "64b9c9d8919b3112700afb1df1613d5f9cb54b6970436c73a13100f0297ee525"
+    },
+    {
+      "name": "00063.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00063.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00063.c.sia"
+      ],
+      "log": "00063.c.log",
+      "source_sha256": "0f61ed1541efeec1de2dc4c9d9274953ba4b14b311742d109e69abc1cb074255"
+    },
+    {
+      "name": "00064.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00064.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00064.c.sia"
+      ],
+      "log": "00064.c.log",
+      "source_sha256": "819e609d08a68d5656e6d2807ddb1e334e6f22cb81d0507a08e0546bb9789a6e"
+    },
+    {
+      "name": "00065.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00065.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00065.c.sia"
+      ],
+      "log": "00065.c.log",
+      "source_sha256": "bc2fe2d6f4c00c2f413e8fd18a185b2e82c4c10ba85b6c379ffd04b7eee89aa5"
+    },
+    {
+      "name": "00066.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00066.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00066.c.sia"
+      ],
+      "log": "00066.c.log",
+      "source_sha256": "61f068d76de311b754e4b3b5f0a8fe7ed300ce4c54d0386dde64d5e921dcbb40"
+    },
+    {
+      "name": "00067.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00067.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00067.c.sia"
+      ],
+      "log": "00067.c.log",
+      "source_sha256": "efb405f7f240791abf0f5038e38d74224b953db0c89ea052c26b2a5c9fff233f"
+    },
+    {
+      "name": "00068.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00068.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00068.c.sia"
+      ],
+      "log": "00068.c.log",
+      "source_sha256": "ec7edd3047137f17f809680a7937f462b85813528a8819646a810fd76acb3e89"
+    },
+    {
+      "name": "00069.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00069.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00069.c.sia"
+      ],
+      "log": "00069.c.log",
+      "source_sha256": "451c86c648382abd1b63f558e480424ee53f0896b3a3b987ba31a24986190abb"
+    },
+    {
+      "name": "00070.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00070.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00070.c.sia"
+      ],
+      "log": "00070.c.log",
+      "source_sha256": "fe49c72a923f2e2cd3f03b163d5f5a4bbe70a7a39dff7f239ecd9822bf90ca17"
+    },
+    {
+      "name": "00071.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00071.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00071.c.sia"
+      ],
+      "log": "00071.c.log",
+      "source_sha256": "61ac1c18c26a76d22564e24341a0d702cf039565e838c39299f268996055fb09"
+    },
+    {
+      "name": "00072.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00072.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00072.c.sia"
+      ],
+      "log": "00072.c.log",
+      "source_sha256": "07366ff0f6aaa9665afc381e9fac90eea429bae99e52e5da526edecf4bc0144d"
+    },
+    {
+      "name": "00073.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00073.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00073.c.sia"
+      ],
+      "log": "00073.c.log",
+      "source_sha256": "c0195e8a7f37097075866fd07cd832c80e8d594f80da4aa5ee2394aae320af46"
+    },
+    {
+      "name": "00074.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00074.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00074.c.sia"
+      ],
+      "log": "00074.c.log",
+      "source_sha256": "5b589c104eb02291edef16c2bb7b3763ada3b5ec8ba13ec28ad7fc12f76f9eed"
+    },
+    {
+      "name": "00075.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00075.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00075.c.sia"
+      ],
+      "log": "00075.c.log",
+      "source_sha256": "b4b1ce686e8f58a32d4bea4400721dacb0e7ecfd1eb46a2cadf2ddd69fb23957"
+    },
+    {
+      "name": "00076.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00076.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00076.c.sia"
+      ],
+      "log": "00076.c.log",
+      "source_sha256": "a5c4b115657532ea0631c33225673948165b69ad8259565dbb5cac5573fac43b"
+    },
+    {
+      "name": "00077.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00077.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00077.c.sia"
+      ],
+      "log": "00077.c.log",
+      "source_sha256": "88f30a703059e203fd51e441c082e62fa4b04b144a48ba1fdac40c2f7f3805a3"
+    },
+    {
+      "name": "00078.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00078.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00078.c.sia"
+      ],
+      "log": "00078.c.log",
+      "source_sha256": "3162a49b4037e51775cefc0b94eb005327573853b112fbb2b640d9b17b7797db"
+    },
+    {
+      "name": "00079.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00079.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00079.c.sia"
+      ],
+      "log": "00079.c.log",
+      "source_sha256": "9b029d6591a2be029509dbaedcffc4101a8b992c41fbcf1e21981c09d5e5a841"
+    },
+    {
+      "name": "00080.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00080.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00080.c.sia"
+      ],
+      "log": "00080.c.log",
+      "source_sha256": "5a12b6fc54022ddeb3ea8eb191ff45b2cab64e059020bcc1e3b4fba9da4b406e"
+    },
+    {
+      "name": "00081.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00081.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00081.c.sia"
+      ],
+      "log": "00081.c.log",
+      "source_sha256": "f22098932b201eb075ce2e2e962c6819a2d162b20de5b2fa8092982332e2264a"
+    },
+    {
+      "name": "00082.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00082.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00082.c.sia"
+      ],
+      "log": "00082.c.log",
+      "source_sha256": "b80c22f22aaba5d219043e529795f23471bd9f47610ffe23c163aaeecf659e10"
+    },
+    {
+      "name": "00083.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00083.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00083.c.sia"
+      ],
+      "log": "00083.c.log",
+      "source_sha256": "bda58f950a76124ff5f63656e53c31c12e3d25cbdaa7afe91d927c985db62dd9"
+    },
+    {
+      "name": "00084.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.033,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00084.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00084.c.sia"
+      ],
+      "log": "00084.c.log",
+      "source_sha256": "a63e95099fb2e36b1f09cff2cec63b54621a8d9f67b317c7951d9e2012e64051"
+    },
+    {
+      "name": "00085.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00085.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00085.c.sia"
+      ],
+      "log": "00085.c.log",
+      "source_sha256": "ef38514f5f1eb1647bf638fd9ab6e8cac9211a62728b4c2bf81c050988659eb0"
+    },
+    {
+      "name": "00086.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00086.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00086.c.sia"
+      ],
+      "log": "00086.c.log",
+      "source_sha256": "e5484f29ad18e1c4e16743064b6d6065007b403e8177d5c49d06ba5a9c5c48bc"
+    },
+    {
+      "name": "00087.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00087.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00087.c.sia"
+      ],
+      "log": "00087.c.log",
+      "source_sha256": "e03579d95be9203e5c927316a2ac235735370197c79a043b5e85234f7f8a59da"
+    },
+    {
+      "name": "00088.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00088.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00088.c.sia"
+      ],
+      "log": "00088.c.log",
+      "source_sha256": "9a68d5cb0cdceaf26c0f335eb8c86947f381766179a182d9e0546870d7db9b4c"
+    },
+    {
+      "name": "00089.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00089.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00089.c.sia"
+      ],
+      "log": "00089.c.log",
+      "source_sha256": "1d8ddc94cdd2524d8e9b785bed0761d727308d2058c984301f7423bdca2b849a"
+    },
+    {
+      "name": "00090.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00090.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00090.c.sia"
+      ],
+      "log": "00090.c.log",
+      "source_sha256": "fcef149285837f4732f9f6b71c0896c2a541bb2be3d519833c07a9861069f989"
+    },
+    {
+      "name": "00091.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00091.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00091.c.sia"
+      ],
+      "log": "00091.c.log",
+      "source_sha256": "40e285f9aba36f25ffa7581b68efcb36c869f43ea9a814462eadac1890742194"
+    },
+    {
+      "name": "00092.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00092.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00092.c.sia"
+      ],
+      "log": "00092.c.log",
+      "source_sha256": "b3ec7135e2eb6020eb8863078637b4f78a989370814287d3964bd52ca92aba0e"
+    },
+    {
+      "name": "00093.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00093.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00093.c.sia"
+      ],
+      "log": "00093.c.log",
+      "source_sha256": "c96239b785072d0274333c6a09b45ad63c60213263ec0450cd94711d11588051"
+    },
+    {
+      "name": "00094.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00094.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00094.c.sia"
+      ],
+      "log": "00094.c.log",
+      "source_sha256": "bd3cb9c06f41fbde811a088f494f53c4f2e580778c4a2fa6781e303715c50823"
+    },
+    {
+      "name": "00095.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "function-pointer to void-pointer conversion is outside ISO C",
+      "status": "excluded",
+      "reason": "function-pointer to void-pointer conversion is outside ISO C"
+    },
+    {
+      "name": "00096.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00096.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00096.c.sia"
+      ],
+      "log": "00096.c.log",
+      "source_sha256": "d6808fc724a65a0c788a3afef2bf43d1e572927cc5b48f2104c52626fa2e44fa"
+    },
+    {
+      "name": "00097.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00097.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00097.c.sia"
+      ],
+      "log": "00097.c.log",
+      "source_sha256": "f663cc3c5a0bc395201fca4152361fc19c08c6f9d5d2d739f9dff5b9573a7426"
+    },
+    {
+      "name": "00098.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00098.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00098.c.sia"
+      ],
+      "log": "00098.c.log",
+      "source_sha256": "5db398332153c0d8c83085e1499136f96601cf9ca251de11aa26797380a55cca"
+    },
+    {
+      "name": "00099.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00099.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00099.c.sia"
+      ],
+      "log": "00099.c.log",
+      "source_sha256": "0c00b9eac521e77926e9413fa2fd2fae4e616c787f3d8215d00fcd2b6ded7f8b"
+    },
+    {
+      "name": "00100.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00100.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00100.c.sia"
+      ],
+      "log": "00100.c.log",
+      "source_sha256": "a9e6c60f8b3c77f1275d9531295e2c31975ad19079b1072868d48413369f3123"
+    },
+    {
+      "name": "00101.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00101.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00101.c.sia"
+      ],
+      "log": "00101.c.log",
+      "source_sha256": "4dfb2e24565f821e4f8398a29fb3d31fe31fc81503bf7a44454206e9bcc9edec"
+    },
+    {
+      "name": "00102.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00102.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00102.c.sia"
+      ],
+      "log": "00102.c.log",
+      "source_sha256": "5b9fc22d8fe1c60515ef97d424862a7792e6f856a62e66e52e76e29c72c4204c"
+    },
+    {
+      "name": "00103.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00103.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00103.c.sia"
+      ],
+      "log": "00103.c.log",
+      "source_sha256": "e036009c851103d46666ebb01424bd09ae16b80931b7983c06f8ad4b146411a6"
+    },
+    {
+      "name": "00104.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00105.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00105.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00105.c.sia"
+      ],
+      "log": "00105.c.log",
+      "source_sha256": "b446232c0eca8fe6bc68c606b5f4017a571918309eda14a1217234281be73387"
+    },
+    {
+      "name": "00106.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00106.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00106.c.sia"
+      ],
+      "log": "00106.c.log",
+      "source_sha256": "ff5bf9baa08d726a6e7f7c8e855220ee7a4621f1e998d09ce30ba062180ea634"
+    },
+    {
+      "name": "00107.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00107.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00107.c.sia"
+      ],
+      "log": "00107.c.log",
+      "source_sha256": "7edbe7c820732c3246bb614caad45bc4044c038c59b0057f7bb70771939c6935"
+    },
+    {
+      "name": "00108.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00108.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00108.c.sia"
+      ],
+      "log": "00108.c.log",
+      "source_sha256": "c34000ed49fe04cc741791be6197f9da6ad59dd8b18c5e0a06034c26e96e5d8b"
+    },
+    {
+      "name": "00109.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00109.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00109.c.sia"
+      ],
+      "log": "00109.c.log",
+      "source_sha256": "46137e228d5b6ea1f85ad611c8802477b4815c6309982112b120c214bf17cece"
+    },
+    {
+      "name": "00110.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00110.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00110.c.sia"
+      ],
+      "log": "00110.c.log",
+      "source_sha256": "a56a595e1601c3b9c2f40786b67b1e6010d1d21bb7937ac5b5377e881a8ff4a2"
+    },
+    {
+      "name": "00111.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00111.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00111.c.sia"
+      ],
+      "log": "00111.c.log",
+      "source_sha256": "17a7f36aa278a59c4245fa4d478a48f052ac53c6eba5bf25f616f61041d79807"
+    },
+    {
+      "name": "00112.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00112.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00112.c.sia"
+      ],
+      "log": "00112.c.log",
+      "source_sha256": "eac2b9833390803455c480ba73f78e5a5e8bd543bffd7d99da71f313f67a4bf1"
+    },
+    {
+      "name": "00113.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00113.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00113.c.sia"
+      ],
+      "log": "00113.c.log",
+      "source_sha256": "d12643c2a0f7204727d317604e4cb96124e2e96d5e78039f451bb579b34c113f"
+    },
+    {
+      "name": "00114.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00114.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00114.c.sia"
+      ],
+      "log": "00114.c.log",
+      "source_sha256": "4fc74b14cd9ea0e3d9f682a9b4745e064ff63ccf3964b356ada0917c174a068f"
+    },
+    {
+      "name": "00115.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00115.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00115.c.sia"
+      ],
+      "log": "00115.c.log",
+      "source_sha256": "c48f8d78b36796c2db906dfb40256e4ac7bda00089b043fa8c838be5f75c0956"
+    },
+    {
+      "name": "00116.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00116.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00116.c.sia"
+      ],
+      "log": "00116.c.log",
+      "source_sha256": "78a0ae24a1675c34461e99261cf1d7946e9c8f9625cbbe156edbc36a21fb7b5b"
+    },
+    {
+      "name": "00117.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00117.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00117.c.sia"
+      ],
+      "log": "00117.c.log",
+      "source_sha256": "819f876a5ad5714a3847eeca406a3f221cd80168d05e20a07a483eb514180f4e"
+    },
+    {
+      "name": "00118.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00118.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00118.c.sia"
+      ],
+      "log": "00118.c.log",
+      "source_sha256": "6a5c1059595e3dbab18d259736eaaa100754ad588e6afbbf9041ca35a46bdca8"
+    },
+    {
+      "name": "00119.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00119.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00119.c.sia"
+      ],
+      "log": "00119.c.log",
+      "source_sha256": "f9547c4ff49b462dd3b255c407499447f76f5c425fc074e96a4d40e1ca33369e"
+    },
+    {
+      "name": "00120.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00120.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00120.c.sia"
+      ],
+      "log": "00120.c.log",
+      "source_sha256": "a42e2e07b0b9aa4d7f13d9421d827e90235d3411432e478fd44387eba2924f77"
+    },
+    {
+      "name": "00121.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00121.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00121.c.sia"
+      ],
+      "log": "00121.c.log",
+      "source_sha256": "765933206076d47fce2fe434cfb521d7391932c8e10046171a4f1fa152ab5645"
+    },
+    {
+      "name": "00122.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00122.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00122.c.sia"
+      ],
+      "log": "00122.c.log",
+      "source_sha256": "9fd842cb43540b6b48bb7c382318e2306e7dad1e7d1e3742c38e019b07a6def5"
+    },
+    {
+      "name": "00123.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00123.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00123.c.sia"
+      ],
+      "log": "00123.c.log",
+      "source_sha256": "08de725058f8cf389e5aa5f87d53ff3c4570d92df8eeafeb29b871d722ead304"
+    },
+    {
+      "name": "00124.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00124.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00124.c.sia"
+      ],
+      "log": "00124.c.log",
+      "source_sha256": "77b3d195814db328448ba7ce8986574ab66ed59ded9746ce479c94a75b31e02d"
+    },
+    {
+      "name": "00125.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00126.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00126.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00126.c.sia"
+      ],
+      "log": "00126.c.log",
+      "source_sha256": "6eb2b340b8f67c2fa0bc6cc179a8fc8445592a1deab10bb9888d7613fc366bfa"
+    },
+    {
+      "name": "00127.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00127.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00127.c.sia"
+      ],
+      "log": "00127.c.log",
+      "source_sha256": "ca37d5e5d649989ec311ae0ba8aae22598d081c0cf132e92046fac310a1c92dd"
+    },
+    {
+      "name": "00128.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.065,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00128.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00128.c.sia"
+      ],
+      "log": "00128.c.log",
+      "source_sha256": "24bce7c18abe4b9677c16369492018f2b3a68bc4774a7d738f445496995321ef"
+    },
+    {
+      "name": "00129.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.009,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00129.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00129.c.sia"
+      ],
+      "log": "00129.c.log",
+      "source_sha256": "65743821bc3913a3d291dc44b51eeed7f8f49dd71dcfef6ef9225a7659115025"
+    },
+    {
+      "name": "00130.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00130.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00130.c.sia"
+      ],
+      "log": "00130.c.log",
+      "source_sha256": "5ebdc13c2dd18826af1e08d0e8a5e5a0977a12a625d1e73ce955dfd76f9b8852"
+    },
+    {
+      "name": "00131.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00132.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00133.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00133.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00133.c.sia"
+      ],
+      "log": "00133.c.log",
+      "source_sha256": "923da1535de40dd29f58f5b9835adc609f0ea0d85a9ff7c214d1bc9ec137eb83"
+    },
+    {
+      "name": "00134.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00134.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00134.c.sia"
+      ],
+      "log": "00134.c.log",
+      "source_sha256": "0da2a2102a975b314c9e8266fe847490c3e7750663b0eba8fbd7bebeaf48903f"
+    },
+    {
+      "name": "00135.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00135.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00135.c.sia"
+      ],
+      "log": "00135.c.log",
+      "source_sha256": "d6ec099037f9469b7fc63263c2f143ca3c8a01a8909c951ec5ecd3e9e8d1c2b8"
+    },
+    {
+      "name": "00136.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00136.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00136.c.sia"
+      ],
+      "log": "00136.c.log",
+      "source_sha256": "ca6ffe2a5873f4dfccdd0fb28547759af39cc05728f544dfb1e8d9f0a1e3e2d2"
+    },
+    {
+      "name": "00137.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00137.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00137.c.sia"
+      ],
+      "log": "00137.c.log",
+      "source_sha256": "1bc49f9d3d2f0a1c3ca1a07188ebc49540acd8faeacb622130c9c0e5908f003a"
+    },
+    {
+      "name": "00138.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00138.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00138.c.sia"
+      ],
+      "log": "00138.c.log",
+      "source_sha256": "4b5c7d607aeafa4182c98c317f48f8e2b433206ba0db30433937da55443747ff"
+    },
+    {
+      "name": "00139.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00139.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00139.c.sia"
+      ],
+      "log": "00139.c.log",
+      "source_sha256": "cf09bedf1a1eafa3bbe23b62acab84b2e97a5c8b08d8170438ca55ac64524835"
+    },
+    {
+      "name": "00140.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00140.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00140.c.sia"
+      ],
+      "log": "00140.c.log",
+      "source_sha256": "84adaccee870947000971d7e35d97786165c66258c094fec92756aa9594c2bad"
+    },
+    {
+      "name": "00141.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00141.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00141.c.sia"
+      ],
+      "log": "00141.c.log",
+      "source_sha256": "ff7d260922e7fd9d66476dd2f0c885bd1fcaf58585af66c40efe36872861427e"
+    },
+    {
+      "name": "00142.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00142.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00142.c.sia"
+      ],
+      "log": "00142.c.log",
+      "source_sha256": "f91293695d4e09e1eacdeaf1133bdc0e7b30fd8f5305d532122e0375b7511447"
+    },
+    {
+      "name": "00143.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.032,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00143.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00143.c.sia"
+      ],
+      "log": "00143.c.log",
+      "source_sha256": "504987b029603d17892066bf821aa541873d2c5339bbf9220eb9b64f7b7fc31f"
+    },
+    {
+      "name": "00144.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "source-diagnostic",
+      "returncode": 2,
+      "seconds": 0.008,
+      "diagnostic": [
+        "cosmicc: error: invalid program: cannot implicitly convert 'const void *' to 'void *'. help: use an explicit cast: (void *)"
+      ],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00144.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00144.c.sia"
+      ],
+      "log": "00144.c.log",
+      "source_sha256": "77ae2def3a481b73b52b6e06bcda040238ad6a64dd381d31c7d7b4857e846db4"
+    },
+    {
+      "name": "00145.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00145.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00145.c.sia"
+      ],
+      "log": "00145.c.log",
+      "source_sha256": "4ff8a167f4faeb771f1e560cfcfb86506e48080d0b4aafcf8d9dd9c6f2d6781f"
+    },
+    {
+      "name": "00146.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00146.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00146.c.sia"
+      ],
+      "log": "00146.c.log",
+      "source_sha256": "2dfc8ae7434273447125b1d878f804c80ad56d2f7ceb704d3dc6b0aa30654d64"
+    },
+    {
+      "name": "00147.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00147.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00147.c.sia"
+      ],
+      "log": "00147.c.log",
+      "source_sha256": "332d5fe47885c995aae7d8e71d8c300e817c56933bbcde4e763de8e48124665f"
+    },
+    {
+      "name": "00148.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00148.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00148.c.sia"
+      ],
+      "log": "00148.c.log",
+      "source_sha256": "a45a2eb793a2c0d7d676581274281043cb1d43423fcd7a6915b9d8cd414ae7e7"
+    },
+    {
+      "name": "00149.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.017,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00149.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00149.c.sia"
+      ],
+      "log": "00149.c.log",
+      "source_sha256": "05eaed6d6147343b96cc9701f6cdb806896bda54005597f9a35fb184676c648e"
+    },
+    {
+      "name": "00150.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00150.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00150.c.sia"
+      ],
+      "log": "00150.c.log",
+      "source_sha256": "43965a3537ff957841cbec8350e3378cbc4690e7358d504845e82e341bb179bb"
+    },
+    {
+      "name": "00151.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00151.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00151.c.sia"
+      ],
+      "log": "00151.c.log",
+      "source_sha256": "57352f79f25d8229cc8f825a5a0ee27eae3fd2c4a79e1c00a72be9f39c2bfb25"
+    },
+    {
+      "name": "00152.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00152.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00152.c.sia"
+      ],
+      "log": "00152.c.log",
+      "source_sha256": "d8446aba7cc07206241d3e10c9bfc92a7eebd513c889f73fd7041ec572c5df56"
+    },
+    {
+      "name": "00153.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00153.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00153.c.sia"
+      ],
+      "log": "00153.c.log",
+      "source_sha256": "a739eb848a64c9aa155063ef51d3729dcfd2b080e9302a7eda774e12ea601907"
+    },
+    {
+      "name": "00154.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00155.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.008,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00155.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00155.c.sia"
+      ],
+      "log": "00155.c.log",
+      "source_sha256": "ac56b9fffd036d82362f806c92e72c44d009403ddc69b7d0a6c77b8997a8f922"
+    },
+    {
+      "name": "00156.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00157.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00158.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00159.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00160.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00161.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00162.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-cpp"
+      ],
+      "selected": true,
+      "tag_selected": true,
+      "status": "compiled",
+      "returncode": 0,
+      "seconds": 0.016,
+      "diagnostic": [],
+      "command": [
+        "/tmp/cosmic-sia-generic-final-inventory/compiler-snapshot",
+        "/tmp/c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07/tests/single-exec/00162.c",
+        "-o",
+        "/tmp/cosmic-sia-generic-final-inventory/00162.c.sia"
+      ],
+      "log": "00162.c.log",
+      "source_sha256": "3dc04176e6f3ce454ce3b961339733ff9b29f3b2b26ff77cb105e789197fa008"
+    },
+    {
+      "name": "00163.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00164.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00165.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00166.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00167.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00168.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00169.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00170.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00171.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00172.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00173.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00174.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00175.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00176.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00177.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00178.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00179.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00180.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00181.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00182.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00183.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00184.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00185.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00186.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00187.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00188.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00189.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00190.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00191.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00192.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00193.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00194.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00195.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00196.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00197.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00198.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00199.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00200.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00201.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00202.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00203.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00204.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00205.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00206.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00207.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00208.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00209.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "forward enum declaration uses a compiler extension before C23",
+      "status": "excluded",
+      "reason": "forward enum declaration uses a compiler extension before C23"
+    },
+    {
+      "name": "00210.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "GNU attributes and hosted output",
+      "status": "excluded",
+      "reason": "GNU attributes and hosted output"
+    },
+    {
+      "name": "00211.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "printf and nonempty expected output despite absent needs-libc tag",
+      "status": "excluded",
+      "reason": "printf and nonempty expected output despite absent needs-libc tag"
+    },
+    {
+      "name": "00212.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00213.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "GNU statement expressions and printf",
+      "status": "excluded",
+      "reason": "GNU statement expressions and printf"
+    },
+    {
+      "name": "00214.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "__builtin_expect and printf",
+      "status": "excluded",
+      "reason": "__builtin_expect and printf"
+    },
+    {
+      "name": "00215.c",
+      "tags": [
+        "portable",
+        "c99"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "hosted output despite absent needs-libc tag",
+      "status": "excluded",
+      "reason": "hosted output despite absent needs-libc tag"
+    },
+    {
+      "name": "00216.c",
+      "tags": [
+        "portable",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00217.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "printf despite absent needs-libc tag",
+      "status": "excluded",
+      "reason": "printf despite absent needs-libc tag"
+    },
+    {
+      "name": "00218.c",
+      "tags": [
+        "portable",
+        "c89"
+      ],
+      "selected": false,
+      "tag_selected": true,
+      "exclusion_reason": "printf and implementation-defined enum bit-field behavior",
+      "status": "excluded",
+      "reason": "printf and implementation-defined enum bit-field behavior"
+    },
+    {
+      "name": "00219.c",
+      "tags": [
+        "portable",
+        "c89",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    },
+    {
+      "name": "00220.c",
+      "tags": [
+        "portable",
+        "c99",
+        "needs-libc",
+        "needs-cpp"
+      ],
+      "selected": false,
+      "tag_selected": false,
+      "exclusion_reason": "upstream needs-libc or missing supported standard/portable tags",
+      "status": "excluded",
+      "reason": "upstream needs-libc or missing supported standard/portable tags"
+    }
+  ]
+}

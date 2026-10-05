@@ -1,0 +1,107 @@
+{
+  "compiler_sha256": "f56966383461ef5bc0867d5347d9369fcbc93c7b399d76242b73e54062fddcad",
+  "source_sha256": "d9d3e962a89087f22e3937bf3e478937a1a16550f917b5978da67837d49a0ef4",
+  "commands": [
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/compiler-snapshot",
+        "--target",
+        "amd64",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/unused-vla.c",
+        "-o",
+        "/tmp/cosmic-native-unused-vla-final/cosmic-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/cosmic-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/compiler-snapshot",
+        "--target",
+        "amd64",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/unused-vla.c",
+        "-o",
+        "/tmp/cosmic-native-unused-vla-final/cosmic-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/cosmic-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/unused-vla.c",
+        "-o",
+        "/tmp/cosmic-native-unused-vla-final/gcc-13-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/gcc-13-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "gcc-13",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/unused-vla.c",
+        "-o",
+        "/tmp/cosmic-native-unused-vla-final/gcc-13-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/gcc-13-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O0",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/unused-vla.c",
+        "-o",
+        "/tmp/cosmic-native-unused-vla-final/clang-18-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/clang-18-O0"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "clang-18",
+        "-O2",
+        "/home/nick/alltech/DigitalEquipment/cosmicc/tools/amd64/unused-vla.c",
+        "-o",
+        "/tmp/cosmic-native-unused-vla-final/clang-18-O2"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/tmp/cosmic-native-unused-vla-final/clang-18-O2"
+      ],
+      "returncode": 0
+    }
+  ],
+  "status": "passed"
+}

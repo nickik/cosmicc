@@ -1,9 +1,209 @@
 use super::PureAnalyzer;
 use crate::arch;
+use crate::data::types::{ArrayType, StructType};
 use crate::data::{hir::*, lex::ComparisonToken, *};
 use crate::intern::InternedStr;
+use std::convert::TryInto;
 
 impl PureAnalyzer {
+    fn compound_literal_writes(
+        &mut self,
+        storage: Expr,
+        init: &Initializer,
+        writes: &mut Vec<Expr>,
+    ) {
+        if storage.ctype.is_scalar() {
+            if let Initializer::InitializerList(items) = init {
+                if let Some(first) = items.first() {
+                    self.compound_literal_writes(storage, first, writes);
+                    return;
+                }
+            }
+        }
+        let location = storage.location;
+        let items = match init {
+            Initializer::InitializerList(items) => Some(items),
+            _ => None,
+        };
+        match &storage.ctype {
+            Type::Array(element, crate::data::types::ArrayType::Fixed(count)) => {
+                let element = (**element).clone();
+                for index in 0..*count {
+                    let address = Expr {
+                        ctype: Type::Pointer(Box::new(element.clone()), Qualifiers::default()),
+                        lval: false,
+                        location,
+                        expr: ExprType::StaticRef(Box::new(storage.clone())),
+                    };
+                    let offset =
+                        literal_for(LiteralValue::UnsignedInt(index), location, self.target);
+                    let address = self.pointer_arithmetic(address, offset, &element, location);
+                    let member = Expr {
+                        ctype: element.clone(),
+                        lval: true,
+                        location,
+                        expr: ExprType::Deref(Box::new(address)),
+                    };
+                    let string_byte = match init {
+                        Initializer::Scalar(e) => match &e.expr {
+                            ExprType::Literal(LiteralValue::Str(bytes)) => {
+                                let literal = if element.is_char() {
+                                    bytes
+                                        .get(index as usize)
+                                        .map(|byte| LiteralValue::Char(*byte))
+                                } else {
+                                    bytes.get(index as usize * 4..index as usize * 4 + 4).map(
+                                        |word| {
+                                            LiteralValue::Int(u32::from_le_bytes(
+                                                word.try_into().unwrap(),
+                                            )
+                                                as i32
+                                                as i64)
+                                        },
+                                    )
+                                };
+                                literal.map(|literal| {
+                                    Initializer::Scalar(Box::new(literal_for(
+                                        literal,
+                                        location,
+                                        self.target,
+                                    )))
+                                })
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    self.compound_literal_writes(
+                        member,
+                        string_byte
+                            .as_ref()
+                            .or_else(|| items.and_then(|items| items.get(index as usize)))
+                            .unwrap_or(&Initializer::Zero),
+                        writes,
+                    );
+                }
+            }
+            Type::Struct(st) | Type::Union(st) => {
+                let count = if matches!(storage.ctype, Type::Union(_)) {
+                    1
+                } else {
+                    st.members().len()
+                };
+                for (index, member) in st.members().iter().take(count).enumerate() {
+                    let member = Expr {
+                        ctype: member.ctype.clone(),
+                        lval: true,
+                        location,
+                        expr: ExprType::Member(Box::new(storage.clone()), member.id),
+                    };
+                    self.compound_literal_writes(
+                        member,
+                        items
+                            .and_then(|items| items.get(index))
+                            .unwrap_or(&Initializer::Zero),
+                        writes,
+                    );
+                }
+            }
+            ty if ty.is_scalar() => {
+                let value = match init {
+                    Initializer::Scalar(value) => (**value).clone(),
+                    _ => literal_for(LiteralValue::Int(0), location, self.target)
+                        .implicit_cast(ty, &mut self.error_handler),
+                };
+                writes.push(Expr {
+                    ctype: ty.clone(),
+                    lval: false,
+                    location,
+                    expr: ExprType::Binary(BinaryOp::Assign, Box::new(storage), Box::new(value)),
+                });
+            }
+            _ => self.err(
+                SemanticError::from("compound literal requires a complete object type"),
+                location,
+            ),
+        }
+    }
+    /// C11 6.5.1.1. All arms are checked, but only the result expression is
+    /// retained, preserving its lvalue/function/void category. Conversion of
+    /// the unevaluated control strips only its top-level qualifiers and decays
+    /// arrays/functions; integer promotions are deliberately not applied.
+    fn generic_selection(
+        &mut self,
+        control: ast::Expr,
+        associations: Vec<(Option<Locatable<ast::TypeName>>, ast::Expr)>,
+        location: Location,
+    ) -> Expr {
+        let control_type = self.expr(control).rval().ctype;
+        let mut types = Vec::new();
+        let mut selected = None;
+        let mut default = None;
+        for (typename, expression) in associations {
+            let expression_location = expression.location;
+            if let Some(typename) = typename {
+                let loc = typename.location;
+                let typename = typename.data;
+                if let Some(id) = typename.declarator.id {
+                    self.err(SemanticError::IdInTypeName(id), loc);
+                }
+                let parsed = self.parse_type(typename.specifiers, typename.declarator.decl, loc);
+                if let Some(sc) = parsed.storage_class {
+                    self.err(SemanticError::IllegalStorageClass(sc), loc);
+                }
+                let ty = parsed.ctype;
+                let qualifiers = parsed.qualifiers;
+                let expression = self.expr(expression);
+                if !generic_complete_object(&ty) || generic_variably_modified(&ty) {
+                    self.err(SemanticError::from("_Generic association requires a complete object type that is not variably modified"),loc);
+                }
+                if types
+                    .iter()
+                    .any(|(other, q)| *q == qualifiers && generic_compatible(other, &ty))
+                {
+                    self.err(
+                        SemanticError::from("_Generic has duplicate compatible association types"),
+                        loc,
+                    );
+                }
+                if qualifiers == Qualifiers::NONE && generic_compatible(&control_type, &ty) {
+                    if selected.is_some() {
+                        self.err(
+                            SemanticError::from(
+                                "_Generic control matches multiple association types",
+                            ),
+                            loc,
+                        );
+                    } else {
+                        selected = Some(expression);
+                    }
+                }
+                types.push((ty, qualifiers));
+            } else {
+                let expression = self.expr(expression);
+                if default.is_some() {
+                    self.err(
+                        SemanticError::from("_Generic has more than one default association"),
+                        expression_location,
+                    );
+                } else {
+                    default = Some(expression);
+                }
+            }
+        }
+        selected.or(default).unwrap_or_else(|| {
+            self.err(
+                SemanticError::from(format!(
+                    "_Generic control type '{}' has no matching association and no default",
+                    control_type
+                )),
+                location,
+            );
+            let mut recovery = Expr::zero(location);
+            recovery.ctype = Type::Error;
+            recovery
+        })
+    }
     pub fn expr(&mut self, expr: ast::Expr) -> Expr {
         use ast::ExprType::*;
 
@@ -11,12 +211,111 @@ impl PureAnalyzer {
         let _guard2 = self.recursion_check();
         match expr.data {
             // 1 | "str" | 'a'
-            Literal(lit) => literal(lit, expr.location),
+            Literal(LiteralValue::Char(value)) => {
+                let mut literal = literal_for(
+                    LiteralValue::Int(i64::from(value)),
+                    expr.location,
+                    self.target,
+                );
+                literal.ctype = Type::Int(true);
+                literal
+            }
+            Literal(lit) => literal_for(lit, expr.location, self.target),
+            LongLiteral(lit) => {
+                let signed = matches!(lit, LiteralValue::Int(_));
+                let mut value = literal_for(lit, expr.location, self.target);
+                value.ctype = Type::Long(signed);
+                value
+            }
+            NonDecimalLiteral(lit, longs, unsigned) => {
+                let raw = match lit {
+                    LiteralValue::Int(v) => v as u64,
+                    LiteralValue::UnsignedInt(v) => v,
+                    _ => unreachable!(),
+                };
+                let mut value = literal_for(lit, expr.location, self.target);
+                let candidates = match (longs, unsigned) {
+                    (0, false) => vec![
+                        Type::Int(true),
+                        Type::Int(false),
+                        Type::Long(true),
+                        Type::Long(false),
+                        Type::LongLong(true),
+                        Type::LongLong(false),
+                    ],
+                    (0, true) => vec![Type::Int(false), Type::Long(false), Type::LongLong(false)],
+                    (1, false) => vec![
+                        Type::Long(true),
+                        Type::Long(false),
+                        Type::LongLong(true),
+                        Type::LongLong(false),
+                    ],
+                    (1, true) => vec![Type::Long(false), Type::LongLong(false)],
+                    (_, false) => vec![Type::LongLong(true), Type::LongLong(false)],
+                    (_, true) => vec![Type::LongLong(false)],
+                };
+                value.ctype = candidates
+                    .into_iter()
+                    .find(|ty| {
+                        let bits = ty.sizeof_for(self.target).unwrap() * 8;
+                        raw <= if ty.is_signed() {
+                            if bits == 64 {
+                                i64::MAX as u64
+                            } else {
+                                (1u64 << (bits - 1)) - 1
+                            }
+                        } else {
+                            if bits == 64 {
+                                u64::MAX
+                            } else {
+                                (1u64 << bits) - 1
+                            }
+                        }
+                    })
+                    .unwrap();
+                value
+            }
+            FloatLiteral(lit) => {
+                let mut value = literal_for(lit, expr.location, self.target);
+                value.ctype = Type::Float;
+                value
+            }
+            LongDoubleLiteral(lit) => {
+                if self.target == crate::TargetDataModel::Amd64 {
+                    self.err(
+                        SemanticError::Generic(
+                            "AMD64 long double literal ABI is unsupported".into(),
+                        ),
+                        expr.location,
+                    );
+                }
+                let mut value = literal_for(lit, expr.location, self.target);
+                value.ctype = Type::LongDouble;
+                value
+            }
+            WideStringLiteral(lit) => {
+                let mut value = literal_for(lit, expr.location, self.target);
+                if let ExprType::Literal(LiteralValue::Str(bytes)) = &value.expr {
+                    value.ctype = Type::Array(
+                        Box::new(Type::Int(true)),
+                        crate::data::types::ArrayType::Fixed((bytes.len() / 4) as u64),
+                    );
+                }
+                value
+            }
+            WideCharLiteral(lit) => {
+                let mut value = literal_for(lit, expr.location, self.target);
+                value.ctype = Type::Int(true);
+                value
+            }
             LongLongLiteral(lit) => {
                 let signed = matches!(lit, LiteralValue::Int(_));
-                let mut value = literal(lit, expr.location);
+                let mut value = literal_for(lit, expr.location, self.target);
                 value.ctype = Type::LongLong(signed);
                 value
+            }
+            GenericSelection(control, associations) => {
+                self.generic_selection(*control, associations, expr.location)
             }
             // x
             Id(id) => self.parse_id(id, expr.location),
@@ -24,6 +323,96 @@ impl PureAnalyzer {
             Cast(ctype, inner) => {
                 let ctype = self.parse_typename(ctype, expr.location);
                 self.explicit_cast(*inner, ctype)
+            }
+            CompoundLiteral(ctype, initializer) => {
+                if let Some(id) = ctype.declarator.id {
+                    self.err(SemanticError::IdInTypeName(id), expr.location);
+                }
+                let parsed =
+                    self.parse_type(ctype.specifiers, ctype.declarator.decl, expr.location);
+                if let Some(class) = parsed.storage_class {
+                    self.err(SemanticError::IllegalStorageClass(class), expr.location);
+                }
+                let qualifiers = parsed.qualifiers;
+                let mut ctype = parsed.ctype;
+                fn valid_object(ty: &Type, target: crate::TargetDataModel) -> bool {
+                    match ty {
+                        Type::Void | Type::Function(_) | Type::Error => false,
+                        Type::Array(_, crate::data::types::ArrayType::Variable(_)) => false,
+                        Type::Array(element, _) => valid_object(element, target),
+                        _ => ty.sizeof_for(target).is_ok(),
+                    }
+                }
+                if !valid_object(&ctype, self.target) {
+                    self.err(SemanticError::from("compound literal requires a complete object type or an unknown-bound array, and cannot have variable length"), expr.location);
+                    let mut recovery = Expr::zero(expr.location);
+                    recovery.ctype = Type::Error;
+                    return recovery;
+                }
+                let init = self.parse_initializer(*initializer, &ctype, expr.location);
+                if let Type::Array(_, bound @ crate::data::types::ArrayType::Unbounded) = &mut ctype
+                {
+                    if let Initializer::InitializerList(items) = &init {
+                        *bound = crate::data::types::ArrayType::Fixed(items.len() as u64);
+                    }
+                }
+                let global = self.scope.is_global();
+                let id = format!("$compound{}", self.compound_literal_count).into();
+                self.compound_literal_count += 1;
+                let symbol = self.declare(
+                    Variable {
+                        id,
+                        ctype: ctype.clone(),
+                        qualifiers,
+                        storage_class: if global {
+                            StorageClass::Static
+                        } else {
+                            StorageClass::Auto
+                        },
+                    },
+                    true,
+                    expr.location,
+                );
+                let storage = Expr {
+                    ctype,
+                    lval: true,
+                    location: expr.location,
+                    expr: ExprType::Id(symbol),
+                };
+                if global {
+                    self.pending.push_back(expr.location.with(Declaration {
+                        symbol,
+                        init: Some(init),
+                    }));
+                    storage
+                } else {
+                    self.decl_side_channel
+                        .push(expr.location.with(Declaration { symbol, init: None }));
+                    let mut writes = Vec::new();
+                    self.compound_literal_writes(storage.clone(), &init, &mut writes);
+                    let location = expr.location;
+                    let address = Expr {
+                        ctype: Type::Pointer(Box::new(storage.ctype.clone()), qualifiers),
+                        lval: false,
+                        location,
+                        expr: ExprType::StaticRef(Box::new(storage.clone())),
+                    };
+                    let initialized_address =
+                        writes.into_iter().rev().fold(address, |tail, write| Expr {
+                            ctype: tail.ctype.clone(),
+                            lval: false,
+                            location,
+                            expr: ExprType::Comma(Box::new(write), Box::new(tail)),
+                        });
+                    // Existing HIR's pointer-valued Noop denotes an lvalue's
+                    // address without introducing an additional load.
+                    Expr {
+                        ctype: storage.ctype,
+                        lval: true,
+                        location,
+                        expr: ExprType::Noop(Box::new(initialized_address)),
+                    }
+                }
             }
             Shift(left, right, direction) => {
                 let op = if direction {
@@ -53,14 +442,59 @@ impl PureAnalyzer {
             }
             Add(left, right) => self.binary_helper(left, right, BinaryOp::Add, Self::add),
             Sub(left, right) => self.binary_helper(left, right, BinaryOp::Sub, Self::add),
-            FuncCall(func, args) => self.func_call(*func, args),
+            FuncCall(func, args) => {
+                let builtin = match &func.data {
+                    ast::ExprType::Id(id) => match id.resolve_and_clone().as_str() {
+                        "__builtin_inf" | "__builtin_inff" | "__builtin_infl" => {
+                            Some((f64::INFINITY, false))
+                        }
+                        "__builtin_nan" | "__builtin_nanf" | "__builtin_nanl" => {
+                            Some((f64::NAN, true))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some((number, nan)) = builtin {
+                    let name = match &func.data {
+                        ast::ExprType::Id(id) => id.resolve_and_clone(),
+                        _ => unreachable!(),
+                    };
+                    let valid = if nan {
+                        args.len() == 1
+                            && matches!(&args[0].data, ast::ExprType::Literal(LiteralValue::Str(bytes)) if bytes == &[0])
+                    } else {
+                        args.is_empty()
+                    };
+                    if !valid {
+                        self.err(SemanticError::from("floating constant builtin requires no arguments (infinity) or an empty string (NaN)"),expr.location);
+                    }
+                    let mut value =
+                        literal_for(LiteralValue::Float(number), expr.location, self.target);
+                    if name.ends_with('f') {
+                        value.ctype = Type::Float;
+                    }
+                    if name.ends_with('l') {
+                        if self.target == crate::TargetDataModel::Amd64 {
+                            self.err(
+                                SemanticError::from("AMD64 long double literal ABI is unsupported"),
+                                expr.location,
+                            );
+                        }
+                        value.ctype = Type::LongDouble;
+                    }
+                    value
+                } else {
+                    self.func_call(*func, args)
+                }
+            }
             Member(struct_, id) => {
                 let struct_ = self.expr(*struct_);
                 self.struct_member(struct_, id, expr.location)
             }
             // s->p desguars to (*s).p
             DerefMember(inner, id) => {
-                let inner = self.expr(*inner);
+                let inner = self.expr(*inner).rval();
                 let struct_type = match &inner.ctype {
                     Type::Pointer(ctype, _) => match &**ctype {
                         Type::Union(_) | Type::Struct(_) => (**ctype).clone(),
@@ -125,7 +559,10 @@ impl PureAnalyzer {
                     _ if inner.lval => Expr {
                         lval: false,
                         location: expr.location,
-                        ctype: Type::Pointer(Box::new(inner.ctype.clone()), Qualifiers::default()),
+                        ctype: Type::Pointer(
+                            Box::new(inner.ctype.clone()),
+                            inner.lvalue_qualifiers(),
+                        ),
                         expr: ExprType::StaticRef(Box::new(inner)),
                     },
                     _ => {
@@ -227,9 +664,18 @@ impl PureAnalyzer {
                 self.err(SemanticError::NonIntegralExpr(ctype.clone()), location);
             }
         }
-        let (promoted_expr, next) = Expr::binary_promote(left, right, &mut self.error_handler);
+        // C shifts promote operands independently; the right operand cannot
+        // change the width or signedness of the left operand or result.
+        let (promoted_expr, next) = if matches!(op, BinaryOp::Shl | BinaryOp::Shr) {
+            (
+                left.integer_promote(&mut self.error_handler),
+                right.integer_promote(&mut self.error_handler),
+            )
+        } else {
+            Expr::binary_promote_for(left, right, &mut self.error_handler, self.target)
+        };
         Expr {
-            ctype: next.ctype.clone(),
+            ctype: promoted_expr.ctype.clone(),
             expr: ExprType::Binary(op, Box::new(promoted_expr), Box::new(next)),
             lval: false,
             location,
@@ -290,7 +736,7 @@ impl PureAnalyzer {
 
         // i == i
         if left.ctype.is_arithmetic() && right.ctype.is_arithmetic() {
-            let tmp = Expr::binary_promote(left, right, &mut self.error_handler);
+            let tmp = Expr::binary_promote_for(left, right, &mut self.error_handler, self.target);
             left = tmp.0;
             right = tmp.1;
         } else {
@@ -299,7 +745,7 @@ impl PureAnalyzer {
             // first check that not already type error
             if left_expr.ctype != Type::Error
                 && right_expr.ctype != Type::Error // Maybe I should pull this out of the if...
-                && !((left_expr.ctype.is_pointer() && left_expr.ctype == right_expr.ctype)
+                && !(compatible_pointer_types(&left_expr.ctype, &right_expr.ctype)
                 // equality operations have different rules :(
                 || ((token == ComparisonToken::EqualEqual || token == ComparisonToken::NotEqual)
                     // shoot me now
@@ -328,7 +774,7 @@ impl PureAnalyzer {
         Expr {
             lval: false,
             location,
-            ctype: Type::Bool,
+            ctype: Type::Int(true),
             expr: ExprType::Binary(BinaryOp::Compare(token), Box::new(left), Box::new(right)),
         }
     }
@@ -360,7 +806,8 @@ impl PureAnalyzer {
                 location,
             );
         }
-        let (left, right) = Expr::binary_promote(left, right, &mut self.error_handler);
+        let (left, right) =
+            Expr::binary_promote_for(left, right, &mut self.error_handler, self.target);
         Expr {
             ctype: left.ctype.clone(),
             location,
@@ -374,13 +821,22 @@ impl PureAnalyzer {
     fn add(&mut self, mut left: Expr, mut right: Expr, op: BinaryOp) -> Expr {
         let is_add = op == BinaryOp::Add;
         let location = left.location.merge(right.location);
+        // Decay array operands before pointer compatibility/difference checks.
+        left = left.rval();
+        right = right.rval();
         match (&left.ctype, &right.ctype) {
             // `p + i`
             (Type::Pointer(to, _), i)
             | (Type::Array(to, _), i) if i.is_integral() && to.is_complete() => {
                 let to = to.clone();
                 let (left, right) = (left.rval(), right.rval());
-                return self.pointer_arithmetic(left, right, &*to, location);
+                let mut result = self.pointer_arithmetic(left, right, &*to, location);
+                if !is_add {
+                    if let ExprType::Binary(operator, _, _) = &mut result.expr {
+                        *operator = BinaryOp::Sub;
+                    }
+                }
+                return result;
             }
             // `i + p`
             (i, Type::Pointer(to, _))
@@ -394,13 +850,15 @@ impl PureAnalyzer {
         };
         // `i + i`
         let (ctype, lval) = if left.ctype.is_arithmetic() && right.ctype.is_arithmetic() {
-            let tmp = Expr::binary_promote(left, right, &mut self.error_handler);
+            let tmp = Expr::binary_promote_for(left, right, &mut self.error_handler, self.target);
             left = tmp.0;
             right = tmp.1;
             (left.ctype.clone(), false)
         // `p1 - p2`
         // `p1 + p2` for pointers p1 and p2 is not valid
-        } else if !is_add && left.ctype.is_pointer_to_complete_object() && left.ctype == right.ctype
+        } else if !is_add
+            && left.ctype.is_pointer_to_complete_object()
+            && compatible_pointer_types(&left.ctype, &right.ctype)
         {
             // C11 6.5.6: subtracting two compatible object pointers yields
             // ptrdiff_t. SIA32 uses a 32-bit signed long for this frontend
@@ -476,10 +934,14 @@ impl PureAnalyzer {
         // Keep the index in its integer domain. Older lowering cast the
         // integer index to the pointer type before multiplying by sizeof(T),
         // which later forced an invalid pointer-to-integer implicit cast.
-        let offset = index.rval();
+        // Scale in the target's pointer-sized integer domain. In particular,
+        // byte/short indices must not truncate the byte offset during Mul.
+        let offset = index
+            .rval()
+            .implicit_cast(&Type::Long(true), &mut self.error_handler);
         let size_expr = match pointee {
             Type::Array(element, crate::data::types::ArrayType::Variable(bound_expression)) => {
-                let element_size = match element.sizeof() {
+                let element_size = match element.sizeof_for(self.target) {
                     Ok(size) => size,
                     Err(_) => {
                         self.err(
@@ -503,7 +965,7 @@ impl PureAnalyzer {
                 }
             }
             _ => {
-                let size = match pointee.sizeof() {
+                let size = match pointee.sizeof_for(self.target) {
                     Ok(size) => size,
                     Err(_) => {
                         self.err(
@@ -537,11 +999,12 @@ impl PureAnalyzer {
         // if fp is a function pointer, fp() desugars to (*fp)()
         match &func.ctype {
             Type::Pointer(pointee, _) if pointee.is_function() => {
+                let ctype = (**pointee).clone();
                 func = Expr {
                     lval: false,
                     location: func.location,
-                    ctype: (**pointee).clone(),
-                    expr: ExprType::Deref(Box::new(func)),
+                    ctype,
+                    expr: ExprType::Deref(Box::new(func.rval())),
                 }
             }
             _ => {}
@@ -619,8 +1082,44 @@ impl PureAnalyzer {
                     }
                 // struct s { int i; }; s.j
                 } else {
-                    self.err(SemanticError::NotAMember(id, expr.ctype.clone()), location);
-                    expr
+                    fn promoted_paths(ty: &Type, name: InternedStr) -> Vec<Vec<InternedStr>> {
+                        let st = match ty {
+                            Type::Struct(st) | Type::Union(st) => st,
+                            _ => return Vec::new(),
+                        };
+                        let mut paths = Vec::new();
+                        for member in st.members().iter() {
+                            if member.id == name {
+                                paths.push(vec![name]);
+                            } else if member.id.resolve_and_clone().starts_with("$anonymous") {
+                                for mut path in promoted_paths(&member.ctype, name) {
+                                    path.insert(0, member.id);
+                                    paths.push(path);
+                                }
+                            }
+                        }
+                        paths
+                    }
+                    let paths = promoted_paths(&expr.ctype, id);
+                    if paths.len() == 1 {
+                        let mut result = expr;
+                        for field in &paths[0] {
+                            result = self.struct_member(result, *field, location);
+                        }
+                        result
+                    } else {
+                        if paths.len() > 1 {
+                            self.err(
+                                SemanticError::from(
+                                    "ambiguous member promoted by anonymous struct or union",
+                                ),
+                                location,
+                            );
+                        } else {
+                            self.err(SemanticError::NotAMember(id, expr.ctype.clone()), location);
+                        }
+                        expr
+                    }
                 }
             }
             // if already type error
@@ -657,12 +1156,9 @@ impl PureAnalyzer {
         }
         // ++i is syntactic sugar for i+=1
         if prefix {
-            let rval = Expr {
-                lval: false,
-                ctype: expr.ctype.clone(),
-                location,
-                expr: ExprType::Cast(Box::new(literal(LiteralValue::Int(1), location))),
-            };
+            // The increment operand is integer one even for a pointer.
+            // Casting it to the lvalue type turns ++p into invalid p + p.
+            let rval = literal(LiteralValue::Int(1), location);
             let op = if increment {
                 AssignmentToken::AddEqual
             } else {
@@ -710,11 +1206,13 @@ impl PureAnalyzer {
     }
     // _Alignof(int)
     fn align(&mut self, ctype: Type, location: Location) -> Expr {
-        let align = ctype.alignof().unwrap_or_else(|err| {
+        let align = ctype.alignof_for(self.target).unwrap_or_else(|err| {
             self.err(err.into(), location);
             1
         });
-        literal(LiteralValue::UnsignedInt(align), location)
+        let mut result = literal_for(LiteralValue::UnsignedInt(align), location, self.target);
+        result.ctype = Type::Long(false); // target size_t
+        result
     }
     // sizeof(int)
     // 6.5.3.4 The sizeof and _Alignof operators
@@ -730,13 +1228,15 @@ impl PureAnalyzer {
                 expr: ExprType::Sizeof(ctype),
             };
         }
-        let size = ctype.sizeof().unwrap_or_else(|err| {
+        let size = ctype.sizeof_for(self.target).unwrap_or_else(|err| {
             if ctype != Type::Error {
                 self.err(err.into(), location);
             }
             1
         });
-        literal(LiteralValue::UnsignedInt(size), location)
+        let mut result = literal_for(LiteralValue::UnsignedInt(size), location, self.target);
+        result.ctype = Type::Long(false); // target size_t
+        result
     }
     // ~expr
     // 6.5.3.3 Unary arithmetic operators
@@ -799,7 +1299,7 @@ impl PureAnalyzer {
         Expr {
             lval: false,
             location: boolean.location,
-            ctype: Type::Bool,
+            ctype: Type::Int(true),
             expr: ExprType::Binary(
                 BinaryOp::Compare(ComparisonToken::EqualEqual),
                 Box::new(boolean),
@@ -815,8 +1315,8 @@ impl PureAnalyzer {
         let b = b.implicit_cast(&Type::Bool, &mut self.error_handler);
         Expr {
             lval: false,
-            // TODO: this is wrong, it should be an int
-            ctype: Type::Bool,
+            // C logical operators yield int, while operands use internal truth values.
+            ctype: Type::Int(true),
             location: a.location,
             expr: ExprType::Binary(op, Box::new(a), Box::new(b)),
         }
@@ -835,7 +1335,8 @@ impl PureAnalyzer {
         let mut otherwise = self.expr(otherwise).rval();
 
         if then.ctype.is_arithmetic() && otherwise.ctype.is_arithmetic() {
-            let (tmp1, tmp2) = Expr::binary_promote(then, otherwise, &mut self.error_handler);
+            let (tmp1, tmp2) =
+                Expr::binary_promote_for(then, otherwise, &mut self.error_handler, self.target);
             then = tmp1;
             otherwise = tmp2;
         } else if !pointer_promote(&mut then, &mut otherwise)
@@ -881,6 +1382,17 @@ impl PureAnalyzer {
                 expr: ExprType::Binary(BinaryOp::Assign, Box::new(lval), Box::new(rval)),
             };
         }
+        if matches!(&lval.expr, ExprType::Id(_)) {
+            let value = self
+                .desugar_op(lval.clone().rval(), rval.rval(), token)
+                .implicit_cast(&lval.ctype, &mut self.error_handler);
+            return Expr {
+                ctype: lval.ctype.clone(),
+                lval: false,
+                location,
+                expr: ExprType::Binary(BinaryOp::Assign, Box::new(lval), Box::new(value)),
+            };
+        }
         // Complex assignment is tricky because the left side needs to be evaluated only once
         // Consider e.g. `*f() += 1`: `f()` should only be called once.
         // The hack implemented here is to treat `*f()` as a variable then load and store it to memory:
@@ -888,8 +1400,8 @@ impl PureAnalyzer {
         // see also footnote 113 which has a similar algorithm (but is more convoluted because of atomics)
 
         // declare tmp in a new hidden scope
-        // We really should only be modifying the scope in `FunctionAnalyzer`,
-        // but assignment expressions can never appear in an initializer anyway.
+        // The declaration side channel carries storage only; evaluation stays
+        // in the expression, including when nested in an initializer.
         self.scope.enter();
         let tmp_name = "tmp".into();
         let ctype = lval.ctype.clone();
@@ -903,13 +1415,28 @@ impl PureAnalyzer {
         };
         let tmp_var = self.declare(meta, true, location);
 
-        // NOTE: this does _not_ call rval() on `lval`
-        // there's no way to do this in C natively - the closest is `&var`, but that doesn't work on expressions
-        // `T tmp = &*f()` or `T tmp = &sum`
-        let init = Some(Initializer::Scalar(Box::new(lval)));
+        // Preserve the original lvalue as the operand of its address capture.
+        let address = Expr {
+            ctype: ptr_type.clone(),
+            lval: false,
+            location,
+            expr: ExprType::StaticRef(Box::new(lval)),
+        };
+        let temporary = Expr {
+            ctype: ptr_type.clone(),
+            lval: true,
+            location,
+            expr: ExprType::Id(tmp_var),
+        };
+        let set_address = Expr {
+            ctype: ptr_type.clone(),
+            lval: false,
+            location,
+            expr: ExprType::Binary(BinaryOp::Assign, Box::new(temporary), Box::new(address)),
+        };
         let decl = Declaration {
             symbol: tmp_var,
-            init,
+            init: None,
         };
         self.decl_side_channel.push(Locatable::new(decl, location));
         self.scope.exit();
@@ -940,12 +1467,19 @@ impl PureAnalyzer {
             .desugar_op(lval_as_rval, rval.rval(), token)
             .implicit_cast(&target.ctype, &mut self.error_handler);
 
-        // *tmp = *f() + 1
+        // Capture the address at expression evaluation time, including every
+        // loop iteration and only the selected short-circuit branch.
+        let update = Expr {
+            ctype: ctype.clone(),
+            lval: false,
+            location,
+            expr: ExprType::Binary(BinaryOp::Assign, Box::new(target), Box::new(new_val)),
+        };
         Expr {
             ctype,
             lval: false,
             location,
-            expr: ExprType::Binary(BinaryOp::Assign, Box::new(target), Box::new(new_val)),
+            expr: ExprType::Comma(Box::new(set_address), Box::new(update)),
         }
     }
     fn desugar_op(&mut self, left: Expr, right: Expr, token: lex::AssignmentToken) -> Expr {
@@ -969,15 +1503,38 @@ impl PureAnalyzer {
 
 // literal
 pub(super) fn literal(literal: LiteralValue, location: Location) -> Expr {
+    literal_for(literal, location, crate::TargetDataModel::Sia32)
+}
+
+fn literal_for(literal: LiteralValue, location: Location, target: crate::TargetDataModel) -> Expr {
     use crate::data::types::ArrayType;
 
     let ctype = match &literal {
-        LiteralValue::Char(_) => Type::Char(true),
-        LiteralValue::Int(value) if *value > u32::MAX as i64 || *value < i32::MIN as i64 => {
+        LiteralValue::Char(_) => Type::Int(true),
+        LiteralValue::Int(value)
+            if target == crate::TargetDataModel::Amd64
+                && *value >= i32::MIN as i64
+                && *value <= i32::MAX as i64 =>
+        {
+            Type::Int(true)
+        }
+        LiteralValue::Int(value)
+            if target == crate::TargetDataModel::Sia32
+                && (*value > u32::MAX as i64 || *value < i32::MIN as i64) =>
+        {
             Type::LongLong(true)
         }
         LiteralValue::Int(_) => Type::Long(true),
-        LiteralValue::UnsignedInt(value) if *value > u32::MAX as u64 => Type::LongLong(false),
+        LiteralValue::UnsignedInt(value)
+            if target == crate::TargetDataModel::Amd64 && *value <= u32::MAX as u64 =>
+        {
+            Type::Int(false)
+        }
+        LiteralValue::UnsignedInt(value)
+            if target == crate::TargetDataModel::Sia32 && *value > u32::MAX as u64 =>
+        {
+            Type::LongLong(false)
+        }
         LiteralValue::UnsignedInt(_) => Type::Long(false),
         LiteralValue::Float(_) => Type::Double,
         LiteralValue::Str(s) => {
@@ -993,22 +1550,123 @@ pub(super) fn literal(literal: LiteralValue, location: Location) -> Expr {
     }
 }
 
-// 6.5.15 - Conditional operator
-fn pointer_promote(left: &mut Expr, right: &mut Expr) -> bool {
-    let is_convertible_to_any_pointer = |expr: &Expr| {
-        expr.ctype.is_void_pointer() || expr.ctype.is_char_pointer() || expr.is_null()
-    };
-    if left.ctype == right.ctype {
-        true
-    } else if is_convertible_to_any_pointer(left) && right.ctype.is_pointer() {
-        left.ctype = right.ctype.clone();
-        true
-    } else if is_convertible_to_any_pointer(right) && left.ctype.is_pointer() {
-        right.ctype = left.ctype.clone();
-        true
-    } else {
-        false
+// Keep _Generic compatibility explicit: pointer pointee qualifiers are part
+// of the type, arrays with unknown bounds can be compatible with fixed arrays,
+// and function return types must agree even without a prototype.
+fn generic_compatible(a: &Type, b: &Type) -> bool {
+    match (a, b) {
+        (Type::Struct(a), Type::Struct(b)) | (Type::Union(a), Type::Union(b)) => match (a, b) {
+            (StructType::Named(_, a), StructType::Named(_, b)) => a.same_identity(*b),
+            (StructType::Anonymous(a), StructType::Anonymous(b)) => std::rc::Rc::ptr_eq(a, b),
+            _ => false,
+        },
+        (Type::Pointer(a, aq), Type::Pointer(b, bq)) => aq == bq && generic_compatible(a, b),
+        (Type::Array(a, al), Type::Array(b, bl)) => {
+            generic_compatible(a, b)
+                && match (al, bl) {
+                    (ArrayType::Fixed(a), ArrayType::Fixed(b)) => a == b,
+                    _ => true,
+                }
+        }
+        (Type::Function(a), Type::Function(b)) => {
+            if !generic_compatible(&a.return_type, &b.return_type) {
+                return false;
+            }
+            if a.params.is_empty() || b.params.is_empty() {
+                let proto = if a.params.is_empty() { b } else { a };
+                return !proto.varargs
+                    && proto.params.iter().all(|p| {
+                        matches!(
+                            p.get().ctype,
+                            Type::Void
+                                | Type::Int(_)
+                                | Type::Long(_)
+                                | Type::LongLong(_)
+                                | Type::Double
+                                | Type::LongDouble
+                                | Type::Pointer(_, _)
+                                | Type::Struct(_)
+                                | Type::Union(_)
+                        )
+                    });
+            }
+            a.varargs == b.varargs
+                && a.params.len() == b.params.len()
+                && a.params
+                    .iter()
+                    .zip(&b.params)
+                    .all(|(a, b)| generic_compatible(&a.get().ctype, &b.get().ctype))
+        }
+        // Cosmic's enum representation is a signed int (distinct enum tags
+        // remain incompatible with one another).
+        (Type::Enum(_, _), Type::Int(true)) | (Type::Int(true), Type::Enum(_, _)) => true,
+        _ => a == b,
     }
+}
+fn generic_complete_object(ty: &Type) -> bool {
+    match ty {
+        Type::Void | Type::Function(_) | Type::Error => false,
+        Type::Array(element, ArrayType::Fixed(_)) => generic_complete_object(element),
+        Type::Array(_, _) => false,
+        Type::Struct(st) | Type::Union(st) => !st.is_empty(),
+        _ => true,
+    }
+}
+fn generic_variably_modified(ty: &Type) -> bool {
+    match ty {
+        Type::Array(_, ArrayType::Variable(_)) => true,
+        Type::Pointer(inner, _) | Type::Array(inner, _) => generic_variably_modified(inner),
+        Type::Function(f) => {
+            generic_variably_modified(&f.return_type)
+                || f.params
+                    .iter()
+                    .any(|p| generic_variably_modified(&p.get().ctype))
+        }
+        _ => false,
+    }
+}
+
+// 6.5.15 - Conditional operator
+fn compatible_pointer_types(left: &Type, right: &Type) -> bool {
+    match (left, right) {
+        // Ignore only immediate pointee qualifiers. Nested pointer qualifiers
+        // remain part of the type and must not acquire unsafe conversions.
+        (Type::Pointer(a, _), Type::Pointer(b, _)) => a == b,
+        _ => false,
+    }
+}
+
+fn pointer_promote(left: &mut Expr, right: &mut Expr) -> bool {
+    if left.ctype == right.ctype {
+        return true;
+    }
+    let common = match (&left.ctype, &right.ctype) {
+        (Type::Pointer(a, aq), Type::Pointer(b, bq)) => {
+            let pointee = if a == b {
+                a.clone()
+            } else if (a.as_ref() == &Type::Void && !b.is_function())
+                || (b.as_ref() == &Type::Void && !a.is_function())
+            {
+                Box::new(Type::Void)
+            } else {
+                return false;
+            };
+            Type::Pointer(
+                pointee,
+                Qualifiers {
+                    c_const: aq.c_const || bq.c_const,
+                    volatile: aq.volatile || bq.volatile,
+                    func: aq.func,
+                },
+            )
+        }
+        (_, Type::Pointer(_, _)) if left.is_null() => right.ctype.clone(),
+        (Type::Pointer(_, _), _) if right.is_null() => left.ctype.clone(),
+        _ => return false,
+    };
+    left.ctype = common.clone();
+    right.ctype = common;
+    true
 }
 
 impl Type {
@@ -1016,16 +1674,6 @@ impl Type {
     fn is_void_pointer(&self) -> bool {
         match self {
             Type::Pointer(t, _) => **t == Type::Void,
-            _ => false,
-        }
-    }
-    #[inline]
-    fn is_char_pointer(&self) -> bool {
-        match self {
-            Type::Pointer(t, _) => match **t {
-                Type::Char(_) => true,
-                _ => false,
-            },
             _ => false,
         }
     }
@@ -1045,6 +1693,7 @@ impl Type {
     fn sign(&self) -> Result<bool, ()> {
         use Type::*;
         match self {
+            SignedChar => Ok(true),
             Char(sign) | Short(sign) | Int(sign) | Long(sign) | LongLong(sign) => Ok(*sign),
             Bool => Ok(false),
             // TODO: allow enums with values of UINT_MAX
@@ -1071,7 +1720,7 @@ impl Type {
         use Type::*;
         match self {
             Bool => 0,
-            Char(_) => 1,
+            Char(_) | SignedChar => 1,
             Short(_) => 2,
             Int(_) => 3,
             Long(_) => 4,
@@ -1092,8 +1741,15 @@ impl Type {
         }
     }
     // 6.3.1.8 Usual arithmetic conversions
-    fn binary_promote(mut left: Type, mut right: Type) -> Result<Type, Type> {
+    fn binary_promote_for(
+        mut left: Type,
+        mut right: Type,
+        target: crate::TargetDataModel,
+    ) -> Result<Type, Type> {
         use Type::*;
+        if left == LongDouble || right == LongDouble {
+            return Ok(LongDouble);
+        }
         if left == Double || right == Double {
             return Ok(Double); // toil and trouble
         } else if left == Float || right == Float {
@@ -1120,7 +1776,7 @@ impl Type {
         } else {
             (right, left)
         };
-        if signed.can_represent(&unsigned) {
+        if signed.can_represent_for(&unsigned, target) {
             Ok(signed)
         } else {
             Ok(unsigned)
@@ -1234,9 +1890,14 @@ impl Expr {
     // Perform a binary conversion, including all relevant casts.
     //
     // See `Type::binary_promote` for conversion rules.
-    fn binary_promote(left: Expr, right: Expr, error_handler: &mut ErrorHandler) -> (Expr, Expr) {
+    fn binary_promote_for(
+        left: Expr,
+        right: Expr,
+        error_handler: &mut ErrorHandler,
+        target: crate::TargetDataModel,
+    ) -> (Expr, Expr) {
         let (left, right) = (left.rval(), right.rval());
-        let ctype = Type::binary_promote(left.ctype.clone(), right.ctype.clone());
+        let ctype = Type::binary_promote_for(left.ctype.clone(), right.ctype.clone(), target);
         match ctype {
             Ok(promoted) => (
                 left.implicit_cast(&promoted, error_handler),
@@ -1259,22 +1920,17 @@ impl Expr {
     // >  Except when it is the operand of [a bunch of different operators],
     // > an lvalue that does not have array type is converted to the value stored in the designated object (and is no longer an lvalue)
     pub(super) fn rval(self) -> Expr {
+        let qualifiers = self.lvalue_qualifiers();
         match self.ctype {
             // a + 1 is the same as &a + 1
             Type::Array(to, _) => Expr {
                 lval: false,
-                ctype: Type::Pointer(to, Qualifiers::default()),
+                ctype: Type::Pointer(to, qualifiers),
                 ..self
             },
             Type::Function(_) => Expr {
                 lval: false,
-                ctype: Type::Pointer(
-                    Box::new(self.ctype),
-                    Qualifiers {
-                        c_const: true,
-                        ..Qualifiers::default()
-                    },
-                ),
+                ctype: Type::Pointer(Box::new(self.ctype), Qualifiers::NONE),
                 ..self
             },
             // HACK: structs can't be dereferenced since they're not scalar, so we just fake it
@@ -1324,10 +1980,6 @@ impl Expr {
             || expr.is_null() && ctype.is_pointer()
             // if ((int*)p)
             || expr.ctype.is_pointer() && ctype.is_bool()
-            // p -> void*
-            || expr.ctype.is_pointer() && ctype.is_void_pointer()
-            // p -> char*
-            || expr.ctype.is_pointer() && ctype.is_char_pointer()
         {
             Expr {
                 location: expr.location,
@@ -1335,12 +1987,6 @@ impl Expr {
                 lval: false,
                 ctype: ctype.clone(),
             }
-        // `NULL -> int*` or `void* -> int*` or `char* -> int*`
-        } else if ctype.is_pointer()
-            && (expr.is_null() || expr.ctype.is_void_pointer() || expr.ctype.is_char_pointer())
-        {
-            expr.ctype = ctype.clone();
-            expr
         } else if expr.ctype == Type::Error {
             expr
         } else {
@@ -1351,7 +1997,10 @@ impl Expr {
             // > both operands are pointers to qualified or unqualified versions of compatible types,
             // > and the type pointed to by the left has all the qualifiers of the type pointed to by the right;
             if let (Type::Pointer(a, from), Type::Pointer(b, to)) = (&expr.ctype, ctype) {
-                if *a == *b && from.contains_all(*to) {
+                let compatible = a == b
+                    || (matches!(a.as_ref(), Type::Void) && !b.is_function())
+                    || (matches!(b.as_ref(), Type::Void) && !a.is_function());
+                if compatible && to.contains_all(*from) {
                     expr.ctype = ctype.clone();
                     return expr;
                 }
@@ -1367,6 +2016,38 @@ impl Expr {
             expr
         }
     }
+    fn lvalue_qualifiers(&self) -> Qualifiers {
+        match &self.expr {
+            ExprType::Id(symbol) => symbol.get().qualifiers,
+            ExprType::Noop(pointer)
+                if self.lval || matches!(self.ctype, Type::Struct(_) | Type::Union(_)) =>
+            {
+                match &pointer.ctype {
+                    Type::Pointer(_, qualifiers) => *qualifiers,
+                    _ => Qualifiers::NONE,
+                }
+            }
+            ExprType::Member(compound, id) => {
+                let inherited = compound.lvalue_qualifiers();
+                let member = match &compound.ctype {
+                    Type::Struct(stype) | Type::Union(stype) => stype
+                        .members()
+                        .iter()
+                        .find(|member| member.id == *id)
+                        .map(|member| member.qualifiers)
+                        .unwrap_or(Qualifiers::NONE),
+                    _ => Qualifiers::NONE,
+                };
+                Qualifiers {
+                    c_const: inherited.c_const || member.c_const,
+                    volatile: inherited.volatile || member.volatile,
+                    ..Qualifiers::NONE
+                }
+            }
+            _ => Qualifiers::NONE,
+        }
+    }
+
     /// See section 6.3.2.1 of the C Standard. In particular:
     /// "A modifiable lvalue is an lvalue that does not have array type,
     /// does not  have an incomplete type, does not have a const-qualified type,
@@ -1381,13 +2062,8 @@ impl Expr {
         if !self.ctype.is_complete() {
             return err(format!("expression with incomplete type '{}'", self.ctype));
         }
-        // const-qualified type
-        // TODO: handle `*const`
-        if let ExprType::Id(sym) = &self.expr {
-            let meta = sym.get();
-            if meta.qualifiers.c_const {
-                return err(format!("variable '{}' with `const` qualifier", meta.id));
-            }
+        if self.lvalue_qualifiers().c_const {
+            return err("object with `const` qualifier".to_string());
         }
         match &self.ctype {
             // array type
@@ -1489,6 +2165,86 @@ mod test {
         );
     }
     #[test]
+    fn qualified_pointer_expression_compatibility() {
+        let int = Type::Int(true);
+        let pointer = |q| Type::Pointer(Box::new(int.clone()), q);
+        let const_q = Qualifiers {
+            c_const: true,
+            ..Qualifiers::NONE
+        };
+        let volatile_q = Qualifiers {
+            volatile: true,
+            ..Qualifiers::NONE
+        };
+        let variables: Vec<_> = [
+            ("p", pointer(Qualifiers::NONE)),
+            ("cp", pointer(const_q)),
+            ("vp", pointer(volatile_q)),
+            (
+                "arr",
+                Type::Array(Box::new(int.clone()), types::ArrayType::Fixed(8)),
+            ),
+            ("v", Type::Pointer(Box::new(Type::Void), Qualifiers::NONE)),
+            (
+                "ch",
+                Type::Pointer(Box::new(Type::Char(true)), Qualifiers::NONE),
+            ),
+        ]
+        .iter()
+        .map(|(id, ctype)| {
+            Variable {
+                id: InternedStr::get_or_intern(*id),
+                ctype: ctype.clone(),
+                qualifiers: Qualifiers::NONE,
+                storage_class: Default::default(),
+            }
+            .insert()
+        })
+        .collect();
+        for text in ["p < cp", "cp >= p", "vp == cp"] {
+            assert_eq!(
+                expr_with_scope(text, &variables).unwrap().ctype,
+                Type::Int(true)
+            );
+        }
+        for text in ["cp - p", "cp - arr", "arr - cp"] {
+            assert_eq!(
+                expr_with_scope(text, &variables).unwrap().ctype,
+                Type::Long(true)
+            );
+        }
+        let common = pointer(Qualifiers {
+            c_const: true,
+            volatile: true,
+            ..Qualifiers::NONE
+        });
+        assert_eq!(
+            expr_with_scope("1 ? cp : vp", &variables).unwrap().ctype,
+            common
+        );
+        assert_eq!(
+            expr_with_scope("1 ? 0 : cp", &variables).unwrap().ctype,
+            pointer(const_q)
+        );
+        assert_eq!(
+            expr_with_scope("1 ? cp : v", &variables).unwrap().ctype,
+            Type::Pointer(Box::new(Type::Void), const_q)
+        );
+        for text in ["1 ? ch : p", "p + cp", "p < v"] {
+            assert!(expr_with_scope(text, &variables).is_err(), "{}", text);
+        }
+        for text in ["++p", "--p", "*--p", "p += 2", "p -= 2"] {
+            assert!(expr_with_scope(text, &variables).is_ok(), "{}", text);
+        }
+        assert!(expr_with_scope("p = (1 ? cp : p)", &variables).is_err());
+        let subtract = expr_with_scope("p - 3", &variables).unwrap();
+        assert!(matches!(
+            subtract.expr,
+            ExprType::Binary(BinaryOp::Sub, _, _)
+        ));
+    }
+
+    #[test]
     fn test_mul() {
         assert_type("1*1.0", Type::Double);
         assert_type("1*2.0 / 1.3", Type::Double);
@@ -1556,5 +2312,27 @@ mod test {
             "(unsigned long long)1 + (long long)2",
             Type::LongLong(false),
         );
+    }
+
+    #[test]
+    fn narrow_pointer_indices_scale_without_truncation() {
+        for target in [crate::TargetDataModel::Sia32, crate::TargetDataModel::Amd64] {
+            let mut analyzer = PureAnalyzer::new_for_target(target);
+            let location = Location::default();
+            let base = literal(LiteralValue::UnsignedInt(0), location);
+            let index = literal(LiteralValue::UnsignedInt(255), location)
+                .implicit_cast(&Type::Char(false), &mut analyzer.error_handler);
+            let indexed = analyzer.pointer_arithmetic(base, index, &Type::Int(true), location);
+            let offset = match indexed.expr {
+                ExprType::Binary(BinaryOp::Add, _, offset) => offset,
+                _ => panic!("scaled pointer addition"),
+            };
+            assert_eq!(offset.ctype, Type::Long(true));
+            let folded = offset.const_fold_for(target).unwrap();
+            assert!(matches!(
+                folded.expr,
+                ExprType::Literal(LiteralValue::Int(1020))
+            ));
+        }
     }
 }

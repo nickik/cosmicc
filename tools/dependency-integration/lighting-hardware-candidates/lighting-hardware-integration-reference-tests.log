@@ -1,0 +1,30 @@
+   Compiling lighting-simulation v0.1.0 (/tmp/lighting-hardware-integration-20261005)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.79s
+     Running tests/asm_conformance.rs (LightingSimulation/target/debug/deps/asm_conformance-335c281020745ab0)
+
+running 3 tests
+test assembler_checks_branch_and_literal_ranges ... ok
+test assembler_rejects_invalid_or_unassigned_source ... ok
+test assembly_program_conformance_suite ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/encoding_golden.rs (LightingSimulation/target/debug/deps/encoding_golden-2e9675e844a9e9c5)
+
+running 4 tests
+test golden_arithmetic_logic_and_shift_encodings ... ok
+test golden_immediate_memory_and_control_encodings ... ok
+test golden_misc_and_system_encodings ... ok
+test golden_three_register_and_escape_encodings ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/software_cpu_board.rs (LightingSimulation/target/debug/deps/software_cpu_board-a02c0a387b9a0f10)
+
+running 3 tests
+test interpreted_cpu_fetch_uses_compute_board_pin_sequence ... ok
+test interrupt_bundle_matches_compute_board_priority ... ok
+test lane_encoding_matches_fpga_mmu_contract ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

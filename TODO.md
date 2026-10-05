@@ -1,5 +1,10 @@
 # Cosmic C roadmap
 
+> Historical initial roadmap. Current work is tracked in
+> [PORTABILITY_TODO.md](PORTABILITY_TODO.md); recent implementation and execution
+> evidence is in [LOWERING_TODO.md](LOWERING_TODO.md). The unchecked early
+> comparison, board-runner and memory/call blockers below are superseded.
+
 Cosmic C is the maintained, Rust-written C compiler for Cosmic OS.  Its production route is:
 
 ```text

@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running `tools/l21-execution/target/debug/sia-source-native tools/sia/generic-language.c --max-instructions 10000 --board`
+PASS SIA source tools/sia/generic-language.c; 595 instructions; board=true

@@ -20,7 +20,7 @@ impl<I: Iterator<Item = Lexeme>> Lexer for I {}
 #[derive(Debug)]
 pub struct Parser<I: Lexer> {
     /// hack so that we know that `typedef int i; i j;` is legal
-    pub(crate) typedefs: Scope<InternedStr, ()>,
+    pub(crate) typedefs: Scope<InternedStr, bool>,
     /// we iterate lazily over the tokens, so if we have a program that's mostly valid but
     /// breaks at the end, we don't only show lex errors
     tokens: std::iter::Peekable<I>,
@@ -145,17 +145,33 @@ impl<I: Lexer> Parser<I> {
                     ..
                 })) => continue,
                 Some(Ok(Locatable {
-                    data: Token::Literal(LiteralToken::Str(mut concat_strs)),
+                    data: Token::Literal(kind @ (LiteralToken::Str(_) | LiteralToken::WideStr(_))),
                     mut location,
                 })) => {
+                    let (mut concat_strs, mut wide) = match kind {
+                        LiteralToken::Str(parts) => (parts, false),
+                        LiteralToken::WideStr(parts) => (parts, true),
+                        _ => unreachable!(),
+                    };
                     // 5.1.1.2p1: Translation phase 6: Adjacent string literal tokens are concatenated.
                     loop {
                         match self.tokens.peek() {
                             Some(Ok(Locatable {
-                                data: Token::Literal(LiteralToken::Str(merge_strs)),
+                                data:
+                                    Token::Literal(
+                                        kind @ (LiteralToken::Str(_) | LiteralToken::WideStr(_)),
+                                    ),
                                 location: next_location,
                             })) => {
                                 location = location.merge(next_location);
+                                let merge_strs = match kind {
+                                    LiteralToken::Str(parts) => parts,
+                                    LiteralToken::WideStr(parts) => {
+                                        wide = true;
+                                        parts
+                                    }
+                                    _ => unreachable!(),
+                                };
                                 concat_strs.append(&mut merge_strs.clone());
                                 self.tokens.next(); // Actually remove next
                             }
@@ -174,7 +190,11 @@ impl<I: Lexer> Parser<I> {
                         }
                     }
                     break Some(Locatable::new(
-                        Token::Literal(LiteralToken::Str(concat_strs)),
+                        Token::Literal(if wide {
+                            LiteralToken::WideStr(concat_strs)
+                        } else {
+                            LiteralToken::Str(concat_strs)
+                        }),
                         location,
                     ));
                 }
@@ -185,7 +205,7 @@ impl<I: Lexer> Parser<I> {
                     // but that runs into limits of the lifetime system since `peek_token()` takes `&mut self`:
                     // https://doc.rust-lang.org/nomicon/lifetime-mismatch.html#limits-of-lifetimes
                     if let Token::Id(id) = token.data {
-                        if self.typedefs.get(&id).is_some() {
+                        if self.typedefs.get(&id) == Some(&true) {
                             token.data = Token::Keyword(Keyword::UserTypedef(id));
                         }
                     }

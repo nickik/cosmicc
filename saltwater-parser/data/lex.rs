@@ -172,7 +172,9 @@ pub enum LiteralToken {
     UnsignedInt(Substr),
     Float(Substr),
     Str(Vec<Substr>),
+    WideStr(Vec<Substr>),
     Char(Substr),
+    WideChar(Substr),
 }
 
 impl PartialEq for LiteralToken {
@@ -182,8 +184,11 @@ impl PartialEq for LiteralToken {
             (Int(x), Int(y))
             | (UnsignedInt(x), UnsignedInt(y))
             | (Float(x), Float(y))
-            | (Char(x), Char(y)) => x.as_str() == y.as_str(),
-            (Str(x), Str(y)) => x.iter().zip(y).all(|(x, y)| x.as_str() == y.as_str()),
+            | (Char(x), Char(y))
+            | (WideChar(x), WideChar(y)) => x.as_str() == y.as_str(),
+            (Str(x), Str(y)) | (WideStr(x), WideStr(y)) => {
+                x.iter().zip(y).all(|(x, y)| x.as_str() == y.as_str())
+            }
             _ => false,
         }
     }
@@ -406,8 +411,8 @@ impl std::fmt::Display for LiteralToken {
             Int(i) => write!(f, "{}", i),
             UnsignedInt(u) => write!(f, "{}", u),
             Float(n) => write!(f, "{}", n),
-            Str(s) => write!(f, "{}", s.join(" ")),
-            Char(s) => write!(f, "{}", s),
+            Str(s) | WideStr(s) => write!(f, "{}", s.join(" ")),
+            Char(s) | WideChar(s) => write!(f, "{}", s),
         }
     }
 }

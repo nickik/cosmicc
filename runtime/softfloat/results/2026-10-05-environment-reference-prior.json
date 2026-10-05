@@ -1,0 +1,865 @@
+{
+  "status": "passed",
+  "cases": 1168968,
+  "guest_vectors": 1884,
+  "operations": [
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 0,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 1,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 2,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 3,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 4,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 5,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 0,
+      "operation": 6,
+      "cases": 10016
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 0,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 1,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 2,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 3,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 4,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 5,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 6,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 7,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 8,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 9,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 10,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 11,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 12,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 13,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 14,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 15,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 16,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 17,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 18,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 19,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 20,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 0,
+      "operation": 21,
+      "cases": 10015
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 0,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 1,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 2,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 3,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 4,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 5,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 1,
+      "operation": 6,
+      "cases": 10016
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 0,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 1,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 2,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 3,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 4,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 5,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 6,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 7,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 8,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 9,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 10,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 11,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 12,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 13,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 14,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 15,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 16,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 17,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 18,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 19,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 20,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 1,
+      "operation": 21,
+      "cases": 10015
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 0,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 1,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 2,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 3,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 4,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 5,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 2,
+      "operation": 6,
+      "cases": 10016
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 0,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 1,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 2,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 3,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 4,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 5,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 6,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 7,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 8,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 9,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 10,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 11,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 12,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 13,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 14,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 15,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 16,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 17,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 18,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 19,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 20,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 2,
+      "operation": 21,
+      "cases": 10015
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 0,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 1,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 2,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 3,
+      "cases": 10256
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 4,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 5,
+      "cases": 10016
+    },
+    {
+      "width": 32,
+      "rounding": 3,
+      "operation": 6,
+      "cases": 10016
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 0,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 1,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 2,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 3,
+      "cases": 10225
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 4,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 5,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 6,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 7,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 8,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 9,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 10,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 11,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 12,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 13,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 14,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 15,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 16,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 17,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 18,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 19,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 20,
+      "cases": 10015
+    },
+    {
+      "width": 64,
+      "rounding": 3,
+      "operation": 21,
+      "cases": 10015
+    }
+  ],
+  "command": [
+    "cc",
+    "-std=c99",
+    "-O2",
+    "-shared",
+    "-fPIC",
+    "-DINLINE_LEVEL=2",
+    "-DSOFTFLOAT_FAST_DIV64TO32=1",
+    "-I/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream",
+    "-I/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/include",
+    "-I/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/s_commonNaNToF32UI.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/s_commonNaNToF64UI.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/s_f32UIToCommonNaN.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/s_f64UIToCommonNaN.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/s_propagateNaNF32UI.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/s_propagateNaNF64UI.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ARM-VFPv2/softfloat_raiseFlags.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_add.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_div.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_mul.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_sqrt.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_sub.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_to_f64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_to_i64_r_minMag.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f32_to_ui64_r_minMag.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_add.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_div.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_eq.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_le.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_lt.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_mul.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_sqrt.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_sub.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_to_f32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_to_i32_r_minMag.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_to_i64_r_minMag.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_to_ui32_r_minMag.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/f64_to_ui64_r_minMag.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/i32_to_f32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/i32_to_f64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/i64_to_f32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/i64_to_f64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_addMagsF32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_addMagsF64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_approxRecip32_1.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_approxRecipSqrt32_1.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_approxRecipSqrt_1Ks.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_approxRecip_1Ks.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_countLeadingZeros32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_countLeadingZeros64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_countLeadingZeros8.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_mul64To128M.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_normRoundPackToF32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_normRoundPackToF64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_normSubnormalF32Sig.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_normSubnormalF64Sig.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_roundPackToF32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_roundPackToF64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_shiftRightJam32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_shiftRightJam64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_shortShiftRightJam64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_subMagsF32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/s_subMagsF64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/softfloat_state.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ui32_to_f32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ui32_to_f64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ui64_to_f32.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/upstream/ui64_to_f64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/oracle-environment.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-add.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary32-convert.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary64.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/context.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/fenv.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/math-bits.c",
+    "/home/nick/alltech/DigitalEquipment/cosmicc/runtime/softfloat/binary64-test-wrapper.c",
+    "-o",
+    "/tmp/cosmic-sf-environment-final/reference.so"
+  ],
+  "runtime_sha256": {
+    "context.c": "8a1871952d6a6cc6de2bb79acfc5fd2e78d232fdbe4bdf7e40764618f83ba731",
+    "context.h": "e4753696928d1ee30877a2c25222a78655876bd2f62fc82999549f7583f48677",
+    "fenv.c": "f64aacb1424d1cc38bf26435806c434c962b7a52f981671b4c7eb778c3a87179",
+    "fenv.h": "8dbef7c59fe211ab08c0803910c123de0c0faf1a02451a073eca15425dbd1519",
+    "binary32-add.c": "413375f732af91b7d9c1fffac140a8f978c4eee7753a3cbbbf46ad4ec4155a1e",
+    "binary32-convert.c": "3e4dbcb3511abd03cf334b8343b564669a4981365d6c78a30f2c056802d4dc04",
+    "binary64.c": "2660ce177d4915d7c28f25576fb878c21ab30e9965e0de7029ea39689730149b",
+    "math-bits.c": "b7aac5edab0ab2f9a87979890cc54ec73849159b5b6ff21de1dbd826f5352061",
+    "oracle-environment.c": "3dcf9b1a92221ee4a0d9e60425c09c5fa4ab97761cf1481e342423937dccd40c"
+  },
+  "upstream_sha256": {
+    "f32_add.c": "9e394bb6e5fcb8c1c97e8a6cfeb59a54b6e56299d95cc7e00ec9337c6eac9ad5",
+    "s_addMagsF32.c": "e0a47096f669348a0f068c0732e0154815f2a840d284cf9cc465949e262dc072",
+    "s_subMagsF32.c": "e131bf24f7c1a734f102cd842938d74f5373a4adb9dcdec296026c43579cc09f",
+    "s_roundPackToF32.c": "4232db3446ab841912658297a05a04a39f8198dee8581a8f030f18f9dbf279f9",
+    "s_normRoundPackToF32.c": "c248909aae4e4496f3bf42f6431fa0657e0be1534e6a6319bf3fd9bca3b2d048",
+    "s_shiftRightJam32.c": "6c17203abc851217a1cfa3561d389dd54af0bb3001e3b9195282589c756afe32",
+    "s_countLeadingZeros32.c": "1d9e7a84ac8f2823de61a493a0392d96248f87d2a7932e245de70265687bf800",
+    "s_countLeadingZeros8.c": "84c5c634e61a4898cccb587f6048010a1e07b6edcb1a815ffea33a4d2663658a",
+    "softfloat_state.c": "245e85655da222174390eab9687be7b32c1704d312934bbaadd81b1a4329a5f2",
+    "ARM-VFPv2/s_propagateNaNF32UI.c": "d999fc8554dabdd3147212ae2cd8f388c50f840c059e495145663d5aa8265e7f",
+    "ARM-VFPv2/softfloat_raiseFlags.c": "b30d08b68da0e3debde061145f2bc6de0592a9ecde66e792d7b683686cc16670",
+    "ARM-VFPv2/specialize.h": "25f0d84ea6b75af650207b930a4d5b914b5669b0769937d04a282c3027d7cdbf",
+    "include/internals.h": "e7205630a8087895388cb6c6afbc5dfe8a8c201f4eb3eab2586e91a73e36bd4e",
+    "include/primitives.h": "146644301372c13af893119485269d54f3d718df9ce8b1a96cb908d3b828b1ed",
+    "include/primitiveTypes.h": "ab4e4209a90b07dcc7600636dcf1c04f910ba4ff63d0eec64b0141769c16a221",
+    "include/softfloat_types.h": "d0876f30a0d3dde97dd16007dbf635d98ef8262476ab8913930548a70f140afa",
+    "include/softfloat.h": "0359d1f1c5bef11bcb728b5f065655bf0f144c918692f1350d5f44e25d68acd4",
+    "f32_sub.c": "0c4e5f92660d59ff4b94ddd7b9afdb39d5bfbcb9f22888e72bcf4b40ddda59a0",
+    "f32_mul.c": "aeee48f05d0e2c38ae0da33117e390ab85e11f903e2e2fc942a280e81392f2c3",
+    "f32_div.c": "b8af0f916df265b8e78952376da526fd446e222cc9be1ec7a7194ebd9dcb561c",
+    "s_normSubnormalF32Sig.c": "8e0f15899c33364c3cfe33644b389d34dc39ee5680a51e0aa18a8bb92401a3bb",
+    "s_shortShiftRightJam64.c": "be62320db279314179b14da8f2b30d510a9cbb80194c94cf382db8de11c58749",
+    "f32_eq.c": "ab5e92ecda7b19b29b10ff26cf3127a82af9165a66df923f310b27d1bcb2835c",
+    "f32_lt.c": "1d629dd84ec949c5fc1a79c96854ca74aeeb9044b6f320755913fb0ec9095381",
+    "f32_le.c": "8aaff9721eadcb263ac5c6413c4e3abac3ac18a706f8c2f2af677bcc62f9c30c",
+    "f32_to_i32_r_minMag.c": "32a38aabb25b570c33ddee558d05eb77e4f395500f695a5505ec86fb3b5415dc",
+    "f32_to_ui32_r_minMag.c": "29fc4c1348089b0a34a9490aaf95fde94de246912a03bac61e9b4b39815b1ee2",
+    "i32_to_f32.c": "401fd56fe37c7e054d3298a8553b9c5b1d9d9a0f87a1d1ef63b02a424a5fa93c",
+    "ui32_to_f32.c": "72bb8fe425d11ac1502a313b907013990a5088d692a175b0287881d7a209a0b8",
+    "f64_add.c": "b788a9f2ad36c0b4fd831f2cd63017284bff6c2965876ea1e9fe283b65a3d4cb",
+    "f64_sub.c": "b2bede4c0e35ee9572dbe9ebabd6a44e8fae902ea2307f26a3d31d49e8fb168f",
+    "f64_mul.c": "44394167ef08997b9a4585d5f2289d0513bf9cd59f030dcdcb49ba7c6ab25ef4",
+    "f64_div.c": "879f81a01150a94a48583133c526650c4c5423c5719c1f367a61c0113f88b713",
+    "f64_eq.c": "cb5f4f95377b929db1f317d2e45f36cb941b8c324c308ff3207781861f29b705",
+    "f64_lt.c": "ff9411cddb47464c6b4521c8ae6c5522e3d5d1648257810c1518d7cffab09e18",
+    "f64_le.c": "3083f30754432a6fc5a79ea7f21f0a34542f6ef543752b238f99a0b259e95968",
+    "f32_to_f64.c": "5a0f8ebd66b57aef07d6aa51dec61201761a8e646bdc6a1ceebd01d24daf3d8f",
+    "f64_to_f32.c": "8ebd33640e7ecc103285b89a5f9a6e080b9d72acdc455ba1e466e4da35582432",
+    "f32_to_i64_r_minMag.c": "ade7fd9d4bd056eb0d8034b4d91bb52c009cb8b92d8243fe0a7a2eb4aa5a92ff",
+    "f32_to_ui64_r_minMag.c": "8006fb116b7818d77d656e9a0e827b3bab466508e1d257687d40fdda08e1c79f",
+    "f64_to_i64_r_minMag.c": "e8e592fa8316a599d581e2147a9a3922859bd8191dfd3731d207bc424b0152ac",
+    "f64_to_ui64_r_minMag.c": "dc01827326f7b2df6cda63b4a0323eb7ee7fd7dd18260c90b1a57d5f9ce77252",
+    "f64_to_i32_r_minMag.c": "bff0deb6c1a7316a8adb02e075312b846f6362ff1fc1d6de662cb15164c464d3",
+    "f64_to_ui32_r_minMag.c": "1409b8dfaec67652c9ef7789119454dbe31cd328f6ad55ea410d5b3d9f4c315f",
+    "i64_to_f32.c": "87fecd0ff5ae9ac47c4da230fca1749414162a81585539ab57cba29614474613",
+    "ui64_to_f32.c": "1b7787a0c97a3701c2ecc39223dabe0c3bac738a4d1564722e2e35d5bcfefcc3",
+    "i64_to_f64.c": "e7b29aaab18a7ce155103e3f00e3a15c0e2892f10db8f44d798cf011c16f7d99",
+    "ui64_to_f64.c": "33146c02e74ee944b1034412134be0973c47b1f696e7e05d08123962dbba1da6",
+    "i32_to_f64.c": "7e082415b0a10214cb0300aaf71247f451459a09351a23df4d06c40fbab77689",
+    "ui32_to_f64.c": "fbb7a02dc61188bc04c357ae087ed61fb4361044a994304924653c01ebd7cc27",
+    "s_addMagsF64.c": "076349e43628e4d204f74d96924df2a7dc74fba4580bdf288cd915c51c934d74",
+    "s_subMagsF64.c": "ba49c86793182190e1325aef81f53d2bd9e8297478cd8ad1616dc83472ef9585",
+    "s_roundPackToF64.c": "e8c3c65b986d4deb7e32f83df0e8887b1d5c3532ce44fc0037d64101433f6234",
+    "s_normRoundPackToF64.c": "2b0a47495c6a70a178c0a00a775289f3cd5c4d49d71858a41fe31a1d0a9f0e3b",
+    "s_normSubnormalF64Sig.c": "b942313fededb11e3d117374dce3635161e36319c9f502a7db1b68054d51e1f2",
+    "s_shiftRightJam64.c": "bf5f98460d427c7d36d54dec5426d78366a24e84740ce0b06732a993eb6814d3",
+    "s_countLeadingZeros64.c": "34406fc742b3fb19303d0b82d932c50129c634b67b3d9168f03c39c09c341cbf",
+    "s_mul64To128M.c": "ef3cbc59dccb53b62afc124c555b0bdea77b5f6ce5da57fbc6ff1fe087622c09",
+    "s_approxRecip32_1.c": "5f651f3ff36fc9e0f53992e1308c3197db7ca56d27a3d48e45dd3ca421b01f43",
+    "s_approxRecip_1Ks.c": "18d5b8a32366ad86cba26cb82b6403b17c7ff5895e49290a2d4bf5742caea2a5",
+    "ARM-VFPv2/s_propagateNaNF64UI.c": "44a18dfb2ec78c8598589ea7b084cab9acb3c55eaf19134ff038e367084f72f1",
+    "ARM-VFPv2/s_f32UIToCommonNaN.c": "b1b1769e338abf180ce8825481a9516af6a67ac18891ed0f676f76262d5280ec",
+    "ARM-VFPv2/s_f64UIToCommonNaN.c": "95638bd36a0d3f676d3cc83ab456fc68fe3fede5a59d8c8b68dd5676bfecc191",
+    "ARM-VFPv2/s_commonNaNToF32UI.c": "14610d399f2af236a395067b69b6cb9b72769c356bae8b3d2cb22b34005cc260",
+    "ARM-VFPv2/s_commonNaNToF64UI.c": "54a48367f8ad96e12b6dd4ec525596236e43b18077a38f33168e1ba56571f738",
+    "f32_sqrt.c": "7e6c3c65e5cff08b05ddd34c6d29330f8fe30237a809086af394072488bf80fe",
+    "f64_sqrt.c": "181790dd6916704eb333c314384943fbe75f2174988d4e75b4f9f76f032d4664",
+    "s_approxRecipSqrt32_1.c": "2107412b2c94d0b19c5b584d645bbad2cd4f0c3596ab11c95d00a282903f1731",
+    "s_approxRecipSqrt_1Ks.c": "31b5b77d4e98b898c9cf661947c8530da00a5632350fe280249087e846be6f97"
+  }
+}
