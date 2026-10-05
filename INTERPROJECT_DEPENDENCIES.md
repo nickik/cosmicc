@@ -20,6 +20,8 @@ reviewed cases executed without failures (12,269,799 instructions); cross-TU
 aggregate, indirect-call, I64/double variadic and va_copy regression.
 
 Compiler SHA-256: `53e8d148f14fd2aaf072eff3c6613a7255ae1ac2e14d95d707788b567379a8cf`.
+The I64 arithmetic fixture also passes both LightingMachine and production
+CPU/mainboard RTL (650,691 guest instructions in each).
 The full SIA inventory uses LightingMachine. Generic selection and cross-TU
 ABI also pass current production CPU/mainboard Bluesim bridges. Rebuilding
 from published hardware Git candidates and removing the sibling Lighting
