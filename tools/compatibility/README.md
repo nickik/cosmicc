@@ -129,3 +129,44 @@ Next layers remain explicit work items:
   defined behavior before assigning compiler defects.
 - Keep native host-libc acceptance separate from SIA architectural execution and
   owned-runtime acceptance. Never infer one target's pass from another's result.
+
+## GCC torture execute suite on SIA
+
+The GCC `gcc.c-torture/execute` corpus is a larger regression layer. GCC's
+internals manual describes torture tests as regressions run across option
+combinations and the execute cases as tests that should compile, link and run
+([GCC testsuite manual](https://gcc.gnu.org/onlinedocs/gccint/Testsuites.html)).
+This is not an ISO conformance certificate. The SIA runner compares each selected
+program's GCC 13.3 native exit status with a real LightingMachine execution
+through the checked CSIAIMG loader. The simulator recognizes C runtime
+`abort` and `exit` entries as process termination; integer-only binary32/binary64
+runtime objects are linked for floating-point cases. ELF ET_REL and ET_EXEC
+have separate inspection/link/load acceptance tests. The runner does not
+substitute host execution for SIA execution.
+
+The source is pinned to the clean `rust-lang/gcc` checkout at
+`6f155cc3f5a2dff33afe6cc3ed6c2e0e605ae6a3`. The initial broad profile chooses
+all direct `.c` execute tests with UTF-8 source, no DejaGNU directive, no
+`#include`, and a `main` token. This keeps the runner independent of the GCC
+DejaGNU harness, target flags and hosted headers; unsupported cases remain
+counted in the exclusion totals. The report stores every selected source hash,
+the compiler/linker hashes, command logs, per-case timings and outcomes.
+
+```sh
+python3 tools/compatibility/gcc-torture-sia.py \
+  /path/to/rust-lang-gcc /tmp/cosmic-gcc-torture-run \
+  --limit 1217 --timeout 10
+```
+
+The bounded execution runner stops a testcase after 10 seconds or its
+architectural instruction budget. A GCC pass with a Cosmic compile/link/run
+failure is a compatibility gap to investigate; execution mismatches still
+need source review for undefined or implementation-defined behavior. The
+filtered profile is a repeatable regression suite, not proof of C compliance.
+
+The first pinned run and exact per-case outcomes are retained in
+[the 2026-10-05 report](results/2026-10-05-gcc-torture-sia/README.md). It passed
+587 of 1,216 selected candidates on LightingMachine. Treat every remaining
+GCC-accepted failure as a triage item: the corpus includes GNU extensions and
+some target-sensitive or undefined programs, and passing this filter is not a
+standard-conformance score.

@@ -2,17 +2,24 @@
 use saltwater_sia::{compile_default, Artifact};
 fn main() {
     let board = std::env::args().any(|a| a == "--board");
+    let c_runtime_termination = std::env::args().any(|a| a == "--c-runtime-termination");
+    assert!(
+        !board || !c_runtime_termination,
+        "--c-runtime-termination is a LightingMachine simulator option"
+    );
     let paths: Vec<_> = std::env::args()
         .skip(1)
-        .filter(|a| a != "--board")
+        .filter(|a| a != "--board" && a != "--c-runtime-termination")
         .collect();
     let (mut image, object_count) = if paths.first().map(String::as_str) == Some("--image") {
         assert_eq!(paths.len(), 2, "--image expects one container");
         let bytes = std::fs::read(&paths[1]).unwrap();
-        (
-            saltwater_sia::LinkedImage::from_image_bytes(&bytes, 0x800000, 0xc0000).unwrap(),
-            0,
-        )
+        let image = if bytes.starts_with(b"\x7fELF") {
+            saltwater_sia::LinkedImage::from_elf_executable_bytes(&bytes, 0xc0000).unwrap()
+        } else {
+            saltwater_sia::LinkedImage::from_image_bytes(&bytes, 0x800000, 0xc0000).unwrap()
+        };
+        (image, 0)
     } else {
         let mut objects = if paths.is_empty() {
             [
@@ -86,9 +93,26 @@ fn main() {
         }
         machine.cpu_mut().core_mut().set_pc_for_test(startup.entry);
         let mut completed = None;
+        let mut terminated_by_exit = false;
+        let exit_address = image.symbols.get("exit").copied();
+        let abort_address = image.symbols.get("abort").copied();
         let mut trace = std::collections::VecDeque::new();
         for count in 1..=30_000_000 {
             let pc = machine.cpu().core().pc();
+            if c_runtime_termination && Some(pc) == abort_address {
+                panic!("guest called abort(): {}", machine.register_dump());
+            }
+            if c_runtime_termination && Some(pc) == exit_address {
+                assert_eq!(
+                    machine.cpu().core().read_reg(1),
+                    0,
+                    "guest called exit with nonzero status: {}",
+                    machine.register_dump()
+                );
+                terminated_by_exit = true;
+                completed = Some(count);
+                break;
+            }
             assert!(
                 image.regions.iter().any(|region| region.executable
                     && pc >= region.address
@@ -129,12 +153,16 @@ fn main() {
                 break;
             }
         }
-        completed.expect("instruction budget exceeded")
+        let completed = completed.expect("instruction budget exceeded");
+        if !terminated_by_exit {
+            assert_eq!(machine.cpu().core().read_reg(13), stack, "stack not restored");
+        }
+        completed
     };
 
     if object_count == 0 {
         println!(
-            "PASS linked container: {} image bytes; {instructions} instructions; board={board}",
+            "PASS loaded SIA image: {} image bytes; {instructions} instructions; board={board}",
             image.bytes.len()
         );
     } else {

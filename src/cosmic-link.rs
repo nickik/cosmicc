@@ -23,14 +23,16 @@ fn main() {
     let mut entry = None;
     let mut max_bytes = None;
     let mut container = false;
+    let mut elf_executable = false;
     let mut gc_sections = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
-                println!("Usage: cosmic-link --base ADDRESS --entry SYMBOL --max-bytes SIZE -o IMAGE.bin BUNDLE.sia... [--container] [--gc-sections]\n\nResolves Abs4 relocations across COSMIC-SIA v4 bundles. Numbers are decimal\nor 0x-prefixed hexadecimal. --gc-sections retains the entry relocation closure. Default output is raw RAM bytes; --container adds versioned image metadata.\nLoader protection,\ndynamic imports and ELF inputs are unsupported. Ordinary ar archives of v4 SIA bundles are selected lazily after explicit objects, in archive command order; archive groups are unsupported.");
+                println!("Usage: cosmic-link --base ADDRESS --entry SYMBOL --max-bytes SIZE -o IMAGE OBJECT... [--container | --elf-executable] [--gc-sections]\n\nLinks COSMIC-SIA v4 bundles or ELF32 SIA ET_REL objects (machine 0xff53, REL/ABS32 0x80). Numbers are decimal or 0x-prefixed hexadecimal. --gc-sections retains the entry relocation closure. Default output is raw RAM bytes; --container adds local CSIAIMG metadata; --elf-executable emits static ELF32 ET_EXEC with PT_LOAD segments and zero-fill BSS. Loader protection and dynamic imports are unsupported. Ordinary ar archives may contain either object format and are selected lazily after explicit objects in archive command order; archive groups are unsupported.");
                 return;
             }
             "--container" => container = true,
+            "--elf-executable" => elf_executable = true,
             "--gc-sections" => gc_sections = true,
             "--base" => {
                 base = Some(number(
@@ -62,6 +64,9 @@ fn main() {
     if inputs.is_empty() {
         fatal("missing input bundles");
     }
+    if container && elf_executable {
+        fatal("--container and --elf-executable are mutually exclusive");
+    }
     let output = output.unwrap_or_else(|| fatal("missing -o output path"));
     if std::path::Path::new(&output).exists() {
         fatal("output exists; choose a new path");
@@ -78,7 +83,12 @@ fn main() {
                     .unwrap_or_else(|error| fatal(error)),
             ));
         } else {
-            artifacts.push(Artifact::from_bytes(&bytes).unwrap_or_else(|error| fatal(error)));
+            let artifact = if bytes.starts_with(b"\x7fELF") {
+                Artifact::from_elf_bytes(&bytes)
+            } else {
+                Artifact::from_bytes(&bytes)
+            };
+            artifacts.push(artifact.unwrap_or_else(|error| fatal(error)));
         }
     }
     for (path, archive) in archives {
@@ -108,7 +118,11 @@ fn main() {
         .create_new(true)
         .open(&output)
         .unwrap_or_else(|error| fatal(error));
-    let encoded = if container {
+    let encoded = if elf_executable {
+        image
+            .to_elf_executable_bytes()
+            .unwrap_or_else(|error| fatal(error))
+    } else if container {
         image.to_image_bytes().unwrap_or_else(|error| fatal(error))
     } else {
         image.bytes.clone()

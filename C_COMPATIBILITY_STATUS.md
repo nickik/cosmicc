@@ -72,7 +72,8 @@ no composed SoftwareCpuBoard/MainboardFPGA acceptance is claimed here.
 
 These 20 compiler boundaries remain part of the baseline. Case numbers are stable
 only together with the pinned suite commit. Wider hosted cases need target runtime
-and I/O first; GCC torture is the next larger standard-feature/options inventory.
+and I/O first; a broader GCC torture inventory is now recorded below as a
+regression corpus, not a standards certificate.
 
 Source-integrity rejection was exercised by changing 00001.c in a disposable copy:
 the runner rejected its hash before compilation. Log:
@@ -202,7 +203,7 @@ of the unchanged 147-case denominator; physical FPGA execution is not implied.
 
 ## Final C11 generic-selection native replay
 
-The frozen compiler now passes **211/220** unchanged upstream expected-output
+The frozen compiler passes **211/220** unchanged upstream expected-output
 cases at both O0/O2, with nine compile rejections and no accepted execution
 failures. GCC13 and Clang18 each pass 220. `_Generic` case 00219 passes all six
 compiler/optimization modes. The 147-case reviewed denominator remains 146
@@ -217,3 +218,32 @@ candidates execute successfully, totaling 11,315,804 guest instructions.
 The separate generic-language fixture passes production RTL in 595 instructions;
 post-change decimal and C99 math architectural fixtures pass. Pre-_Generic
 numerical production results retain their earlier compiler provenance.
+
+## Pinned GCC torture compatibility inventory (2026-10-05)
+
+The pinned GCC `gcc.c-torture/execute` profile selected 1,216 of 1,684 direct
+`.c` cases with standalone sources and a `main`. GCC 13.3 passed 1,154 selected
+references; Cosmic compiled, linked and passed 587 on LightingMachine. The
+remaining GCC-accepted cases comprise 528 compiler rejections, 11 linker
+failures and 28 execution failures. GCC itself rejected 29 and had 33 execution
+failures. The cases are useful concrete triage leads, but include GNU extensions
+and target-sensitive/undefined programs; these totals are not an ISO C score.
+
+The sources are pinned to `rust-lang/gcc` revision
+`6f155cc3f5a2dff33afe6cc3ed6c2e0e605ae6a3`; source hashes, compiler hashes,
+per-case status and durations are in the [raw JSON report](tools/compatibility/results/2026-10-05-gcc-torture-sia/summary.json)
+and [run notes](tools/compatibility/results/2026-10-05-gcc-torture-sia/README.md).
+Execution was on the LightingMachine simulator, not production RTL.
+
+## SIA ELF object and executable validation (2026-10-05)
+
+Cosmic C emits ELF32 little-endian SIA ET_REL objects with relocations and
+NOBITS BSS; `cosmic-link` accepts these directly and from standard `ar`
+archives. It emits static ELF32 ET_EXEC with PT_LOAD segments and zero-file-size
+BSS. `readelf` inspection, the checked executable loader, and 46-instruction
+LightingMachine execution passed. The external `rust-sia` linker also accepted
+the object/archive input. ELF and suite logs are retained in
+[`tools/sia/results/2026-10-05-sia-elf`](tools/sia/results/2026-10-05-sia-elf).
+This private SIA ELF machine is not supported by ordinary GNU/LLVM host linkers,
+and the simulator result does not establish a protected-OS or physical-board
+loader contract.

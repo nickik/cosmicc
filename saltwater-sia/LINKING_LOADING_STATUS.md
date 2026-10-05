@@ -59,12 +59,21 @@ separate string pools and cross-TU calls passes LightingMachine and the composed
 board: 153 instructions, zero return, restored stack. Logs:
 /tmp/cosmic-multi-object-native.log and /tmp/cosmic-multi-object-board.log.
 
-Default output remains flat RAM; opt-in CSIAIMG v1 is a checked local transport.
-Archives, weak/common rules, dynamic imports, ELF input/output, protected loading,
-read-only enforcement, capability resolution and process startup remain open.
-The separate rust-sia/scripts/sia_link.py consumes private ELF32 machine 0xff53,
-REL 0x80 objects/archives; it is not integrated into this bundle linker. System
-linker interoperability is not claimed.
+Default linked output remains flat RAM. `--container` emits checked local
+CSIAIMG transport; `--elf-executable` emits a static ELF32 SIA ET_EXEC with
+PT_LOAD segments, entry address, read/execute/write flags and zero-file-size
+BSS memory segments. The public ELF loader checks machine, segment range,
+non-overlap, entry, permissions and size budget before loading. This is not a
+protected OS loader ABI. Cosmic C's explicit
+`--emit-elf` path writes ELF32 little-endian ET_REL with private SIA machine
+0xff53 and `R_SIA32_ABS32` REL relocations (0x80). ELF objects and regular ar
+archives containing either ELF or COSMIC-SIA inputs are accepted by cosmic-link.
+The implementation preserves local/global/undefined symbols and REL addends,
+and represents zero-initialized writable objects as SHT_NOBITS. `readelf`, the
+in-tree linker and `rust-sia/scripts/sia_link.py` accept the emitted objects.
+Ordinary GNU host linkers do not support this private machine. Protected OS
+loading, memory protection enforcement, dynamic imports, weak/common rules,
+capability resolution and process startup remain open.
 
 ## Target-native zlib execution
 
@@ -107,9 +116,9 @@ still includes zero-filled bytes; compact BSS encoding is not implied. The
 reader remains compatible with v1. Existing COSMIC-SIA v4 objects are unchanged.
 
 `StaticArchive` reads ordinary Unix ar files with short, GNU long and BSD
-embedded names, skipping their symbol indexes. Members must be v4 SIA bundles;
-ELF and thin archives are rejected. `cosmic-link` first includes explicit
-objects, then selects archive members satisfying unresolved externals, in
+embedded names, skipping their symbol indexes. Members may be v4 SIA bundles or
+SIA ELF32 ET_REL objects; thin archives are rejected. `cosmic-link` first
+includes explicit objects, then selects archive members satisfying unresolved externals, in
 archive command order. It repeats within each archive to resolve backwards
 dependencies. Archive groups and weak/common coalescing remain unsupported.
 

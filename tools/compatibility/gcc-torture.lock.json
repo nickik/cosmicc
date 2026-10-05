@@ -1,0 +1,24 @@
+{
+  "source": "https://github.com/rust-lang/gcc.git",
+  "revision": "6f155cc3f5a2dff33afe6cc3ed6c2e0e605ae6a3",
+  "revision_date": "2026-04-05",
+  "suite_path": "gcc/testsuite/gcc.c-torture/execute",
+  "suite_role": "GCC regression tests for compile/link/execute behavior, not ISO C certification",
+  "profile": {
+    "exclude": [
+      "non-UTF-8 source",
+      "DejaGNU directive or target-specific options",
+      "#include dependency",
+      "no main token"
+    ],
+    "selected_limit": 1217,
+    "reference": "GCC 13.3.0, -std=gnu89 -O0",
+    "target": "Cosmic C SIA32 on LightingMachine",
+    "runtime": [
+      "runtime/softfloat/context.c",
+      "runtime/softfloat/binary32-add.c",
+      "runtime/softfloat/binary32-convert.c",
+      "runtime/softfloat/binary64.c"
+    ]
+  }
+}

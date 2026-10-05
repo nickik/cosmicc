@@ -87,8 +87,12 @@ impl StaticArchive {
             if name.is_empty() || name.contains('\0') {
                 return Err(error("invalid member name"));
             }
-            let object =
-                Artifact::from_bytes(body).map_err(|e| error(format!("member {name}: {e}")))?;
+            let object = if body.starts_with(b"\x7fELF") {
+                Artifact::from_elf_bytes(body)
+            } else {
+                Artifact::from_bytes(body)
+            }
+            .map_err(|e| error(format!("member {name}: {e}")))?;
             if object.local_symbols.is_none() {
                 return Err(error("archive members require v4 binding metadata"));
             }
@@ -224,6 +228,25 @@ mod tests {
                 assert!(StaticArchive::from_bytes(&bytes[..n], bytes.len()).is_err());
             }
         }
+    }
+
+    #[test]
+    fn lazy_extraction_accepts_relocatable_sia_elf_archive_members() {
+        let main = compile_default("extern int helper(void); int main(void){return helper();}")
+            .unwrap()
+            .to_elf_bytes()
+            .unwrap();
+        let helper = compile_default("int helper(void){return 0;}")
+            .unwrap()
+            .to_elf_bytes()
+            .unwrap();
+        let mut objects = vec![Artifact::from_elf_bytes(&main).unwrap()];
+        let archive = StaticArchive::from_bytes(&archive(&[("helper.o", helper)]), 4096).unwrap();
+        assert_eq!(
+            archive.extract_needed(&mut objects, "main").unwrap(),
+            ["helper.o"]
+        );
+        assert_eq!(objects.len(), 2);
     }
     #[test]
     fn accepts_bsd_embedded_names_and_skips_embedded_symbol_indexes() {

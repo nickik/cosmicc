@@ -14,11 +14,14 @@ cosmicc - C compiler with SIA32 and amd64 targets
 
 Usage: cosmicc [OPTIONS] [FILE ...]
 
-The default SIA32 target emits a COSMIC-SIA bundle. The amd64 Linux target
-emits ELF64 objects with -c, or links through the system C driver otherwise.
+The default SIA32 target emits a COSMIC-SIA bundle. `--emit-elf` writes a
+linkable ELF32 SIA relocatable object (machine 0xff53, REL/ABS32 0x80). The
+amd64 Linux target emits ELF64 objects with -c, or links through the system C
+driver otherwise.
 
 Options:
-  -c, --no-link        Compile only (amd64 ELF object; SIA bundle).
+  -c, --no-link        Compile only (amd64 ELF object; SIA bundle by default).
+      --emit-elf       Emit an ELF32 SIA object instead of a COSMIC-SIA bundle.
   -o, --output PATH    Output (default: a.sia, a.o, or a.out by target/mode).
   -I, --include DIR    Add a target header search directory.
   -D, --define DEF     Define NAME or NAME=VALUE.
@@ -42,6 +45,7 @@ fn main() {
     let mut link_args = Vec::new();
     let mut preprocess_only = false;
     let mut compile_only = false;
+    let mut emit_elf = false;
     let mut target = TARGET;
     let mut optimization = saltwater_amd64::Optimization::None;
     let mut optimization_requested = false;
@@ -65,6 +69,7 @@ fn main() {
                 };
             }
             "-c" | "--no-link" => compile_only = true,
+            "--emit-elf" => emit_elf = true,
             "-E" | "--preprocess" | "--preprocess-only" => preprocess_only = true,
             "-o" | "--output" => output = Some(PathBuf::from(next(&mut args, "output path"))),
             "-I" | "--include" => {
@@ -105,6 +110,9 @@ fn main() {
     if optimization_requested && target == TARGET {
         usage_error("optimization options currently require amd64");
     }
+    if emit_elf && target != TARGET {
+        usage_error("--emit-elf currently applies to the SIA32 target");
+    }
     if inputs.is_empty() {
         inputs.push(PathBuf::from("-"));
     }
@@ -118,9 +126,9 @@ fn main() {
         usage_error("standard input may occur only once");
     }
     let output = output.unwrap_or_else(|| {
-        PathBuf::from(if target == TARGET {
+        PathBuf::from(if target == TARGET && !emit_elf {
             "a.sia"
-        } else if compile_only {
+        } else if target == TARGET || compile_only {
             "a.o"
         } else {
             "a.out"
@@ -166,9 +174,12 @@ fn main() {
             .unwrap_or_else(|error| fatal(&error.to_string()));
         write_output(
             &output,
-            &artifact
-                .to_bytes()
-                .unwrap_or_else(|error| fatal(&error.to_string())),
+            &(if emit_elf {
+                artifact.to_elf_bytes()
+            } else {
+                artifact.to_bytes()
+            })
+            .unwrap_or_else(|error| fatal(&error.to_string())),
         );
     } else if compile_only {
         opt.filename = inputs[0].clone();

@@ -246,9 +246,18 @@ published dependency pins after explicit local-override validation.
 - [ ] Coalesce compatible tentative global definitions (00096/00136), rejecting
   conflicting strong definitions instead of producing duplicate bundle symbols.
 - [ ] Complete ordinary C aggregate-value ABI and remaining narrow conversions.
-- [ ] Integrate relocatable ELF emission into Cosmic C, with an explicit SIA
-  machine/relocation contract and linker/loader acceptance. Current C bundles
-  are not ELF; shared-backend object tests alone do not prove product support.
+- [x] Emit SIA ELF32 ET_REL objects (`--emit-elf`, machine 0xff53,
+  R_SIA32_ABS32 0x80), preserve local/global/undefined symbols and REL addends,
+  represent zero-initialized writable objects as SHT_NOBITS, and let cosmic-link
+  link ELF objects and regular ar archives. `readelf`, the in-tree linker and
+  `rust-sia/scripts/sia_link.py` accept the outputs; a two-object archive link
+  with BSS executes on LightingMachine. The default CSIAIMG transport remains
+  a separate format and does not establish a protected-loader ABI.
+- [x] Emit static ELF32 SIA ET_EXEC with PT_LOAD segments and explicit BSS
+  memory sizes; checked loader validates machine, entry, permissions, segment
+  bounds/overlap and byte budget. `cosmic-link --elf-executable` output runs
+  through the public loader on LightingMachine. Protected Cosmic OS loader
+  integration and OS-specific boot/startup remain separate.
 - [x] Add initial amd64 target selection, LP64 scalar ABI and ELF emission,
   with the reviewed native compile/execution suite recorded below.
 - [ ] Add aarch64 target/layout/ABI/object integration and acceptance.
@@ -316,9 +325,14 @@ TARGET_OUTPUT_STATUS.md. Remaining ABI/frontend gaps are explicitly recorded.
 - [x] Close the observed anonymous-member, compound-literal and wide-character
   constant frontend gaps; remaining wide strings, anonymous designators and
   target dynamic VLA allocation remain explicitly tracked in frontend status.
-- [ ] Add a pinned GCC torture compile/execute matrix and defined-behavior Csmith
-  differential corpus. Source review, optimization agreement and expected-output
-  assertions complement each other; GCC/Clang agreement is not an infallible oracle.
+- [x] Add a pinned, simulator-executed GCC torture compatibility inventory.
+  The first profile passes 587/1,216 on SIA; the 567 GCC-accepted differences
+  remain categorized for compiler/linker/runtime work. See the raw report and
+  interpretation in tools/compatibility.
+- [ ] Add a defined-behavior Csmith differential corpus with pinned generator
+  seeds and GCC/Clang O0/O2 checksums. Source review, optimization agreement and
+  expected-output assertions complement each other; compiler agreement is not
+  an infallible oracle.
 - [ ] Expand native runtime measurements to representative full applications and
   broader inputs; small hot-cache kernels do not establish universal performance.
 - [ ] Add backend-only timing with equivalent IR if isolating Cranelift vs LLVM;

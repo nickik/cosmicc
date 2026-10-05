@@ -10,6 +10,7 @@ mod varargs;
 pub use image::{ImageRegion, LinkedImage, StartupState};
 mod archive;
 pub use archive::StaticArchive;
+mod elf;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{TryFrom, TryInto};
@@ -142,6 +143,19 @@ impl CallPlan {
 }
 
 impl Artifact {
+    /// Serialize this SIA object using the ELF32 relocatable ABI shared with
+    /// the SIA linker. The private machine value is 0xff53 and REL entries
+    /// use R_SIA32_ABS32 (0x80).
+    pub fn to_elf_bytes(&self) -> Result<Vec<u8>, Error> {
+        elf::write(self)
+    }
+
+    /// Decode the SIA ELF32 subset emitted by [`Artifact::to_elf_bytes`].
+    /// Unsupported ELF features are rejected instead of silently discarded.
+    pub fn from_elf_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        elf::read(bytes)
+    }
+
     /// Serialize this artifact to the stable, little-endian `COSMIC-SIA` bundle format.
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         self.validate()?;
