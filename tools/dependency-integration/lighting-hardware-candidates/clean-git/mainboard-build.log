@@ -1,0 +1,179 @@
+checking package dependencies
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/mainboard-fpga/bluespec/LightingMemoryBusCompat.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/qli/bluespec/QLITypes.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/qic/bluespec/QICInterfaces.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/plio-rax-host/bluespec/PLIOWorkerHost.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/pti/bluespec/PTIEncoding.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/plio-tx/bluespec/PLIOTx.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/plio-rax-host/bluespec/PLIOHostDmaM3.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/memory-controller/bluespec/MemoryController.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/plio-rax-host/bluespec/PLIOHostManagerM2.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/plio-rax-host/bluespec/PLIOHostCore.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/vendor/rax-plio-qdx/hardware/mainboard-fpga/bluespec/MainboardFPGA.bsv
+compiling /tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv
+code generation for mkTbMainboardMultiSlotBridge starts
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_applyPrivilegedDmaBind" was treated as more urgent than
+  "board_startCpuMemoryTransaction". Conflicts:
+    "board_applyPrivilegedDmaBind" cannot fire before "board_startCpuMemoryTransaction":
+      calls to
+	board_host_caps.upd vs. board_host_caps.sub
+	board_host_caps.upd vs. board_host_caps.upd
+	board_host_capValidMask.write vs. board_host_capValidMask.read
+	board_host_capEverMask.write vs. board_host_capEverMask.read
+    "board_startCpuMemoryTransaction" cannot fire before "board_applyPrivilegedDmaBind":
+      calls to
+	board_host_caps.upd vs. board_host_caps.sub
+	board_host_caps.upd vs. board_host_caps.upd
+	board_host_capValidMask.write vs. board_host_capValidMask.read
+	board_host_capEverMask.write vs. board_host_capEverMask.read
+	board_plioSoftResetPending.write vs. board_plioSoftResetPending.read
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_applyPrivilegedDmaBind" was treated as more urgent than
+  "board_advancePlioResponse". Conflicts:
+    "board_applyPrivilegedDmaBind" cannot fire before "board_advancePlioResponse":
+      calls to
+	board_host_caps.upd vs. board_host_caps.sub
+	board_host_capValidMask.write vs. board_host_capValidMask.read
+    "board_advancePlioResponse" cannot fire before "board_applyPrivilegedDmaBind":
+      calls to
+	board_host_role.write vs. board_host_role.read
+	board_host_activeSlot.write vs. board_host_activeSlot.read
+	board_host_dmaChannel.write vs. board_host_dmaChannel.read
+	board_host_dmaCompletionPending.port0__write vs. board_host_dmaCompletionPending.port0__read
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_acceptBackendResponse" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_acceptBackendResponse" cannot fire before "board_advancePlioOrdinary":
+      calls to board_memory_state.write vs. board_memory_state.read
+    "board_advancePlioOrdinary" cannot fire before "board_acceptBackendResponse":
+      calls to
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_acceptBackendRequest" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_acceptBackendRequest" cannot fire before "board_advancePlioOrdinary":
+      calls to board_memory_state.write vs. board_memory_state.read
+    "board_advancePlioOrdinary" cannot fire before "board_acceptBackendRequest":
+      calls to
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_reserveCpuGrant" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_reserveCpuGrant" cannot fire before "board_advancePlioOrdinary":
+      calls to board_cpuGrantHeld.write vs. board_cpuGrantHeld.read
+    "board_advancePlioOrdinary" cannot fire before "board_reserveCpuGrant":
+      calls to
+	board_host_role.write vs. board_host_role.read
+	board_host_dmaState.write vs. board_host_dmaState.read
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_abandonCpuGrant" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_abandonCpuGrant" cannot fire before "board_advancePlioOrdinary":
+      calls to
+	board_preferCpu.write vs. board_preferCpu.read
+	board_cpuGrantHeld.write vs. board_cpuGrantHeld.read
+    "board_advancePlioOrdinary" cannot fire before "board_abandonCpuGrant":
+      calls to
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_retireCpuResponse" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_retireCpuResponse" cannot fire before "board_advancePlioOrdinary":
+      calls to
+	board_cpuResponsePending.write vs. board_cpuResponsePending.read
+    "board_advancePlioOrdinary" cannot fire before "board_retireCpuResponse":
+      calls to
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_startCpuMemoryTransaction" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_startCpuMemoryTransaction" cannot fire before "board_advancePlioOrdinary":
+      calls to
+	board_host_notificationPendingBits.write vs. board_host_notificationPendingBits.read
+	board_host_caps.upd vs. board_host_caps.sub
+	board_host_capValidMask.write vs. board_host_capValidMask.read
+	board_host_dmaRevokePending.write vs. board_host_dmaRevokePending.read
+	board_memory_state.write vs. board_memory_state.read
+	board_memoryOwner.write vs. board_memoryOwner.read
+	board_cpuGrantHeld.write vs. board_cpuGrantHeld.read
+	board_cpuResponsePending.write vs. board_cpuResponsePending.read
+	board_cpuMmioWorkerPending.write vs. board_cpuMmioWorkerPending.read
+	board_cpuMmioWorkerIssued.write vs. board_cpuMmioWorkerIssued.read
+	board_cpuMmioWorkerRequest.write vs. board_cpuMmioWorkerRequest.read
+	board_plioSoftResetPending.write vs. board_plioSoftResetPending.read
+    "board_advancePlioOrdinary" cannot fire before "board_startCpuMemoryTransaction":
+      calls to
+	board_host_role.write vs. board_host_role.read
+	board_host_activeSlot.write vs. board_host_activeSlot.read
+	board_host_notificationPendingBits.write vs. board_host_notificationPendingBits.read
+	board_host_notificationPayloadFile.upd vs. board_host_notificationPayloadFile.sub
+	board_host_dmaState.write vs. board_host_dmaState.read
+	board_host_dmaChannel.write vs. board_host_dmaChannel.read
+	board_host_dmaCompletionPending.port0__write vs. board_host_dmaCompletionPending.port0__read
+	board_slotPresentBits.write vs. board_slotPresentBits.read
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_captureCpuMemoryResponse" was treated as more urgent than
+  "board_advancePlioOrdinary". Conflicts:
+    "board_captureCpuMemoryResponse" cannot fire before "board_advancePlioOrdinary":
+      calls to
+	board_memory_state.write vs. board_memory_state.read
+	board_memoryOwner.write vs. board_memoryOwner.read
+	board_preferCpu.write vs. board_preferCpu.read
+	board_cpuResponsePending.write vs. board_cpuResponsePending.read
+    "board_advancePlioOrdinary" cannot fire before "board_captureCpuMemoryResponse":
+      calls to
+	board_cycleQ.deq vs. board_cycleQ.notEmpty
+	board_cycleQ.deq vs. board_cycleQ.first
+	board_cycleQ.deq vs. board_cycleQ.i_notEmpty
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0010)
+  Rule "board_advancePlioRequest" was treated as more urgent than
+  "board_captureCpuMmioWorkerCompletion". Conflicts:
+    "board_advancePlioRequest" cannot fire before "board_captureCpuMmioWorkerCompletion":
+      calls to
+	board_cpuMmioWorkerIssued.write vs. board_cpuMmioWorkerIssued.read
+    "board_captureCpuMmioWorkerCompletion" cannot fire before "board_advancePlioRequest":
+      calls to
+	board_cpuResponsePending.write vs. board_cpuResponsePending.read
+	board_cpuMmioWorkerPending.write vs. board_cpuMmioWorkerPending.read
+	board_cpuMmioWorkerIssued.write vs. board_cpuMmioWorkerIssued.read
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0117)
+  Rule `board_captureCpuMemoryResponse' shadows the effects of
+  `board_captureCpuMmioWorkerCompletion' when they execute in the same clock
+  cycle. Affected method calls:
+    board_cpuResponseFault.write,
+    board_cpuResponseReadDataValid.write,
+    board_cpuResponseReadData.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Warning: "/tmp/lighting-simulation-clean-git-20261005/hardware/m6/TbMainboardMultiSlotBridge.bsv", line 37, column 8: (G0117)
+  Rule `board_captureCpuMemoryResponse' shadows the effects of
+  `board_retireCpuResponse' when they execute in the same clock cycle.
+  Affected method calls:
+    board_cpuResponsePending.write,
+    board_cpuResponseFault.write,
+    board_cpuResponseReadDataValid.write,
+    board_cpuResponseReadData.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Elaborated module file created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/mkTbMainboardMultiSlotBridge.ba
+All packages are up to date.
+Bluesim object created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/mkTbMainboardMultiSlotBridge.{h,o}
+Bluesim object created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/model_mkTbMainboardMultiSlotBridge.{h,o}
+Simulation shared library created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/bridge.so
+Simulation executable created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/bridge

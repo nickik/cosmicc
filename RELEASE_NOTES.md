@@ -17,9 +17,11 @@ reviewed SIA cases. Numerical fixtures pass production CPU/mainboard RTL;
 physical FPGA and full Cosmic boot qualification remain separate.
 
 This release updates exact Git pins between nickik projects only. Rust and
-third-party package versions are not intentionally upgraded. Dependency
-candidates must preserve System V variadic ABI support and hardware CPU
-execution before replacing the previous tested pins.
+third-party package versions and checksums are unchanged. The sibling Lighting
+override is removed; execution uses published exact Git pins for Lighting, SIA
+and RealCard, with a pinned LightingChips source for fresh bridge builds.
+Clean Git-only compiler and production RTL gates pass. See
+INTERPROJECT_DEPENDENCIES.md for exact pins and acceptance evidence.
 
 Open: AMD64 x87 long double, the recorded GNU-extension cases, SIA protected
 loader/startup/archive integration and broader hosted library/real-software

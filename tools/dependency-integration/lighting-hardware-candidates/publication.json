@@ -1,0 +1,19 @@
+{
+  "status": "merged after clean hardware acceptance, expected-head SHA guarded",
+  "LightingChips": {
+    "pr": "https://github.com/nickik/LightingChips/pull/9",
+    "testedHead": "6d4a03e1ae31a008685cad68072ad1a652c62a85",
+    "merge": "9599b87e4c2b3412a31c2e5b4d44cad2fcf42817"
+  },
+  "LightingSimulation": {
+    "pr": "https://github.com/nickik/LightingSimulation/pull/38",
+    "testedHead": "7a0c16aff324f678a72a05df163c208f8031914f",
+    "merge": "60722e6f755a2707b4d86455d3fcab6a28278018"
+  },
+  "RealCard": {
+    "pr": "https://github.com/nickik/rax-plio-qdx/pull/43",
+    "testedHead": "b09117c762a36f6d25256fc3d0de3c212ada2d61",
+    "merge": "df199a1b80dd55596ef48f9c6941962b8dbc79a8"
+  },
+  "dependencyPins": "retain exact tested candidate SHAs; merge commits do not change tested source"
+}

@@ -1,0 +1,18 @@
+{
+  "validated_source_commit": "758bb57f0564a908ab6fc84d53159b488de5b0f5",
+  "tracked_source_status": "",
+  "checks": {
+    "supported_gate": "passed",
+    "native_gate": "passed: 15 VLA cases, 48 comparisons, bounded/fault diagnostics and VLA-scope rejection",
+    "hardware_clean_gates": "6 RTL + 6 configured hardware (no skips) + 10 reference passed"
+  },
+  "bridges_sha256": {
+    "/tmp/cosmicc-013-clean-git-release/tools/l21-execution/target/git/LightingChips-6d4a03e1ae31a008685cad68072ad1a652c62a85/build/hardware-cpu-integration/cpu/bridge": "3a36d84f3b3dda2e3fe191b6762adeac470754c58382115678eb7761614618f1",
+    "/tmp/cosmicc-013-clean-git-release/tools/l21-execution/target/git/LightingChips-6d4a03e1ae31a008685cad68072ad1a652c62a85/build/hardware-cpu-integration/cpu/bridge.so": "af6a457d7c3df4aff8eea5b776532286e206bf966161e8f632a92490f1b3ddd8",
+    "/tmp/cosmicc-013-clean-git-release/tools/l21-execution/target/git/LightingChips-6d4a03e1ae31a008685cad68072ad1a652c62a85/build/hardware-cpu-integration/mainboard/bridge": "5a3adf81dd311cabbe3e77282419f82a45606452bb707326e3d6c3ab3ed45ac5",
+    "/tmp/cosmicc-013-clean-git-release/tools/l21-execution/target/git/LightingChips-6d4a03e1ae31a008685cad68072ad1a652c62a85/build/hardware-cpu-integration/mainboard/bridge.so": "79c45973ce4cb18ac10466d949e943fdb06ed212738203d1e1353c306172069c"
+  },
+  "compiler_sha256": "49f2aa37a5a027037a132a3d0234c64f88ff0e9f658ba7e03bc0c406afb0af50",
+  "boundary": "Bluesim production CPU/MMU/module and MainboardFPGA; no physical FPGA claim",
+  "dependencies": "published exact Git revisions; no sibling override; registry package versions/checksums unchanged"
+}

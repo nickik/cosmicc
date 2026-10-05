@@ -1,0 +1,14 @@
+   Compiling lighting-simulation v0.1.0 (/tmp/lighting-simulation-clean-git-20261005)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/hardware_cpu_board.rs (/home/nick/alltech/DigitalEquipment/LightingSimulation/target/debug/deps/hardware_cpu_board-68772cbb76823c60)
+
+running 6 tests
+test normal_validation_is_side_effect_free_and_bounded ... ok
+test production_cpu_executes_updating_and_grouped_transfers_through_real_mainboard ... ok
+test translated_execution_matches_rust_through_real_cpu_and_mainboard ... ok
+test compiled_forge_workload_returns_through_production_cpu_and_mainboard ... ok
+test real_mainboard_preserves_access_class_and_rejects_mmio_before_target_access ... ok
+test real_mainboard_validation_rejects_mmio_and_bad_shapes_without_target_access ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+

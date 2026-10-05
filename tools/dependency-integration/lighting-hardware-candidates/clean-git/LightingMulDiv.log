@@ -1,0 +1,16 @@
+checking package dependencies
+compiling /tmp/lighting-chips-clean-git-20261005/rtl/cpu/LightingMulDiv.bsv
+compiling /tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingMulDiv.bsv
+code generation for mkTbLightingMulDiv starts
+Warning: "/tmp/lighting-chips-clean-git-20261005/tests/bsv/TbLightingMulDiv.bsv", line 4, column 8: (G0117)
+  Rule `dut_iterate' shadows the effects of `check' when they execute in the
+  same clock cycle. Affected method calls:
+    dut_valid.write
+  To silence this warning, use the `-no-warn-action-shadowing' flag.
+Elaborated module file created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingMulDiv/mkTbLightingMulDiv.ba
+All packages are up to date.
+Bluesim object created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingMulDiv/mkTbLightingMulDiv.{h,o}
+Bluesim object created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingMulDiv/model_mkTbLightingMulDiv.{h,o}
+Simulation shared library created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingMulDiv/runner.so
+Simulation executable created: /tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/LightingMulDiv/runner
+PASS iterative muldiv 315 vectors and held responses

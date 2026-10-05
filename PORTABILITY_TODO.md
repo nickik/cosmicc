@@ -524,3 +524,14 @@ See tools/amd64/results/2026-10-05-native-generic-220.tsv.
 The final post-_Generic SIA reviewed replay remains 146/147, with all 146 emitted
 candidates passing and 11,315,804 guest instructions. Evidence: tools/compatibility/
 results/2026-10-05-sia-generic-final/execution-summary.json.
+
+## Cosmic C 0.13 Git-only release integration
+
+- [x] Publish and merge the tested backend, RealCard, LightingSimulation and
+  LightingChips changes with exact tested-head checks.
+- [x] Remove the sibling override and retain published exact Git dependency pins.
+- [x] Validate clean GitHub checkouts, fresh CPU/mainboard RTL bridges, configured
+  hardware tests without skips, and the compiler native execution gate.
+- [ ] Physical FPGA and full Cosmic boot qualification remain outstanding.
+
+See INTERPROJECT_DEPENDENCIES.md and the clean release result directory.

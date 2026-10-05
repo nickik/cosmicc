@@ -1,0 +1,40 @@
+{
+  "provenance": "fresh GitHub remote clones, no local source override; fresh RTL build outputs",
+  "commits": {
+    "LightingChips": "6d4a03e1ae31a008685cad68072ad1a652c62a85",
+    "LightingSimulation": "7a0c16aff324f678a72a05df163c208f8031914f",
+    "RealCard": "b09117c762a36f6d25256fc3d0de3c212ada2d61"
+  },
+  "tests": {
+    "directRTL": 6,
+    "configuredHardware": 6,
+    "reference": 10,
+    "allPassed": true,
+    "skipped": 0
+  },
+  "pr": {
+    "LightingChips": "https://github.com/nickik/LightingChips/pull/9",
+    "LightingSimulation": "https://github.com/nickik/LightingSimulation/pull/38",
+    "RealCard": "https://github.com/nickik/rax-plio-qdx/pull/43"
+  },
+  "evidenceSHA256": {
+    "mainboard-build.log": "fb58f07a5f637a4b01d4ce365a2cd1f8b3098769ca0ae6acfd4fa76553ba7031",
+    "LightingCpuMulDivInterrupt.log": "fe0cd18f6e95264239fd598137720a246b205730f5ba8d813dd16fa342dedd95",
+    "lighting-clean-git-directed-rtl.log": "63b0a88dea07db9b0e12b30f9c0e753a9cc06aba8b27f53bef69d4311352b28f",
+    "LightingComputeBoardMulti.log": "482a0a153d66244b51c7ef40fb6d2e1d9b6a3f4e2bbb3d8cb0a66b9ddd99c2f8",
+    "LightingMulDiv.log": "67a1bcbdfb6864537a59516e6722d0350ae66359cf2204fc02e02c0aec9b0d4f",
+    "LightingCpu.log": "5a06592a78ca21fd7845a6583a6bd713c926fb9f2f3cbcff927e201369a0f7f0",
+    "lighting-clean-git-hardware-tests.log": "016258fba4389b8976707d597c8e3a3dce067781278274c61a130099c97c51ba",
+    "LightingComputeBoardTranslation.log": "eae50bf5f6ac969b2b6a18c773cca5dd983816d3205c4c75f6cc0a708a17fd6c",
+    "lighting-clean-git-bridges.log": "a42e22844a320590e303cd53fc0f3058d51596010f25deca27611bb42d0a08ee",
+    "ModuleBusAdapterStaleGrant.log": "acda1ca8f989fde91902748717716b0c6152415b5629a4846f6050f17ded36e5",
+    "cpu-build.log": "061fa39aae0bebbc8ea5fc280fe7dd12c9cf9671f6663ce3553cd9540ce3013d",
+    "lighting-clean-git-reference-tests.log": "3e156323a7c607557f450d9778b1259c625fd1c58189d374f6b4faec5c47b053"
+  },
+  "artifactsSHA256": {
+    "/tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/cpu/bridge": "86e9c6eac05cb5d9d6b410004e353a54f0ebb34d91479a2fb40be915fa155ed7",
+    "/tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/cpu/bridge.so": "484b9ddca7a70bf1ca821677c63844fad4371c15750c96272639b7b8f0c61d1b",
+    "/tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/bridge": "ead2159ca6101979f568bcbdfd1895f3c6653551adc431e0f653845f87ea5fbd",
+    "/tmp/lighting-chips-clean-git-20261005/build/hardware-cpu-integration/mainboard/bridge.so": "e980e1f872411d00622b1d25c907da9ca2d33c539726b5e68331fd332d4ab098"
+  }
+}
