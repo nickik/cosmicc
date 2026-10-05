@@ -1,0 +1,82 @@
+{
+  "compiler_sha256": "53e8d148f14fd2aaf072eff3c6613a7255ae1ac2e14d95d707788b567379a8cf",
+  "backend_revision": "5c3dc85e79c6502e83e3210a9a29b5aabbc0d441",
+  "baseline_compiler_sha256": "ff5de80019013a5315083698fc3a09290f787ffcb3be7145abbcd3a385ec5f0e",
+  "outcome_differences": [],
+  "summary": {
+    "total_cases": 220,
+    "all_cases": {
+      "cosmic": {
+        "expected-pass": 211,
+        "compile-failure": 9
+      },
+      "cosmic-O2": {
+        "expected-pass": 211,
+        "compile-failure": 9
+      },
+      "gcc": {
+        "expected-pass": 220
+      },
+      "clang": {
+        "expected-pass": 220
+      },
+      "gcc-O2": {
+        "expected-pass": 220
+      },
+      "clang-O2": {
+        "expected-pass": 220
+      }
+    },
+    "assessments": {
+      "all-match-expected": 209,
+      "cosmic-gap-reference-consensus": 8,
+      "reviewed-undefined-or-constraint-boundary": 3
+    },
+    "profiles": {
+      "reviewed-freestanding": {
+        "cosmic": {
+          "expected-pass": 146,
+          "compile-failure": 1
+        },
+        "cosmic-O2": {
+          "expected-pass": 146,
+          "compile-failure": 1
+        },
+        "gcc": {
+          "expected-pass": 147
+        },
+        "clang": {
+          "expected-pass": 147
+        },
+        "gcc-O2": {
+          "expected-pass": 147
+        },
+        "clang-O2": {
+          "expected-pass": 147
+        }
+      },
+      "outside-reviewed-profile": {
+        "cosmic": {
+          "expected-pass": 65,
+          "compile-failure": 8
+        },
+        "cosmic-O2": {
+          "expected-pass": 65,
+          "compile-failure": 8
+        },
+        "gcc": {
+          "expected-pass": 73
+        },
+        "clang": {
+          "expected-pass": 73
+        },
+        "gcc-O2": {
+          "expected-pass": 73
+        },
+        "clang-O2": {
+          "expected-pass": 73
+        }
+      }
+    }
+  }
+}

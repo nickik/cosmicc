@@ -3,10 +3,12 @@
 import argparse, hashlib, json, pathlib, shutil, subprocess
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--compiler',type=pathlib.Path,required=True)
+p.add_argument('--reuse-snapshot', action='store_true', help='use the supplied immutable compiler file without copying')
 p.add_argument('--output',type=pathlib.Path,required=True)
 a=p.parse_args(); out=a.output.resolve(); out.mkdir(parents=True,exist_ok=False)
 root=pathlib.Path(__file__).resolve().parent
-compiler=out/'compiler-snapshot'; shutil.copy2(a.compiler.resolve(),compiler)
+compiler=a.compiler.resolve() if a.reuse_snapshot else out/'compiler-snapshot'
+if not a.reuse_snapshot: shutil.copy2(a.compiler.resolve(),compiler)
 report={'compiler_sha256':hashlib.sha256(compiler.read_bytes()).hexdigest(),'sources':{n:hashlib.sha256((root/n).read_bytes()).hexdigest() for n in ['aggregate-return-cosmic.c','aggregate-return-host.c']},'commands':[],'status':'running','scope':'Hidden destination plus RAX return, direct/indirect, GP pressure, variadic and host callbacks'}
 def run(cmd,name):
     r=subprocess.run([str(x) for x in cmd],capture_output=True,text=True,timeout=30)

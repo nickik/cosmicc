@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running `tools/l21-execution/target/debug/multi-object-native /tmp/cosmicc-013-sia-cross-tu/abi-cross-tu-caller.sia /tmp/cosmicc-013-sia-cross-tu/abi-cross-tu-callee.sia /tmp/cosmicc-013-sia-cross-tu/context.sia /tmp/cosmicc-013-sia-cross-tu/binary32-add.sia /tmp/cosmicc-013-sia-cross-tu/binary32-convert.sia /tmp/cosmicc-013-sia-cross-tu/binary64.sia`
+PASS multi-object: 6 objects; 21587 instructions; board=false

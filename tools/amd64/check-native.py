@@ -10,6 +10,7 @@ import subprocess
 
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--compiler', type=Path, required=True)
+p.add_argument('--reuse-snapshot', action='store_true', help='use the supplied immutable compiler file without copying')
 p.add_argument('--output', type=Path, required=True)
 p.add_argument('--cc', default='cc')
 p.add_argument('--optimization', choices=['O0', 'O2', 'Os'], default='O0')
@@ -17,8 +18,8 @@ a = p.parse_args()
 root = Path(__file__).resolve().parent
 out = a.output.resolve()
 out.mkdir(parents=True, exist_ok=False)
-compiler = out / 'compiler-snapshot'
-shutil.copy2(a.compiler.resolve(), compiler)
+compiler = a.compiler.resolve() if a.reuse_snapshot else out / 'compiler-snapshot'
+if not a.reuse_snapshot: shutil.copy2(a.compiler.resolve(), compiler)
 report = {'compiler_sha256': hashlib.sha256(compiler.read_bytes()).hexdigest(), 'optimization': a.optimization,
           'target': 'x86_64-unknown-linux-gnu', 'commands': [], 'evidence': 'native host execution; not Lighting'}
 

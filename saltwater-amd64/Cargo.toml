@@ -5,9 +5,9 @@ edition = "2021"
 [lib]
 path = "lib.rs"
 [dependencies]
-cranelift-codegen = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d", features = ["std", "x86"] }
-cranelift-frontend = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
-cranelift-module = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
-cranelift-object = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
-target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "951ced55b67cc3b2cc76a04b1105a43e8aaf688d" }
+cranelift-codegen = { git = "https://github.com/nickik/crainlift", rev = "5c3dc85e79c6502e83e3210a9a29b5aabbc0d441", features = ["std", "x86"] }
+cranelift-frontend = { git = "https://github.com/nickik/crainlift", rev = "5c3dc85e79c6502e83e3210a9a29b5aabbc0d441" }
+cranelift-module = { git = "https://github.com/nickik/crainlift", rev = "5c3dc85e79c6502e83e3210a9a29b5aabbc0d441" }
+cranelift-object = { git = "https://github.com/nickik/crainlift", rev = "5c3dc85e79c6502e83e3210a9a29b5aabbc0d441" }
+target-lexicon = { git = "https://github.com/nickik/crainlift", rev = "5c3dc85e79c6502e83e3210a9a29b5aabbc0d441" }
 saltwater-parser = { path = "../saltwater-parser" }
