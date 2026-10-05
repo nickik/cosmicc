@@ -3,6 +3,29 @@
 set -eu
 COSMICC_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 LIGHTING_ROOT=$(cargo metadata --manifest-path "$COSMICC_ROOT/tools/l21-execution/Cargo.toml" --locked --format-version 1 | python3 -c 'import json,sys,pathlib; data=json.load(sys.stdin); print(next(str(pathlib.Path(p["manifest_path"]).parent) for p in data["packages"] if p["name"] == "lighting-simulation"))')
+if [ -z "${LIGHTING_CPU_BOARD_BRIDGE:-}" ] || [ -z "${LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE:-}" ]; then
+    BSC=$(command -v "${BSC:-bsc}")
+    PATH="$(dirname -- "$BSC"):$PATH"
+    BLUESPECDIR="$(dirname -- "$(dirname -- "$BSC")")/lib"
+    export PATH BLUESPECDIR
+fi
+if [ -z "${LIGHTING_CPU_BOARD_BRIDGE:-}" ]; then
+    CHIPS_REV=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["lighting_chips"]["rev"])' "$COSMICC_ROOT/tools/l21-execution/hardware-dependencies.json")
+    CHIPS_URL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["lighting_chips"]["git"])' "$COSMICC_ROOT/tools/l21-execution/hardware-dependencies.json")
+    CHIPS_ROOT="$COSMICC_ROOT/tools/l21-execution/target/git/LightingChips-$CHIPS_REV"
+    if [ ! -d "$CHIPS_ROOT/.git" ]; then
+        mkdir -p "$(dirname -- "$CHIPS_ROOT")"
+        git clone --no-checkout "$CHIPS_URL" "$CHIPS_ROOT"
+        git -C "$CHIPS_ROOT" checkout --detach "$CHIPS_REV"
+    fi
+    [ "$(git -C "$CHIPS_ROOT" rev-parse HEAD)" = "$CHIPS_REV" ] || { echo "LightingChips checkout does not match the exact hardware pin" >&2; exit 1; }
+    [ -z "$(git -C "$CHIPS_ROOT" status --porcelain --untracked-files=no)" ] || { echo "LightingChips pinned source checkout is modified" >&2; exit 1; }
+    python3 "$CHIPS_ROOT/tools/build-cpu-integration-bridges.py" --bsc "$BSC" --lighting "$LIGHTING_ROOT"
+    export LIGHTING_CPU_BOARD_BRIDGE="$CHIPS_ROOT/build/hardware-cpu-integration/cpu/bridge"
+    if [ -z "${LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE:-}" ]; then
+        export LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE="$CHIPS_ROOT/build/hardware-cpu-integration/mainboard/bridge"
+    fi
+fi
 if [ -z "${LIGHTING_MAINBOARD_M6_MULTISLOT_BRIDGE:-}" ]; then
     BSC=$(command -v "${BSC:-bsc}")
     PATH="$(dirname -- "$BSC"):$PATH"

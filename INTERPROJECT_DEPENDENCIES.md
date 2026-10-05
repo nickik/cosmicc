@@ -7,7 +7,7 @@ Rust remains unchanged.
 | Dependency | Previous revision | Candidate revision | Status |
 | --- | --- | --- | --- |
 | nickik/crainlift | `951ced55b67cc3b2cc76a04b1105a43e8aaf688d` | `5c3dc85e79c6502e83e3210a9a29b5aabbc0d441` | Published feature branch; compiler gate and AMD64/SIA architectural validation passed |
-| nickik/LightingSimulation | `93a565c687f61d4e758af81bbde59ce5c4770996` | `7a0c16aff324f678a72a05df163c208f8031914f` | Tested local feature candidate; publication pending |
+| nickik/LightingSimulation | `93a565c687f61d4e758af81bbde59ce5c4770996` | `7a0c16aff324f678a72a05df163c208f8031914f` | Published tested feature candidate; clean integration validation in progress |
 
 The backend candidate starts from the newer published fork main revision
 `b952544cad78316aa691661e0831087e40b92d3b`. It retains newer SIA narrow
@@ -35,7 +35,10 @@ SIA Git pin, and independently built CPU/mainboard bridges. Prebuilt bridges
 are not sufficient evidence of a reproducible Git dependency closure.
 
 Local compiler/runtime integration is committed separately from candidate Git
-pin changes. Shared remote main/master publication remains pending review.
+pin changes. User explicitly approved publication, passing PR merges and the 0.13.0 tag.
+Backend PR #13 is merged as `8971d949cb470b12777ac973150ee1da38c7efb4`.
+Hardware candidates are published as RealCard PR #43, Simulation PR #38 and
+Chips PR #9. Their merges await the clean Git-only acceptance run.
 
 Matching LightingChips candidate:
 `6d4a03e1ae31a008685cad68072ad1a652c62a85`, based on
@@ -49,8 +52,9 @@ also passes the freshly built candidate bridge pair. Simulation updates its
 own SIA pin to `ae9d5771a788d374c7be86e77da3724252b5fd06`; that revision
 changes only repository metadata and Cargo.lock, with no code change.
 Publish the RealCard candidate before the Simulation Gitlink can be fetched.
-The root sibling override is retained until the exact hardware Git commits
-are published and a clean Git-only dependency run succeeds.
+The root sibling override is removed. Cargo now resolves the published exact
+Simulation revision and its RealCard Gitlink. Clean Git-only validation is
+in progress before the release tag is published.
 The tested RealCard candidate is
 `b09117c762a36f6d25256fc3d0de3c212ada2d61`, based on
 `c0b02d978b16aaf4dccc9310d5f1971a696436a9`. Its fresh Bluesim gates pass
@@ -60,8 +64,8 @@ MMIO accesses. The bounded responder tests do not replace concrete backend
 integration tests. Review patch and receipt are saved in
 `tools/dependency-integration/`.
 
-Automatic approval review rejected publication of this exact candidate to
-`nickik/rax-plio-qdx:cosmic-lighting-validation`, requiring explicit approval
-for that code and destination. No alternate publication path was used.
+Automatic review initially rejected the RealCard feature push. After explicit
+user approval and GitHub metadata verified the destination is the user-owned
+public repository, the exact same feature push was approved and succeeded.
 
 Physical FPGA execution is unverified.

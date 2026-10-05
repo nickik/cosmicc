@@ -299,6 +299,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 [[package]]
 name = "lighting-simulation"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-host-model",
  "plio-logical-model",
@@ -343,6 +344,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "plio-host-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
 ]
@@ -350,10 +352,12 @@ dependencies = [
 [[package]]
 name = "plio-logical-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 
 [[package]]
 name = "plio-qic-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "qli-model",
@@ -362,6 +366,7 @@ dependencies = [
 [[package]]
 name = "plio-testbench"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "plio-qic-model",
@@ -373,6 +378,7 @@ dependencies = [
 [[package]]
 name = "plio-tx-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "pti-model",
 ]
@@ -395,10 +401,12 @@ dependencies = [
 [[package]]
 name = "pti-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 
 [[package]]
 name = "qdx-a-card-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "plio-qic-model",
@@ -413,6 +421,7 @@ dependencies = [
 [[package]]
 name = "qdx-a-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "qli-model",
@@ -421,6 +430,7 @@ dependencies = [
 [[package]]
 name = "qdx-b-card-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "plio-qic-model",
@@ -435,6 +445,7 @@ dependencies = [
 [[package]]
 name = "qdx-b-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "qdx-a-model",
@@ -444,6 +455,7 @@ dependencies = [
 [[package]]
 name = "qli-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
 ]
@@ -451,6 +463,7 @@ dependencies = [
 [[package]]
 name = "qli16-model"
 version = "0.1.0"
+source = "git+https://github.com/nickik/LightingSimulation?rev=7a0c16aff324f678a72a05df163c208f8031914f#7a0c16aff324f678a72a05df163c208f8031914f"
 dependencies = [
  "plio-logical-model",
  "qli-model",
@@ -607,7 +620,7 @@ checksum = "6391ed817abe3d67cc23cbf74d613fa5a2a924aa18c29dcd9b024c6771695b40"
 [[package]]
 name = "sia32-tools"
 version = "0.1.0"
-source = "git+https://github.com/nickik/SIA?rev=c800c693ffdd0328e5209184a0a5a1ce534cfe01#c800c693ffdd0328e5209184a0a5a1ce534cfe01"
+source = "git+https://github.com/nickik/SIA?rev=ae9d5771a788d374c7be86e77da3724252b5fd06#ae9d5771a788d374c7be86e77da3724252b5fd06"
 
 [[package]]
 name = "smallvec"

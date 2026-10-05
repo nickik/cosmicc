@@ -1,0 +1,10 @@
+{
+  "lighting_chips": {
+    "git": "https://github.com/nickik/LightingChips",
+    "rev": "6d4a03e1ae31a008685cad68072ad1a652c62a85"
+  },
+  "realcard": {
+    "git": "https://github.com/nickik/rax-plio-qdx",
+    "rev": "b09117c762a36f6d25256fc3d0de3c212ada2d61"
+  }
+}
