@@ -1,7 +1,7 @@
 /* Minimal ext2 overwrite: 1 KiB blocks, 128-byte inodes, one block group,
  * one preallocated 32-byte /note.txt. No allocator, libc, or 64-bit arithmetic.
  * The guest discovers disk addresses from ext2 metadata, not host arguments.
- * QDX-B namespace 1 uses the established Pico queue and PLIO DMA protocol.
+ * QDX-B namespace 2 uses the established Pico queue and PLIO DMA protocol.
  */
 #define U32(a) (*(volatile unsigned *)(a))
 #define U16(a) (*(volatile unsigned short *)(a))
@@ -11,7 +11,7 @@
 
 unsigned minimal_write(void) {
     unsigned tail=0U, table=0U, inode=0U, block=0U, off, budget, rec, name;
-    unsigned state=0U, op=0x10U, lba=2U;
+    unsigned state=0U, op=0x10U, lba=1U;
     unsigned *sq;
     U32(HOST+0x100U)=0x80000000U;
     U32(HOST+0x1000U)=0U;
@@ -22,7 +22,7 @@ unsigned minimal_write(void) {
     U32(WORKER+0x1008U)=1U;
     while (1) {
         sq=(unsigned *)(0x5000U+(tail&3U)*32U);
-        sq[0]=0x10000U|op; sq[1]=tail+1U; sq[2]=lba;
+        sq[0]=0x20000U|op; sq[1]=tail+1U; sq[2]=lba;
         sq[3]=op==0x12U?0U:1U; sq[4]=op==0x12U?0U:0x7000U;
         sq[5]=0U; sq[6]=0U; sq[7]=0U;
         U32(0x600cU+(tail&3U)*16U)=0xffffffffU;
@@ -40,12 +40,12 @@ unsigned minimal_write(void) {
             if (U16(0x7038U)!=0xef53U || U32(0x7018U)!=0U ||
                 U16(0x7058U)!=128U || U32(0x7060U)!=0U ||
                 U32(0x7004U)>U32(0x7020U)) return 20U;
-            lba=4U; break;
+            lba=2U; break;
         case 1:
-            table=U32(0x7008U); lba=table*2U; break;
+            table=U32(0x7008U); lba=table; break;
         case 2:
             if ((U16(0x7080U)&0xf000U)!=0x4000U) return 21U;
-            lba=U32(0x70a8U)*2U; break;
+            lba=U32(0x70a8U); break;
         case 3:
             /* Fixture directory entries start in its first 512-byte sector. */
             off=0U;
@@ -58,14 +58,14 @@ unsigned minimal_write(void) {
                 off=off+rec;
             }
             if (inode==0U) return 23U;
-            lba=table*2U+((inode-1U)>>2); break;
+            lba=table+((inode-1U)>>3); break;
         case 4:
-            off=((inode-1U)&3U)*128U;
+            off=((inode-1U)&7U)*128U;
             if ((U16(0x7000U+off)&0xf000U)!=0x8000U ||
                 U32(0x7004U+off)!=32U || U32(0x701cU+off)!=2U) return 24U;
             block=U32(0x7028U+off);
             if (block==0U) return 25U;
-            lba=block*2U; break;
+            lba=block; break;
         case 5:
             for (off=0U; off<32U; off=off+1U) if (U8(0x7000U+off)!=65U) return 26U;
             /* Exactly 32 bytes: "Hello from Lighting via QDX-B!!\n". */
@@ -75,7 +75,7 @@ unsigned minimal_write(void) {
             U32(0x7018U)=0x2d584451U; U32(0x701cU)=0x0a212142U;
             op=0x11U; break;
         case 6: op=0x12U; lba=0U; break;
-        case 7: op=0x10U; lba=block*2U; break;
+        case 7: op=0x10U; lba=block; break;
         case 8:
             if (U32(0x7000U)!=0x6c6c6548U || U32(0x701cU)!=0x0a212142U) return 27U;
             return 0U;

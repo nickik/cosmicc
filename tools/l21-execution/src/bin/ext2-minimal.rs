@@ -9,8 +9,8 @@ fn main() {
         .nth(1)
         .expect("usage: ext2-minimal DISPOSABLE.img");
     let card = RaxPhysicalQdxBDevice::with_backends(
-        Box::new(RaxQdxBFileDisk::open(&image, 512, false).expect("open disposable ext2 image")),
-        Box::new(RaxQdxBRamDisk::new(64, 1024).unwrap()),
+        Box::new(RaxQdxBRamDisk::new(64, 512).unwrap()),
+        Box::new(RaxQdxBFileDisk::open(&image, 1024, false).expect("open disposable ext2 image")),
     )
     .unwrap();
     let artifact = saltwater_sia::compile_default(include_str!("../../../ext2/minimal-write.c"))

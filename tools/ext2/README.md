@@ -8,22 +8,23 @@ Run from this workspace:
 sh scripts/check-ext2-minimal.sh
 ```
 
-The script creates a fresh disposable 256 KiB ext2 image with 1 KiB blocks,
+The script creates a fresh disposable 64 KiB ext2 image with 1 KiB blocks,
 128-byte inodes, no optional filesystem features, and a preallocated 32-byte
 `/note.txt`. cosmicc compiles `minimal-write.c` into SIA32 instructions. The
 LightingMachine guest configures PLIO DMA and QDX-B queues, reads the ext2
 superblock/group descriptor/root directory/inode to locate the file, verifies
 its original bytes, overwrites its existing allocation with
 `Hello from Lighting via QDX-B!!\n`, flushes, and reads back. FileDisk is attached
-as QDX-B namespace 1; guest transfers use the physical PLIO-TX/QIC/QLI-16/QDX-A/
-QDX-B card path. Host filesystem tools only prepare the fixture and independently
-verify the final image. `cmp` checks all 32 bytes and `e2fsck -fn` checks structure.
+as QDX-B namespace 2, whose fixed geometry is 64 1-KiB blocks; guest transfers
+use the physical PLIO-TX/QIC/QLI-16/QDX-A/QDX-B card path. Host filesystem tools
+only prepare the fixture and independently verify the final image. `cmp` checks
+all 32 bytes and `e2fsck -fn` checks structure.
 
-Acceptance: 14,163 guest instructions; independent bytes and e2fsck passed on
-`/tmp/ext2-minimal-final-verified/disk.img`. This is the regular LightingMachine
-simulator path. The existing standalone Bluespec board-runner bridge was not
-used for acceptance. No 64-bit arithmetic, e2fsprogs linking, libc, allocator,
-file creation, size change, or block allocation is required by this example.
+Acceptance on 2026-10-05: about 19,000 guest instructions; independent bytes and
+e2fsck passed on `/tmp/ext2-minimal-20261005-ns2d/disk.img`. This is the regular
+LightingMachine simulator path. The standalone Bluespec board-runner bridge was
+not used. No e2fsprogs linking, libc, allocator, file creation, size change, or
+block allocation is required by this example.
 
 The guest is deliberately limited to this fixture layout and the existing file.
 It polls the last DMA-written CQ word and drains the local QLI completion tail
@@ -31,13 +32,10 @@ before acknowledging CQ entries; active-transfer worker polling is not yet
 accepted by this simulator composition. This is a minimal integration example,
 not a general ext2 driver.
 
-Coordinated changes are validated locally. `tools/l21-execution/Cargo.toml`
-currently patches the compiler backend and LightingSimulation to sibling
-checkouts. Replace these development patches with exact published Git revisions
-when the default-branch publication is approved. QDX-B capacity/flush fixes are
-committed in LightingSimulation's vendor submodule; the long-branch fix is
-committed in crainlift3. The test creates a new image and refuses to overwrite
-an existing output image.
+`tools/l21-execution/Cargo.toml` pins LightingSimulation to an exact Git
+revision, and the workspace has no sibling path overrides for it or the compiler
+backend. The test creates a new image and refuses to overwrite an existing
+output image.
 
 ## Current evidence
 
@@ -78,9 +76,10 @@ issues, independent of the ABI preflight.
 - Target-owned errno and ext2 error returns; bounded exit/abort diagnostics.
   `atexit` registration must be implemented or the unused module excluded from
   the linked dependency closure; declarations alone are not implementations.
-- An ext2 `io_manager` backed by guest-visible QDX-B commands. Convert ext2
-  filesystem blocks into 512-byte sector transfers with checked multiplication
-  and namespace bounds. Handle partial-block reads/writes and propagate device
+- For general e2fsprogs integration, an ext2 `io_manager` backed by
+  guest-visible QDX-B commands. Convert ext2 filesystem blocks into device
+  blocks with checked multiplication and namespace bounds. Handle partial-block
+  reads/writes and propagate device
   completion errors. Flush must wait for actual backend persistence.
 - Resolve function/global/data relocations in a guest image before execution.
   `Artifact::prepare_integer_call` currently rejects relocated functions;
@@ -89,15 +88,16 @@ issues, independent of the ABI preflight.
 ## Existing storage implementation
 
 LightingSimulation already supports `RaxPhysicalQdxBDevice::with_backends`.
-The vendored QDX-B `FileDisk::open(path, 512, read_only)` implements BlockBackend
-using little-endian words, bounds checks, and sync_data on flush. Reuse it with
-an explicitly supplied disposable image. `LightingBoardMachine::attach_card`
-provides the card attachment boundary. The native board-call helper currently
+The vendored QDX-B `FileDisk::open(path, block_size, read_only)` implements
+BlockBackend using little-endian words, bounds checks, and sync_data on flush.
+The minimal test attaches a disposable 1-KiB-block image as namespace 2.
+`LightingBoardMachine::attach_card` provides the card attachment boundary. The
+native board-call helper currently
 attaches only the CPU; it must accept/configure the storage card before reset.
 Use the established slot/profile protocol and registers, rather than inventing
 an ext2-specific MMIO ABI or intercepting guest block requests on the host.
 
-## Acceptance still to implement
+## Broader ext2 integration still to implement
 
 - [x] Correct frontend long long width/rank/signedness and LL/ULL literals;
   pass the native 8/4/4 width preflight.
@@ -108,13 +108,17 @@ an ext2-specific MMIO ABI or intercepting guest block requests on the host.
   I64 operations, and cross-function/register-spill ABI execution coverage.
 - [ ] Compile the ext2 read/write dependency closure and resolve all externs.
 - [ ] Native allocator/memory/error runtime and relocatable image loader.
-- [ ] Attach file-backed QDX-B storage to the native board runner.
-- [ ] Create a disposable ext2 fixture with a known file using mke2fs/debugfs.
-- [ ] Native open/read verifies its complete expected bytes.
-- [ ] Native create/write/close persists a second file and flushes the device.
-- [ ] Independent debugfs byte comparison and e2fsck verify the resulting image.
+- [x] Attach file-backed QDX-B storage to regular LightingMachine simulator.
+- [x] Create a disposable ext2 fixture with a known file using mke2fs/debugfs.
+- [x] Guest metadata lookup, overwrite existing allocation, flush and read back.
+- [x] Independent debugfs byte comparison and e2fsck verify the resulting image.
+- [ ] Attach file-backed QDX-B storage to the standalone native board runner.
+- [ ] Compile and link the general ext2 read/write dependency closure.
+- [ ] Native open/read/create/write/close through an ext2 `io_manager`, including
+  allocation and error paths.
 
-No native filesystem operation or successful file integration is claimed yet.
+The minimal simulator example above is verified. General ext2 library/runtime
+integration and board-runner acceptance are still open.
 
 ## Native prerequisite gate
 
@@ -137,4 +141,5 @@ fails on `imul.i64` in ext2fs_block_alloc_stats2; alloc_tables.c fails on
 member-address lowering. fileio.c and namei.c reject valid assignments to
 pointers to const data. openfs.c needs strtoul/strchr declarations and the same
 const-pointer fix. These diagnostics are compilation boundaries, not filesystem
-execution results. No disk image has been opened or written by native ext2 yet.
+execution results. The minimal guest separately opens and modifies the
+disposable image described above.

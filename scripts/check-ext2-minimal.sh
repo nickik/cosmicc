@@ -17,8 +17,8 @@ ext2 = {
 features = none
 }
 CONFIG
-truncate -s 262144 "$IMAGE"
-MKE2FS_CONFIG="$OUTPUT/mke2fs.conf" mke2fs -q -F -t ext2 -b 1024 -I 128 -N 128 -m 0 -O none "$IMAGE"
+truncate -s 65536 "$IMAGE"
+MKE2FS_CONFIG="$OUTPUT/mke2fs.conf" mke2fs -q -F -t ext2 -b 1024 -I 128 -N 16 -m 0 -O none "$IMAGE"
 python3 - "$OUTPUT" <<'PY'
 from pathlib import Path
 import sys

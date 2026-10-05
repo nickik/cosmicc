@@ -173,16 +173,16 @@ See `tools/ext2/README.md` and `scripts/check-ext2-native.sh`.
 
 - [x] Compile a 32-bit-only SIA32 guest that locates `/note.txt` via ext2 metadata
   and overwrites its existing 32-byte allocation through physical QDX-B.
-- [x] Attach FileDisk as namespace 1; derive capacity from the actual backend;
-  propagate FLUSH persistence errors to guest completion.
+- [x] Attach FileDisk in QDX-B namespace 2 (64 × 1-KiB blocks); propagate
+  FLUSH persistence errors to guest completion.
 - [x] Correct simulator-host DMA beat timing and cast-pointer load/store lowering.
 - [x] Terminate long backward branch veneers instead of endlessly appending hops.
-- [x] Fresh 256 KiB image: native read/overwrite/flush/readback; independent full
-  byte comparison and clean e2fsck. Run `sh scripts/check-ext2-minimal.sh`.
-- [ ] Publish coordinated default-branch revisions and replace the example's
-  temporary sibling development patches (automatic approval review rejected
-  the QDX-B main push; explicit approval is pending).
+- [x] Fresh 64 KiB image on QDX-B namespace 2: native read/overwrite/flush/readback;
+  independent full byte comparison and clean e2fsck. Run `sh scripts/check-ext2-minimal.sh`.
+- [x] Pin the published LightingSimulation revision and compiler backend; no
+  sibling path overrides are required.
 
-This acceptance uses regular LightingMachine with the physical QDX-B card
-model. It does not claim Bluespec board-runner acceptance or general ext2
-create/allocation support. See tools/ext2/README.md for the exact boundary.
+Verified 2026-10-05 in about 19,000 guest instructions. This acceptance uses regular
+LightingMachine with the physical QDX-B card model. It does not claim Bluespec
+board-runner acceptance or general ext2 create/allocation support. See
+tools/ext2/README.md for the exact boundary.
