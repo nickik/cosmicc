@@ -20,8 +20,10 @@ reviewed cases executed without failures (12,269,799 instructions); cross-TU
 aggregate, indirect-call, I64/double variadic and va_copy regression.
 
 Compiler SHA-256: `53e8d148f14fd2aaf072eff3c6613a7255ae1ac2e14d95d707788b567379a8cf`.
-These new SIA runs use LightingMachine; renewed production RTL validation and
-removal of the sibling Lighting override remain pending.
+The full SIA inventory uses LightingMachine. Generic selection and cross-TU
+ABI also pass current production CPU/mainboard Bluesim bridges. Rebuilding
+from published hardware Git candidates and removing the sibling Lighting
+override remain pending; these RTL checks currently use local sources.
 
 The latest published LightingSimulation revision alone uses SoftwareCpuBoard.
 Replacing the previous local hardware execution integration with that revision

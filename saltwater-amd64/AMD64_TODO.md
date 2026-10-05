@@ -23,3 +23,5 @@ Accepted native ABI details and durable scripts: STDARG_STATUS.md and REGISTER_A
 Current native crate gate: 19 tests pass. General ABI O2 passed current compiler SHA256 ff5de80019013a5315083698fc3a09290f787ffcb3be7145abbcd3a385ec5f0e; the unused-VLA and bidirectional stdarg/aggregate gates remain recorded against the prior f569 compiler. The final all-case differential snapshot passed 211/220 cases at O0 and O2. Raw records are retained in tools/amd64/results/2026-10-05-native-generic-220.json.gz and TSV.
 
 Remaining rejected cases: 00095,00144,00170,00204,00209,00210,00213,00214,00216. Reference GCC/Clang agreement is differential evidence, not proof that a constraint-violating or undefined case is valid ISO C. Case 144 reads an uninitialized value as well as discarding const qualification.
+
+Own-project Git upgrade replay: Cosmic 0.13 with backend 5c3dc85 retains 211/220 at both modes with zero outcome differences and all native ABI gates passing. See [upgrade evidence](GIT_UPGRADE_STATUS.md). Third-party packages and Rust are unchanged.

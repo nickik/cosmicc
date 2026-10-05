@@ -1,0 +1,5 @@
+   Compiling lighting-simulation v0.1.0 (/home/nick/alltech/DigitalEquipment/LightingSimulation)
+   Compiling cosmicc-l21-execution v0.1.0 (/home/nick/alltech/DigitalEquipment/cosmicc/tools/l21-execution)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.19s
+     Running `tools/l21-execution/target/debug/multi-object-native /tmp/cosmicc-013-sia-cross-tu-production/abi-cross-tu-caller.sia /tmp/cosmicc-013-sia-cross-tu-production/abi-cross-tu-callee.sia /tmp/cosmicc-013-sia-cross-tu-production/context.sia /tmp/cosmicc-013-sia-cross-tu-production/binary32-add.sia /tmp/cosmicc-013-sia-cross-tu-production/binary32-convert.sia /tmp/cosmicc-013-sia-cross-tu-production/binary64.sia --board`
+PASS multi-object: 6 objects; 21587 instructions; board=true

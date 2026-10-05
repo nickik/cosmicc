@@ -50,3 +50,5 @@ Separate final SIA evidence: the reviewed 147-case profile compiled 137 cases;
 all 137 passed LightingMachine architectural execution, totaling 11,311,259 guest
 instructions. This is architectural simulation, not native AMD64 or composed
 board evidence. The separate SIA reports are maintained by the SIA workflow.
+
+Own-project Git upgrade replay: Cosmic 0.13 with backend 5c3dc85 retains 211/220 at both modes with zero outcome differences and all native ABI gates passing. See [upgrade evidence](../../saltwater-amd64/GIT_UPGRADE_STATUS.md). Third-party packages and Rust are unchanged.
